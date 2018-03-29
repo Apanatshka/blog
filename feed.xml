@@ -4,10 +4,10 @@
     <title>Whatever</title>
     <description>A web log. Mostly about computer science-y stuff. 
 </description>
-    <link>http://www.jeffsmits.net/blog//</link>
-    <atom:link href="http://www.jeffsmits.net/blog//feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Sun, 25 Mar 2018 14:43:21 +0200</pubDate>
-    <lastBuildDate>Sun, 25 Mar 2018 14:43:21 +0200</lastBuildDate>
+    <link>http://blog.jeffsmits.net/</link>
+    <atom:link href="http://blog.jeffsmits.net/feed.xml" rel="self" type="application/rss+xml" />
+    <pubDate>Thu, 29 Mar 2018 21:57:29 +0200</pubDate>
+    <lastBuildDate>Thu, 29 Mar 2018 21:57:29 +0200</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -76,7 +76,7 @@ strategies
 
 &lt;h1 id=&quot;where-to-start&quot;&gt;Where to start?&lt;/h1&gt;
 
-&lt;p&gt;Stratego has a “core language”, which the compiler translates everything to first. A core language is an intermediate representation that is a subset of the surface language. In a way, you could say the rest is just syntactic sugar. What a core language has over any arbitrary intermediate representation is that you can write it ourselves and feed it to the same compiler, since it’s just a subset of the surface language. So if you’re not exactly sure of the semantics of a piece of code, you can write a little test, use the original compiler, and see what it’s supposed to do. I did this quite a lot, and in &lt;a href=&quot;https://gitlab.com/Apanatshka/strs&quot;&gt;the repository&lt;/a&gt; you can find a directory &lt;code class=&quot;highlighter-rouge&quot;&gt;example-inputs&lt;/code&gt; in which I saved some of those tests.&lt;/p&gt;
+&lt;p&gt;Stratego has a “core language”, which the compiler translates everything to first. A core language is an intermediate representation that is a subset of the surface language. In a way, you could say the rest is just syntactic sugar. What a core language has over any arbitrary intermediate representation is that you can write it yourself and feed it to the same compiler, since it’s just a subset of the surface language. So if you’re not exactly sure of the semantics of a piece of code, you can write a little test, use the original compiler, and see what it’s supposed to do. I did this quite a lot, and in &lt;a href=&quot;https://gitlab.com/Apanatshka/strs&quot;&gt;the repository&lt;/a&gt; you can find a directory &lt;code class=&quot;highlighter-rouge&quot;&gt;example-inputs&lt;/code&gt; in which I saved some of those tests.&lt;/p&gt;
 
 &lt;h2 id=&quot;stratego-core&quot;&gt;Stratego Core&lt;/h2&gt;
 
@@ -149,7 +149,7 @@ strategies
 &lt;p&gt;So in the end the way that I modelled this is like so: The context has a stack of scopes, which binds names to strategy closures, and names to term values. A strategy closure has the &lt;code class=&quot;highlighter-rouge&quot;&gt;Strategy&lt;/code&gt; inside, but also an offset of the stack of scopes at time of its creation. When it executes, it splits of the newer part of the stack of scopes.&lt;/p&gt;
 
 &lt;blockquote&gt;
-  &lt;p&gt;&lt;strong&gt;Side note:&lt;/strong&gt; in a normal function programming language, you can return closures, which means the stack can grow smaller than the offset of the closure object, which means offsets don’t usually work. But in Stratego you can only pass strategies to other strategies, not return them. So here it works.&lt;/p&gt;
+  &lt;p&gt;&lt;strong&gt;Side note:&lt;/strong&gt; in a normal functional programming language, you can return closures, which means the stack can grow smaller than the offset of the closure object, which means offsets don’t usually work. But in Stratego you can only pass strategies to other strategies, not return them. So here it works.&lt;/p&gt;
 &lt;/blockquote&gt;
 
 &lt;p&gt;A guarded choice pushes a special overlay scope on the stack of scopes. This overlay doesn’t have predefined fresh variables, but instead catches any writes to underlying unbound variables instead of letting them go through. If the guarded choice condition fails, we pop the overlay scope, removing all bindings that should be undone. If the guarded choice condition succeeds, we “apply” the overlay, creating the actual bindings, then discarding the overlay.&lt;/p&gt;
@@ -373,8 +373,8 @@ result = true # this is the larger benchmark. The old total time was 1:01.81
 &lt;/div&gt;
 </description>
         <pubDate>Sun, 06 Aug 2017 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2017/08/06/a-stratego-interpreter-in-rust/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2017/08/06/a-stratego-interpreter-in-rust/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</guid>
         
         <category>stratego</category>
         
@@ -495,8 +495,8 @@ result = true # this is the larger benchmark. The old total time was 1:01.81
 &lt;/div&gt;
 </description>
         <pubDate>Sun, 07 May 2017 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2017/05/07/first-published-crate-aterm/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2017/05/07/first-published-crate-aterm/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</guid>
         
         <category>annotated term</category>
         
@@ -669,8 +669,8 @@ a units of measure implementation, based on quantities and normalisation actuall
 &lt;/div&gt;
 </description>
         <pubDate>Wed, 15 Feb 2017 00:00:00 +0100</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2017/02/15/physical-quantity-as-type/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2017/02/15/physical-quantity-as-type/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</guid>
         
         <category>units</category>
         
@@ -718,8 +718,8 @@ other than the original intended use-case of networks&lt;sup id=&quot;fnref:net-
 &lt;/div&gt;
 </description>
         <pubDate>Sat, 11 Feb 2017 00:00:00 +0100</pubDate>
-        <link>http://www.jeffsmits.net/blog//meta/2017/02/11/new-domain-name/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//meta/2017/02/11/new-domain-name/</guid>
+        <link>http://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</guid>
         
         <category>RSS</category>
         
@@ -1881,8 +1881,8 @@ q4 -&amp;gt; q5 [label=&amp;quot;0&amp;quot;];
 &lt;/div&gt;
 </description>
         <pubDate>Sat, 12 Nov 2016 00:00:00 +0100</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/11/12/implementing-finite-automata-part-2/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/11/12/implementing-finite-automata-part-2/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</guid>
         
         <category>theory</category>
         
@@ -2241,8 +2241,8 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 &lt;/div&gt;
 </description>
         <pubDate>Mon, 03 Oct 2016 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/10/03/implementing-finite-automata-part-1/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/10/03/implementing-finite-automata-part-1/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</guid>
         
         <category>automata</category>
         
@@ -2375,8 +2375,8 @@ $ cargo bench | cargo benchcmp --variance dense:: dense_boxed:: -
 &lt;p&gt;This post uses only small examples of &lt;code class=&quot;highlighter-rouge&quot;&gt;cargo benchcmp&lt;/code&gt; output. I want to write a longer post on the implementation of finite automata with benchmark comparisons, along with performance traces and optimisations. But that may take some more time because I’m still figuring out how to use &lt;code class=&quot;highlighter-rouge&quot;&gt;perf&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;callgrind&lt;/code&gt; etc., and my implementation is still squarely beaten by BurntSushi’s &lt;a href=&quot;https://github.com/burntsushi/aho-corasick&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;aho-corasick&lt;/code&gt;&lt;/a&gt; crate. But, you know, whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Sun, 04 Sep 2016 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/09/04/porting-cargo-benchcmp/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/09/04/porting-cargo-benchcmp/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</guid>
         
         <category>rust</category>
         
@@ -2538,8 +2538,8 @@ sed &lt;span class=&quot;nt&quot;&gt;-i&lt;/span&gt; &lt;span class=&quot;s1&quo
 &lt;p&gt;Sorry, but I don’t develop on windows. I think you can probably reuse most of these instructions if you can get a proper terminal emulator. Or you could switch to a linux or whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Sat, 23 Jul 2016 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/07/23/pretty-terminal/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/07/23/pretty-terminal/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</guid>
         
         <category>terminal</category>
         
@@ -3845,8 +3845,8 @@ Z1 -- Plus -- Z2 -- Star -- O1;
 &lt;/div&gt;
 </description>
         <pubDate>Sun, 15 May 2016 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/05/15/pushy-automata/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/05/15/pushy-automata/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/05/15/pushy-automata/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/05/15/pushy-automata/</guid>
         
         <category>theory</category>
         
@@ -4449,8 +4449,8 @@ A regular expression that matches exactly &lt;code class=&quot;highlighter-rouge
 &lt;p&gt;I had another week to read other blog posts, including an excellent one about &lt;a href=&quot;http://blog.burntsushi.net/transducers/&quot;&gt;automata in rust for string indexes&lt;/a&gt; and now I feel bad for not giving you the Rust code for every algorithm I explained. So, I might just postpone the blog post about context-free languages and dive into regex first. I doubt I’ll do better than the existing &lt;a href=&quot;https://crates.io/crates/regex&quot;&gt;regex crate&lt;/a&gt;, but, you know, whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Sun, 10 Apr 2016 00:00:00 +0200</pubDate>
-        <link>http://www.jeffsmits.net/blog//compsci/2016/04/10/finite-automata/</link>
-        <guid isPermaLink="true">http://www.jeffsmits.net/blog//compsci/2016/04/10/finite-automata/</guid>
+        <link>http://blog.jeffsmits.net/compsci/2016/04/10/finite-automata/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/04/10/finite-automata/</guid>
         
         <category>theory</category>
         
