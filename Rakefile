@@ -36,7 +36,7 @@ namespace :git do
   task :deploy => [:check_branch, :check_git] do
     puts "Building Jekyll site"
     system "bundle install --binstubs=_bin"
-    system "_bin/jekyll build --incremental --destination #{DESTINATION_FOLDER}"
+    system "_bin/jekyll build --destination #{DESTINATION_FOLDER}"
 
     system "git checkout #{DEPLOY_BRANCH}"
 
