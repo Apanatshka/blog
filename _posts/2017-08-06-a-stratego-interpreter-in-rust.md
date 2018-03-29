@@ -43,7 +43,7 @@ The signatures of constructors defined here give the feeling of the AST for a sm
 
 # Where to start?
 
-Stratego has a "core language", which the compiler translates everything to first. A core language is an intermediate representation that is a subset of the surface language. In a way, you could say the rest is just syntactic sugar. What a core language has over any arbitrary intermediate representation is that you can write it ourselves and feed it to the same compiler, since it's just a subset of the surface language. So if you're not exactly sure of the semantics of a piece of code, you can write a little test, use the original compiler, and see what it's supposed to do. I did this quite a lot, and in [the repository](https://gitlab.com/Apanatshka/strs) you can find a directory `example-inputs` in which I saved some of those tests. 
+Stratego has a "core language", which the compiler translates everything to first. A core language is an intermediate representation that is a subset of the surface language. In a way, you could say the rest is just syntactic sugar. What a core language has over any arbitrary intermediate representation is that you can write it yourself and feed it to the same compiler, since it's just a subset of the surface language. So if you're not exactly sure of the semantics of a piece of code, you can write a little test, use the original compiler, and see what it's supposed to do. I did this quite a lot, and in [the repository](https://gitlab.com/Apanatshka/strs) you can find a directory `example-inputs` in which I saved some of those tests. 
 
 ## Stratego Core
 
@@ -116,7 +116,7 @@ Something to notice about this mutable context is that it doesn't usually work w
 
 So in the end the way that I modelled this is like so: The context has a stack of scopes, which binds names to strategy closures, and names to term values. A strategy closure has the `Strategy` inside, but also an offset of the stack of scopes at time of its creation. When it executes, it splits of the newer part of the stack of scopes.  
 
-> **Side note:** in a normal function programming language, you can return closures, which means the stack can grow smaller than the offset of the closure object, which means offsets don't usually work. But in Stratego you can only pass strategies to other strategies, not return them. So here it works.  
+> **Side note:** in a normal functional programming language, you can return closures, which means the stack can grow smaller than the offset of the closure object, which means offsets don't usually work. But in Stratego you can only pass strategies to other strategies, not return them. So here it works.  
 
 A guarded choice pushes a special overlay scope on the stack of scopes. This overlay doesn't have predefined fresh variables, but instead catches any writes to underlying unbound variables instead of letting them go through. If the guarded choice condition fails, we pop the overlay scope, removing all bindings that should be undone. If the guarded choice condition succeeds, we "apply" the overlay, creating the actual bindings, then discarding the overlay. 
 
