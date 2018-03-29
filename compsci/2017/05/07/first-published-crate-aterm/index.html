@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2017/05/07/first-published-crate-aterm/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -80,9 +80,8 @@
 
 <p>The Annotated Term format<sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup> originates from the <a href="https://www.cwi.nl/about">Centre for Mathematics and Computer Science (CWI)</a> in Amsterdam. It describes trees and annotations on those trees. The big features are maximal sharing (subtrees that are the same are only allocated once), a compressed binary format, and a C implementation that does garbage collection. The format dates back to around 2000.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>Add(Int("1"){Value(1)}, Int("2"){Value(2)}){Value(3)}
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Add(Int("1"){Value(1)}, Int("2"){Value(2)}){Value(3)}
+</code></pre></div></div>
 
 <p>(^A small tree describing addition of two numbers, with annotations on each “application” with the value)</p>
 
@@ -101,7 +100,7 @@
 <p>Ok, so here’s what you get from the <code class="highlighter-rouge">aterm</code> crate:</p>
 
 <ol>
-  <li>A parser that takes in an text format ATerm string.
+  <li>A parser that takes in a text format ATerm string.
     <ul>
       <li>I have <a href="https://gitlab.com/Apanatshka/aterm/issues/10">a</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/4">number</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/5">of</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/6">issues</a> open: basically zero-copy parsing and the other formats.</li>
     </ul>
@@ -122,38 +121,35 @@
 
 <ol>
   <li>Ideally I would have use higher-kinded types for this ATerm implementation. But Rust doesn’t have that. So I found a way where the <code class="highlighter-rouge">ATerm</code> trait defines an associated type <code class="highlighter-rouge">Rec: Borrow&lt;Self&gt;</code>. That still allows people to implement the <code class="highlighter-rouge">ATerm</code> trait while adding in more of their own things. The basic <code class="highlighter-rouge">rc::ATerm</code> implementation looks like this:
-    <div class="language-rust highlighter-rouge"><pre class="highlight"><code>  <span class="k">struct</span> <span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="nb">Rc</span><span class="o">&lt;</span><span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">)</span>
-</code></pre>
-    </div>
+    <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">struct</span> <span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="nb">Rc</span><span class="o">&lt;</span><span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">)</span>
+</code></pre></div>    </div>
     <p>Where <code class="highlighter-rouge">ATermInner</code> is a basic implementation that contains a term and a list of annotations.</p>
   </li>
   <li>Using your own library is the only way to make sure it’s actually usable! I had this implementation that compiled a while back, then I started using the factory for the parser, and nothing actually worked out. Then I started to think things over, removed a bunch type parameters, generally simplified things. I’m now a bit unhappy with the allocation characteristics, but the crate isn’t 1.0 yet, I can still tinker with it a little although I don’t want to introduce big breaking changes anymore.</li>
   <li>I had an arena allocation implementation at some point. It was terribly broken, so I had to cut it out. I plan on <a href="https://gitlab.com/Apanatshka/aterm/issues/9">revisiting that idea soon</a> by using someone else’s arena allocation crate.</li>
   <li>While simplifying and trying to get my library usable, I found out a thing I hadn’t really grasped before in the Rust type system: <em>Associated types are unique per trait implementation</em>. So for my <code class="highlighter-rouge">ATerm</code> trait I made the <code class="highlighter-rouge">Rec</code> and <code class="highlighter-rouge">Blob</code> types associative, and that made it much more usable. You see, associated types are easier on Rust’s type inference: Given a fully concrete type there is definitely only one trait implementation possible. And it’s not as limiting for the implementor as you might think. You can still use type parameters in your <code class="highlighter-rouge">impl</code>s:
-    <div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="n">ATerm</span> <span class="k">for</span> <span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span>
+    <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="n">ATerm</span> <span class="k">for</span> <span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span>
     <span class="n">where</span> <span class="n">Rec</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span>
 <span class="p">{</span>
     <span class="k">type</span> <span class="n">Rec</span> <span class="o">=</span> <span class="n">Rec</span><span class="p">;</span>
     <span class="k">type</span> <span class="n">Blob</span> <span class="o">=</span> <span class="n">B</span><span class="p">;</span>
 
-    <span class="cp">#[inline]</span>
+    <span class="nd">#[inline]</span>
     <span class="k">fn</span> <span class="nf">into_inner</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="k">self</span>
     <span class="p">}</span>
-    <span class="cp">#[inline]</span>
+    <span class="nd">#[inline]</span>
     <span class="k">fn</span> <span class="nf">as_inner</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="nn">Self</span><span class="p">::</span><span class="n">Rec</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Blob</span><span class="o">&gt;</span> <span class="p">{</span>
         <span class="k">self</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
     <p>The only thing I dislike about associated types is how large your where clauses get when you want to add extra constraints. While working on my Stratego interpreter, at some point I had where clauses like this:</p>
-    <div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="n">where</span> <span class="n">F</span><span class="p">:</span> <span class="err">'</span><span class="n">a</span> <span class="o">+</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">ATermRef</span> <span class="o">=</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
-      <span class="n">A</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">Clone</span><span class="p">,</span>
-      <span class="o">&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="p">:</span> <span class="nb">Eq</span><span class="p">,</span>
-      <span class="n">B</span><span class="p">:</span> <span class="err">'</span><span class="n">a</span>
-</code></pre>
-    </div>
+    <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">where</span> <span class="n">F</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">+</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">ATermRef</span> <span class="o">=</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
+      <span class="n">A</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">Clone</span><span class="p">,</span>
+      <span class="o">&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="p">:</span> <span class="nb">Eq</span><span class="p">,</span>
+      <span class="n">B</span><span class="p">:</span> <span class="nv">'a</span>
+</code></pre></div>    </div>
     <p>I was already using type parameter <code class="highlighter-rouge">A</code> so I didn’t have to use <code class="highlighter-rouge">&lt;F as ATermFactory&lt;'a, B&gt;&gt;::ATermRef</code>. I found a slight improvement when I defined type aliases for <code class="highlighter-rouge">ATermRef</code> and <code class="highlighter-rouge">ATerm</code> from a factory. Later I just defined the concrete types I was using with some type aliases (for easy changing later) and went with that. Makes it slightly harder to change them later if I start to depend on concrete parts of the types, but most code was already written in a generic way, so it shouldn’t be too much of a pain. It’s kind of sad that writing generic code is so ugly and sometimes impossible, I like writing code where I only require a minimal contract on what the types need to be capable of.</p>
   </li>
 </ol>
@@ -165,10 +161,10 @@
 <div class="footnotes">
   <ol>
     <li id="fn:1">
-      <p>van den Brand, M. G., De Jong, H. A., Klint, P., &amp; Olivier, P. A. (2000). Efficient annotated terms. <em>Software Practice and Experience</em>, 30(3), 259-291.&nbsp;<a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+      <p>van den Brand, M. G., De Jong, H. A., Klint, P., &amp; Olivier, P. A. (2000). Efficient annotated terms. <em>Software Practice and Experience</em>, 30(3), 259-291. <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
     </li>
     <li id="fn:2">
-      <p>Steindorfer, M. J., &amp; Vinju, J. J. (2016, March). Performance Modeling of Maximal Sharing. In <em>Proceedings</em> of the 7th ACM/SPEC on <em>International Conference on Performance Engineering</em> (pp. 135-146). ACM.&nbsp;<a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+      <p>Steindorfer, M. J., &amp; Vinju, J. J. (2016, March). Performance Modeling of Maximal Sharing. In <em>Proceedings</em> of the 7th ACM/SPEC on <em>International Conference on Performance Engineering</em> (pp. 135-146). ACM. <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
     </li>
   </ol>
 </div>

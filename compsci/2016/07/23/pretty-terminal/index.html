@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2016/07/23/pretty-terminal/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -105,56 +105,50 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
   <li>
     <p>Install oh-my-zsh:</p>
 
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>sh -c <span class="s2">"</span><span class="k">$(</span>wget https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh -O -<span class="k">)</span><span class="s2">"</span>
-</code></pre>
-    </div>
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="k">$(</span>wget https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh <span class="nt">-O</span> -<span class="k">)</span><span class="s2">"</span>
+</code></pre></div>    </div>
 
     <p>If you added you own stuff to <code class="highlighter-rouge">~/.bashrc</code> or <code class="highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="highlighter-rouge">~/.zshrc</code>.</p>
   </li>
   <li>
     <p>To set <code class="highlighter-rouge">zsh</code> as the default shell everywhere:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>chsh -s /bin/zsh
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>chsh <span class="nt">-s</span> /bin/zsh
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Install font(s) using your package manager. Search/install the powerline font or patched powerline fonts. Or:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
-<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm -r ~/powerline-fonts
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
+<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm <span class="nt">-r</span> ~/powerline-fonts
+</code></pre></div>    </div>
 
     <p>Set the font in your terminal settings. I use Source Code Pro for Powerline.</p>
   </li>
   <li>
     <p>Powerlevel9k theme:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
-sed -i <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
+sed <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Set <code class="highlighter-rouge">xterm-256color</code> and default user (so powerlevel9k doesn’t show redundant info):</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"# First thing to change is the TERM variable
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"# First thing to change is the TERM variable
 if [[ -e /usr/share/terminfo/x/xterm-256color ]]; then
     export TERM=xterm-256color
 fi
    
 DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
-"</span> | cat - ~/.zshrc &gt; /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
-</code></pre>
-    </div>
+"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Gogh aci colours:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>wget -O xt  http://git.io/v3Dlm <span class="o">&amp;&amp;</span> chmod +x xt <span class="o">&amp;&amp;</span> ./xt <span class="o">&amp;&amp;</span> rm xt
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>wget <span class="nt">-O</span> xt  http://git.io/v3Dlm <span class="o">&amp;&amp;</span> chmod +x xt <span class="o">&amp;&amp;</span> ./xt <span class="o">&amp;&amp;</span> rm xt
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -164,10 +158,9 @@ DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
   <li>
     <p>Install <a href="https://iterm2.com/">iTerm2</a>:</p>
 
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>brew cask install iterm2
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew cask install iterm2
 open iterm2
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>If iterm2 wants to update, do that, currently <code class="highlighter-rouge">brew</code> has version 2.3 whereas version 3 is already out.</p>
 
@@ -179,37 +172,33 @@ open iterm2
   <li>
     <p>Install fonts:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
-<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm -r ~/powerline-fonts
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
+<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm <span class="nt">-r</span> ~/powerline-fonts
+</code></pre></div>    </div>
 
     <p>Set the font in your terminal with <kbd>command</kbd>+<kbd>i</kbd> (<kbd>⌘</kbd>+<kbd>i</kbd>), select font, pick a font that ends with “for Powerline”. I use Source Code Pro for Powerline.</p>
   </li>
   <li>
     <p>Install oh-my-zsh:</p>
 
-    <div class="language-sh highlighter-rouge"><pre class="highlight"><code>sh -c <span class="s2">"</span><span class="k">$(</span>curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh<span class="k">)</span><span class="s2">"</span>
-</code></pre>
-    </div>
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="k">$(</span>curl <span class="nt">-fsSL</span> https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh<span class="k">)</span><span class="s2">"</span>
+</code></pre></div>    </div>
 
     <p>If you added you own stuff to <code class="highlighter-rouge">~/.bashrc</code> or <code class="highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="highlighter-rouge">~/.zshrc</code>.</p>
   </li>
   <li>
     <p>Powerlevel9k theme:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
-sed -i <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
+sed <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Set default user so powerlevel9k doesn’t show redundant info:</p>
 
-    <div class="language-zsh highlighter-rouge"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
-"</span> | cat - ~/.zshrc &gt; /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
-</code></pre>
-    </div>
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
+"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
+</code></pre></div>    </div>
   </li>
 </ol>
 

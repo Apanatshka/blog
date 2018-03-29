@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2016/10/03/implementing-finite-automata-part-1/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -76,7 +76,7 @@
 
 <p>So let’s look at a general framework for NFAs (don’t panic, explanation below):</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">collections</span><span class="p">::</span><span class="n">HashMap</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">collections</span><span class="p">::</span><span class="n">HashMap</span><span class="p">;</span>
 <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">collections</span><span class="p">::</span><span class="n">HashSet</span><span class="p">;</span>
 
 <span class="k">struct</span> <span class="n">NFAHashState</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">StateRef</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
@@ -88,8 +88,7 @@
     <span class="n">alphabet</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Input</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">states</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">NFAHashState</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="nb">usize</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span><span class="p">,</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>I did say <em>general framework</em>, so generics galore :) Let’s take it apart:</p>
 
@@ -101,7 +100,7 @@
 
 <p>For the simplest interaction with an existing NFA, we just supply it some input and see if it “accepts” it. Let’s look into that first:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="n">AUTO_START</span><span class="p">:</span> <span class="n">StateNumber</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">const</span> <span class="n">AUTO_START</span><span class="p">:</span> <span class="n">StateNumber</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
 <span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">pub</span> <span class="k">fn</span> <span class="n">apply</span><span class="o">&lt;</span><span class="n">I</span><span class="p">:</span> <span class="n">AsRef</span><span class="o">&lt;</span><span class="p">[</span><span class="n">Input</span><span class="p">]</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">input</span><span class="p">:</span> <span class="n">I</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
@@ -120,8 +119,7 @@
         <span class="n">cur_states</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.filter_map</span><span class="p">(|</span><span class="o">&amp;</span><span class="n">state</span><span class="p">|</span> <span class="k">self</span><span class="py">.states</span><span class="p">[</span><span class="n">state</span><span class="p">]</span><span class="py">.payload</span><span class="nf">.clone</span><span class="p">())</span><span class="nf">.next</span><span class="p">()</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The bounds on the generics are because we use <code class="highlighter-rouge">HashSet</code>s and maps. We also require <code class="highlighter-rouge">Payload: Clone</code> so we can give back an <code class="highlighter-rouge">Option&lt;Payload&gt;</code>. The <code class="highlighter-rouge">apply</code> method uses <code class="highlighter-rouge">AsRef</code> to be able to take <code class="highlighter-rouge">Vec&lt;Input&gt;</code> directly, or <code class="highlighter-rouge">&amp;str</code> if <code class="highlighter-rouge">Input=u8</code>.</p>
 
@@ -133,7 +131,7 @@
 
 <p>The standard algorithm for NFA to DFA transformation is powerset construction. It’s named after the state-space of the resulting DFA, which is the powerset of the states of the NFA. The <code class="highlighter-rouge">DFA</code> struct and <code class="highlighter-rouge">DFAHashState</code> are very similar to the <code class="highlighter-rouge">NFA</code> one, so I’m not going to show them here to save a bit of space. Basically the only difference is that the <code class="highlighter-rouge">DFAHashState</code> transitions don’t map to a <code class="highlighter-rouge">HashSet</code> but to a single <code class="highlighter-rouge">StateRef</code>. Ah, and here we see that we could make the <code class="highlighter-rouge">NFA</code> struct a more general struct that is generic over the <code class="highlighter-rouge">states</code> so we can reuse it for the <code class="highlighter-rouge">DFA</code>. Note to self: fix that up.</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span> <span class="o">+</span> <span class="n">Clone</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span> <span class="o">+</span> <span class="n">Clone</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="c">// ...</span>
     
     <span class="k">pub</span> <span class="k">fn</span> <span class="n">powerset_construction</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">payload_fold</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">DFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span>
@@ -156,8 +154,7 @@
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>So first off, we need room for the <code class="highlighter-rouge">states</code> of the DFA. Then we need to be able to rename the sets of NFA states, so we create a <code class="highlighter-rouge">states_map</code> for that. We use a <code class="highlighter-rouge">BTreeSet&lt;StateRef&gt;</code> because <code class="highlighter-rouge">HashSet</code> doesn’t implement the <code class="highlighter-rouge">Hash</code> trait itself.</p>
 
@@ -167,7 +164,7 @@
 
 <p>Now let’s look at the <code class="highlighter-rouge">psc_rec_helper</code>, which stands for PowerSetConstruction-Recursion-Helper:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">fn</span> <span class="n">psc_rec_helper</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">nfa</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span><span class="p">,</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="n">psc_rec_helper</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">nfa</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span><span class="p">,</span>
                                      <span class="n">states</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">DFAHashState</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="nb">usize</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span><span class="p">,</span>
                                      <span class="n">states_map</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">BTreeSet</span><span class="o">&lt;</span><span class="nb">usize</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">usize</span><span class="o">&gt;</span><span class="p">,</span>
                                      <span class="n">cur_states</span><span class="p">:</span> <span class="n">BTreeSet</span><span class="o">&lt;</span><span class="nb">usize</span><span class="o">&gt;</span><span class="p">,</span>
@@ -204,8 +201,7 @@
         <span class="n">states</span><span class="p">[</span><span class="n">cur_num</span><span class="p">]</span><span class="py">.transitions</span><span class="nf">.insert</span><span class="p">(</span><span class="n">symbol</span><span class="nf">.clone</span><span class="p">(),</span> <span class="n">nxt_num</span><span class="p">);</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>So we go over every symbol in the alphabet. And for each of them we collect the <code class="highlighter-rouge">nxt_states</code> that we can reach with that symbol from the <code class="highlighter-rouge">cur_states</code>. Then we look up the DFA state number for <code class="highlighter-rouge">nxt_states</code> in <code class="highlighter-rouge">states_map</code>. If we find one, we don’t go into the <code class="highlighter-rouge">unwrap_or_else</code> and just record that transition from <code class="highlighter-rouge">cur_num</code> to <code class="highlighter-rouge">nxt_num</code> on the current symbol.<br />
 If there isn’t a DFA state number for <code class="highlighter-rouge">nxt_states</code> yet, then we haven’t seen it before. We create new DFA states in the order that we find them, so the new <code class="highlighter-rouge">nxt_num</code> is the size of the states vector of <code class="highlighter-rouge">dnfa</code>. We should add the new state to that vector too, and record it’s payload<sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup>. I sneaked in a state constructor helper function thingy (how do you call this in Rust anyway?) called <code class="highlighter-rouge">with_payload</code>. That one is hopefully self-explanatory.<br />
@@ -219,11 +215,11 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 
 <p>Have you noticed how we keep repeating this loop that computes the next states? It’s fairly easy to pull out, although it requires a bit of extra generics to make it fit for the <code class="highlighter-rouge">HashSet</code> in <code class="highlighter-rouge">apply</code> and the <code class="highlighter-rouge">BTreeSet</code> in <code class="highlighter-rouge">psc_rec_helper</code>. This is what it looks like:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="cp">#[inline]</span>
-    <span class="k">fn</span> <span class="n">_next_state</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">j</span><span class="p">,</span> <span class="n">Iter</span><span class="p">,</span> <span class="n">Ext</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="err">'</span><span class="n">j</span> <span class="k">self</span><span class="p">,</span> <span class="n">states</span><span class="p">:</span> <span class="n">Iter</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Input</span><span class="p">,</span> <span class="n">nxt_states</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Ext</span><span class="p">)</span>
-        <span class="n">where</span> <span class="n">Iter</span><span class="p">:</span> <span class="n">IntoIterator</span><span class="o">&lt;</span><span class="n">Item</span> <span class="o">=</span> <span class="o">&amp;</span><span class="err">'</span><span class="n">i</span> <span class="nb">usize</span><span class="o">&gt;</span><span class="p">,</span>
-              <span class="n">Ext</span><span class="p">:</span> <span class="n">Extend</span><span class="o">&lt;&amp;</span><span class="err">'</span><span class="n">j</span> <span class="nb">usize</span><span class="o">&gt;</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nd">#[inline]</span>
+    <span class="k">fn</span> <span class="n">_next_state</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'j</span><span class="p">,</span> <span class="n">Iter</span><span class="p">,</span> <span class="n">Ext</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'j</span> <span class="k">self</span><span class="p">,</span> <span class="n">states</span><span class="p">:</span> <span class="n">Iter</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Input</span><span class="p">,</span> <span class="n">nxt_states</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Ext</span><span class="p">)</span>
+        <span class="n">where</span> <span class="n">Iter</span><span class="p">:</span> <span class="n">IntoIterator</span><span class="o">&lt;</span><span class="n">Item</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nv">'i</span> <span class="nb">usize</span><span class="o">&gt;</span><span class="p">,</span>
+              <span class="n">Ext</span><span class="p">:</span> <span class="n">Extend</span><span class="o">&lt;&amp;</span><span class="nv">'j</span> <span class="nb">usize</span><span class="o">&gt;</span>
     <span class="p">{</span>
         <span class="k">for</span> <span class="o">&amp;</span><span class="n">state</span> <span class="n">in</span> <span class="n">states</span> <span class="p">{</span>
             <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">states</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="py">.states</span><span class="p">[</span><span class="n">state</span><span class="p">]</span><span class="py">.transitions</span><span class="nf">.get</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span> <span class="p">{</span>
@@ -232,14 +228,13 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="recursion-to-worklist">Recursion to worklist</h3>
 
 <p>Doesn’t that recursive helper function feel unsatifying? Does it really matter if we discover the transitions of the DFA in depth-first order, switching to new states asap? Not really. So let’s change this recursion into a loop with our own stack of work:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span> <span class="n">NFA</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">NFA</span> <span class="p">{</span>
     <span class="c">// ...</span>
     
     <span class="k">pub</span> <span class="k">fn</span> <span class="n">powerset_construction</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">payload_fold</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">DFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span>
@@ -288,8 +283,7 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Note that we now put our newly found states on a stack called <code class="highlighter-rouge">worklist</code> instead of doing a recursive call. This is done inside a while-loop that pops work off the <code class="highlighter-rouge">worklist</code> again. So as soon as we discover no new states, the stack will decrease and the loop will end.</p>
 
@@ -297,7 +291,7 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 
 <p>We’re already using <code class="highlighter-rouge">AUTO_START</code> and <code class="highlighter-rouge">_next_state</code> for these automata. What else can be make them do similarly? I cheated and took a peek at the interface of the <a href="https://github.com/burntsushi/aho-corasick"><code class="highlighter-rouge">aho-corasick</code></a> <a href="https://github.com/BurntSushi/aho-corasick/blob/master/src/autiter.rs">Automaton</a>. The basic idea is: have an iterator of intermediate matches. So we don’t just return the <code class="highlighter-rouge">payload</code> at the end of the input, but return matches whenever we hit a final state (i.e. with a payload). And so we get the following trait:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">trait</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">State</span><span class="p">:</span> <span class="n">Debug</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">start_state</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">State</span><span class="p">;</span>
@@ -306,7 +300,7 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 
     <span class="k">fn</span> <span class="nf">get_match</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">Self</span><span class="p">::</span><span class="n">State</span><span class="p">,</span> <span class="n">text_offset</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Match</span><span class="o">&lt;</span><span class="n">Payload</span><span class="o">&gt;&gt;</span><span class="p">;</span>
 
-    <span class="k">fn</span> <span class="n">find</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="err">'</span><span class="n">a</span> <span class="k">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="o">&amp;</span><span class="err">'</span><span class="n">i</span> <span class="p">[</span><span class="n">Input</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">Self</span><span class="o">&gt;</span>
+    <span class="k">fn</span> <span class="n">find</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'i</span> <span class="p">[</span><span class="n">Input</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">Self</span><span class="o">&gt;</span>
         <span class="n">where</span> <span class="n">Self</span><span class="p">:</span> <span class="n">Sized</span>
     <span class="p">{</span>
         <span class="n">Matches</span> <span class="p">{</span>
@@ -317,27 +311,26 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
         <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Why the hassle with a <code class="highlighter-rouge">State</code> and <code class="highlighter-rouge">start_state()</code> etc? Because <code class="highlighter-rouge">NFA</code>s are in a set of states at a time, and <code class="highlighter-rouge">DFA</code>s are in only one. Ok, so let’s look into these <code class="highlighter-rouge">Match</code> and <code class="highlighter-rouge">Matches</code>:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="err">#</span><span class="p">[</span><span class="nf">derive</span><span class="p">(</span><span class="nb">Copy</span><span class="p">,</span> <span class="n">Clone</span><span class="p">,</span> <span class="n">Debug</span><span class="p">,</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">PartialEq</span><span class="p">,</span> <span class="nb">Eq</span><span class="p">)]</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">#</span><span class="p">[</span><span class="nf">derive</span><span class="p">(</span><span class="nb">Copy</span><span class="p">,</span> <span class="n">Clone</span><span class="p">,</span> <span class="n">Debug</span><span class="p">,</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">PartialEq</span><span class="p">,</span> <span class="nb">Eq</span><span class="p">)]</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">Match</span><span class="o">&lt;</span><span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">pub</span> <span class="n">payload</span><span class="p">:</span> <span class="n">Payload</span><span class="p">,</span>
     <span class="k">pub</span> <span class="n">end</span><span class="p">:</span> <span class="nb">usize</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="cp">#[derive(Debug)]</span>
-<span class="k">pub</span> <span class="k">struct</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">Input</span><span class="p">:</span> <span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="err">'</span><span class="n">a</span> <span class="o">+</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
-    <span class="n">aut</span><span class="p">:</span> <span class="o">&amp;</span><span class="err">'</span><span class="n">a</span> <span class="n">A</span><span class="p">,</span>
-    <span class="n">input</span><span class="p">:</span> <span class="o">&amp;</span><span class="err">'</span><span class="n">i</span> <span class="p">[</span><span class="n">Input</span><span class="p">],</span>
+<span class="nd">#[derive(Debug)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'a</span><span class="p">,</span> <span class="n">Input</span><span class="p">:</span> <span class="nv">'i</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">+</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+    <span class="n">aut</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="n">A</span><span class="p">,</span>
+    <span class="n">input</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'i</span> <span class="p">[</span><span class="n">Input</span><span class="p">],</span>
     <span class="n">offset</span><span class="p">:</span> <span class="nb">usize</span><span class="p">,</span>
     <span class="n">state</span><span class="p">:</span> <span class="nn">A</span><span class="p">::</span><span class="n">State</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span> <span class="n">Iterator</span>
-    <span class="k">for</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="err">'</span><span class="n">i</span><span class="p">,</span> <span class="err">'</span><span class="n">a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;&gt;</span> <span class="n">Iterator</span>
+    <span class="k">for</span> <span class="n">Matches</span><span class="o">&lt;</span><span class="nv">'i</span><span class="p">,</span> <span class="nv">'a</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="p">,</span> <span class="n">A</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">Item</span> <span class="o">=</span> <span class="n">Match</span><span class="o">&lt;</span><span class="n">Payload</span><span class="o">&gt;</span><span class="p">;</span>
 
     <span class="k">fn</span> <span class="nf">next</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="nn">Self</span><span class="p">::</span><span class="n">Item</span><span class="o">&gt;</span> <span class="p">{</span>
@@ -353,27 +346,26 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
         <span class="nb">None</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>So a <code class="highlighter-rouge">Match</code> consists of a <code class="highlighter-rouge">payload</code> and the offset into the text where the <code class="highlighter-rouge">end</code> of the “match” is. The <code class="highlighter-rouge">Matches</code> iterator keeps track of the <code class="highlighter-rouge">offset</code> and mostly leans on the trait functions to find the next match. So let’s look at an implementation of the trait:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">:</span> <span class="nb">Eq</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">Payload</span><span class="p">:</span> <span class="n">Clone</span><span class="o">&gt;</span> <span class="n">Automaton</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">NFA</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">Payload</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">type</span> <span class="n">State</span> <span class="o">=</span> <span class="n">HashSet</span><span class="o">&lt;</span><span class="nb">usize</span><span class="o">&gt;</span><span class="p">;</span>
 
-    <span class="cp">#[inline]</span>
+    <span class="nd">#[inline]</span>
     <span class="k">fn</span> <span class="nf">start_state</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">State</span> <span class="p">{</span>
         <span class="nn">iter</span><span class="p">::</span><span class="nf">once</span><span class="p">(</span><span class="n">AUTO_START</span><span class="p">)</span><span class="nf">.collect</span><span class="p">()</span>
     <span class="p">}</span>
 
-    <span class="cp">#[inline]</span>
+    <span class="nd">#[inline]</span>
     <span class="k">fn</span> <span class="nf">next_state</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">states</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">Self</span><span class="p">::</span><span class="n">State</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Input</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">State</span> <span class="p">{</span>
         <span class="k">let</span> <span class="k">mut</span> <span class="n">nxt_states</span> <span class="o">=</span> <span class="nn">HashSet</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
         <span class="k">self</span><span class="nf">._next_state</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">symbol</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">nxt_states</span><span class="p">);</span>
         <span class="n">nxt_states</span>
     <span class="p">}</span>
 
-    <span class="cp">#[inline]</span>
+    <span class="nd">#[inline]</span>
     <span class="k">fn</span> <span class="nf">get_match</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">states</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">Self</span><span class="p">::</span><span class="n">State</span><span class="p">,</span> <span class="n">text_offset</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Match</span><span class="o">&lt;</span><span class="n">Payload</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
         <span class="k">for</span> <span class="o">&amp;</span><span class="n">state</span> <span class="n">in</span> <span class="n">states</span> <span class="p">{</span>
             <span class="k">if</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="k">ref</span> <span class="n">payload</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="py">.states</span><span class="p">[</span><span class="n">state</span><span class="p">]</span><span class="py">.payload</span> <span class="p">{</span>
@@ -386,8 +378,7 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
         <span class="nb">None</span>
     <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>That start state set should perhaps be put into a <a href="https://docs.rs/crate/lazy_static/0.2.1"><code class="highlighter-rouge">lazy_static</code></a>, but that’s yet another little thing I’ll sacrifice to get this post published. Note how all the implemented functions are annotated with <code class="highlighter-rouge">#[inline]</code>, which will hopefully make the inner loop of the <code class="highlighter-rouge">Matches</code> iterator a bit faster. The <code class="highlighter-rouge">next_state</code> method uses are previously defined <code class="highlighter-rouge">_next_state</code> (now you get where that name came from ^^). <code class="highlighter-rouge">get_match</code> finds the first state in the set of states which has a payload. I’m not completely sure that this is the right approach, since the <code class="highlighter-rouge">DFA</code> version (through powerset construction) will give the combined payload of all states that the <code class="highlighter-rouge">NFA</code> would be in. On the other hand, it’s not that easy to get the payload folding function in here. I may or may not change this implementation to return a list of payloads instead just the first one.. Hmm, whatever ¯\_(ツ)_/¯</p>
 
@@ -396,10 +387,10 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 <div class="footnotes">
   <ol>
     <li id="fn:1">
-      <p>I mean sure, it’s not hard to write a <code class="highlighter-rouge">vec!</code>-like macro for <code class="highlighter-rouge">HashSet</code>, but it’s not super easy to reuse in multiple projects. And I’m not volunteering to create and maintain a std-lib-extra-utilities crate. Or.. huh, maybe that’s not a bad idea. Though it might just be better to contribute it to the std library…&nbsp;<a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+      <p>I mean sure, it’s not hard to write a <code class="highlighter-rouge">vec!</code>-like macro for <code class="highlighter-rouge">HashSet</code>, but it’s not super easy to reuse in multiple projects. And I’m not volunteering to create and maintain a std-lib-extra-utilities crate. Or.. huh, maybe that’s not a bad idea. Though it might just be better to contribute it to the std library… <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
     </li>
     <li id="fn:2">
-      <p>If you’re trying something like this with a folding function as parameter, make sure you get the type right. It took me quite a while to figure out how to make <code class="highlighter-rouge">fold</code> not eat my <code class="highlighter-rouge">FnMut</code>. As you can see, I got it working by using a borrow of a <code class="highlighter-rouge">Fn</code> instead (because <code class="highlighter-rouge">FnMut</code> is implemented for that).&nbsp;<a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+      <p>If you’re trying something like this with a folding function as parameter, make sure you get the type right. It took me quite a while to figure out how to make <code class="highlighter-rouge">fold</code> not eat my <code class="highlighter-rouge">FnMut</code>. As you can see, I got it working by using a borrow of a <code class="highlighter-rouge">Fn</code> instead (because <code class="highlighter-rouge">FnMut</code> is implemented for that). <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
     </li>
   </ol>
 </div>

@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2016/09/04/porting-cargo-benchcmp/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -90,7 +90,7 @@
 
 <p>Help message:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ cargo benchcmp --help
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cargo benchcmp --help
 Compares Rust micro-benchmark results.
 
 Usage:
@@ -117,12 +117,11 @@ Options:
     --variance           Show the variance of each benchmark.
     --improvements       Show only improvements.
     --regressions        Show only regressions.
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>An example output:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ cd aho-corasick
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cd aho-corasick
 $ cargo bench | cargo benchcmp --variance --threshold 5 dense:: dense_boxed:: -
  name                                dense:: ns/iter               dense_boxed:: ns/iter         diff ns/iter  diff % 
  ac_one_prefix_byte_every_match      112,957 (+/- 1480) (88 MB/s)  150,581 (+/- 814) (66 MB/s)         37,624  33.31% 
@@ -133,8 +132,7 @@ $ cargo bench | cargo benchcmp --variance --threshold 5 dense:: dense_boxed:: -
  ac_ten_one_prefix_byte_random       19,181 (+/- 251) (521 MB/s)   23,684 (+/- 427) (422 MB/s)          4,503  23.48% 
  ac_two_one_prefix_byte_every_match  112,934 (+/- 2037) (88 MB/s)  150,571 (+/- 1618) (66 MB/s)        37,637  33.33% 
  ac_two_one_prefix_byte_random       16,511 (+/- 142) (605 MB/s)   21,009 (+/- 94) (476 MB/s)           4,498  27.24% 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h1 id="things-to-come">Things to come</h1>
 
@@ -146,10 +144,9 @@ $ cargo bench | cargo benchcmp --variance --threshold 5 dense:: dense_boxed:: -
 
 <p>Anyway, that happened, I added right-justification. But the crate also gives the option to add colours to your table. So a simple change to the code, and now <code class="highlighter-rouge">benchcmp</code> will give you red rows for regressions and green rows for improvements (<a href="https://github.com/BurntSushi/cargo-benchcmp/pull/9">Pull Request</a>). In my experience, this makes the options show only one or the other obsolete, but it doesn’t hurt so it’s still in there.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ cd aho-corasick
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cd aho-corasick
 $ cargo bench | cargo benchcmp --variance dense:: dense_boxed:: -
-</code></pre>
-</div>
+</code></pre></div></div>
 <p><img src="/images/compsci/2016/09/04/porting-cargo-benchcmp/screenshot_coloured_output.png" alt="Coloured output of the tool, with a bold header line, a lot of green (improvement) lines and two read (regression) lines" /></p>
 
 <h2 id="n-way-comparison-plotting">N-way comparison: Plotting</h2>

@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2017/02/15/physical-quantity-as-type/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -109,22 +109,21 @@ number of problems with this when you do scientific computation<sup id="fnref:no
 ignoring those for a second. Let’s just look at some code that does this for temperature. I’ll stay
 with Rust as the implementation language:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="c">// Normalise to whole degrees celsius</span>
-<span class="cp">#[derive(Debug,</span> <span class="cp">Clone,</span> <span class="cp">Copy)]</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Normalise to whole degrees celsius</span>
+<span class="nd">#[derive(Debug,</span> <span class="nd">Clone,</span> <span class="nd">Copy)]</span>
 <span class="k">pub</span> <span class="k">struct</span> <span class="n">Temperature</span> <span class="p">{</span>
   <span class="n">degC</span><span class="p">:</span> <span class="nb">f64</span><span class="p">,</span> <span class="c">// note how this field is private</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now to introduce units of measure, you have “smart constructors”. These could be:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Temperature</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Temperature</span> <span class="p">{</span>
   <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_celsius</span><span class="p">(</span><span class="n">degrees</span><span class="p">:</span> <span class="nb">f64</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Temperature</span> <span class="p">{</span>
     <span class="n">Temperature</span> <span class="p">{</span> <span class="n">degC</span> <span class="o">=</span> <span class="n">degrees</span> <span class="p">}</span>
   <span class="p">}</span>
   <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_fahrenheit</span><span class="p">(</span><span class="n">degrees</span><span class="p">:</span> <span class="nb">f64</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Temperature</span> <span class="p">{</span>
-    <span class="n">Temperature</span> <span class="p">{</span> <span class="n">degC</span> <span class="o">=</span> <span class="p">(</span><span class="n">degrees</span> <span class="o">-</span> <span class="mi">32</span><span class="err">.</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span><span class="err">./</span><span class="mi">9</span><span class="err">.</span> <span class="p">}</span>
+    <span class="n">Temperature</span> <span class="p">{</span> <span class="n">degC</span> <span class="o">=</span> <span class="p">(</span><span class="n">degrees</span> <span class="err">-</span> <span class="mi">32</span><span class="err">.</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span><span class="err">./</span><span class="mi">9</span><span class="err">.</span> <span class="p">}</span>
   <span class="p">}</span>
   <span class="k">pub</span> <span class="k">fn</span> <span class="nf">to_celsius</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">f64</span> <span class="p">{</span>
     <span class="k">self</span><span class="py">.degC</span>
@@ -133,8 +132,7 @@ with Rust as the implementation language:</p>
     <span class="k">self</span><span class="py">.degC</span> <span class="o">*</span> <span class="mi">9</span><span class="err">./</span><span class="mi">5</span><span class="err">.</span> <span class="o">+</span> <span class="mi">32</span><span class="err">.</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In Rust you would use these as <code class="highlighter-rouge">Temperature::from_celsius(20_f64)</code>. And then you could go nuts with
 a compiler plugin to add special syntax that looks more like <code class="highlighter-rouge">20 C</code>. Or something slightly better
@@ -148,8 +146,8 @@ sub-typing hierarchy like OOP) in you type system (<code class="highlighter-roug
 normalisations. You can defer conversion entirely within generic calculations, which seems slightly 
 more powerful than the units-as-types approach from the other post. Here’s what it might look like:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="c">// Normalise to whole degrees celsius</span>
-<span class="cp">#[derive(Debug,</span> <span class="cp">Clone,</span> <span class="cp">Copy)]</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Normalise to whole degrees celsius</span>
+<span class="nd">#[derive(Debug,</span> <span class="nd">Clone,</span> <span class="nd">Copy)]</span>
 <span class="k">enum</span> <span class="n">Temperature</span> <span class="p">{</span>
   <span class="nf">DegreesCelsius</span><span class="p">(</span><span class="nb">f64</span><span class="p">),</span>
   <span class="nf">Fahrenheit</span><span class="p">(</span><span class="nb">f64</span><span class="p">),</span>
@@ -165,7 +163,7 @@ more powerful than the units-as-types approach from the other post. Here’s wha
   <span class="k">pub</span> <span class="k">fn</span> <span class="nf">to_celsius</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">f64</span> <span class="p">{</span>
     <span class="k">match</span> <span class="k">self</span> <span class="p">{</span>
       <span class="nf">DegreesCelsius</span><span class="p">(</span><span class="n">degC</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">degC</span><span class="p">,</span>
-      <span class="nf">Fahrenheit</span><span class="p">(</span><span class="n">fahr</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">(</span><span class="n">fahr</span> <span class="o">-</span> <span class="mi">32</span><span class="err">.</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span><span class="err">./</span><span class="mi">9</span><span class="err">.</span><span class="p">,</span>
+      <span class="nf">Fahrenheit</span><span class="p">(</span><span class="n">fahr</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">(</span><span class="n">fahr</span> <span class="err">-</span> <span class="mi">32</span><span class="err">.</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span><span class="err">./</span><span class="mi">9</span><span class="err">.</span><span class="p">,</span>
     <span class="p">}</span>
   <span class="p">}</span>
   <span class="k">pub</span> <span class="k">fn</span> <span class="nf">to_fahrenheit</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">f64</span> <span class="p">{</span>
@@ -189,8 +187,7 @@ more powerful than the units-as-types approach from the other post. Here’s wha
     <span class="p">}</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>I think a primary downside of this scheme vs the units-as-types is that it’s less 
 extensible<sup id="fnref:overhead"><a href="#fn:overhead" class="footnote">3</a></sup>. An yet, however much I like extensibility, I think about it like this: If 
@@ -210,16 +207,16 @@ a units of measure implementation, based on quantities and normalisation actuall
 <div class="footnotes">
   <ol>
     <li id="fn:arithmetic">
-      <p>Addition anyway, I suppose multiplication should always work but just give you a different unit in return.&nbsp;<a href="#fnref:arithmetic" class="reversefootnote">&#8617;</a></p>
+      <p>Addition anyway, I suppose multiplication should always work but just give you a different unit in return. <a href="#fnref:arithmetic" class="reversefootnote">&#8617;</a></p>
     </li>
     <li id="fn:normalisation-problems">
-      <p>Like when you’re measuring star distances in light-years but the Distance quantity is normalised to meters. And there are other issues with rounding errors. For most systems you can probably use a sufficiently large floating point value though, like, I don’t know, a <a href="https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format">128-bit floating point</a>?&nbsp;<a href="#fnref:normalisation-problems" class="reversefootnote">&#8617;</a>&nbsp;<a href="#fnref:normalisation-problems:1" class="reversefootnote">&#8617;<sup>2</sup></a></p>
+      <p>Like when you’re measuring star distances in light-years but the Distance quantity is normalised to meters. And there are other issues with rounding errors. For most systems you can probably use a sufficiently large floating point value though, like, I don’t know, a <a href="https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format">128-bit floating point</a>? <a href="#fnref:normalisation-problems" class="reversefootnote">&#8617;</a> <a href="#fnref:normalisation-problems:1" class="reversefootnote">&#8617;<sup>2</sup></a></p>
     </li>
     <li id="fn:overhead">
-      <p>Or perhaps the low-level devs mostly care about the memory overhead of the enums? Or maybe even about the branching in the code during calculations? In that case you should go with the normalising approach I guess.&nbsp;<a href="#fnref:overhead" class="reversefootnote">&#8617;</a></p>
+      <p>Or perhaps the low-level devs mostly care about the memory overhead of the enums? Or maybe even about the branching in the code during calculations? In that case you should go with the normalising approach I guess. <a href="#fnref:overhead" class="reversefootnote">&#8617;</a></p>
     </li>
     <li id="fn:precision">
-      <p>I guess there is the issue of control over precision, which languages with first-class units have better since they can (I think) have any type + unit combination. Maybe we can do something with type parameters.. Hmm, something to ponder/try.&nbsp;<a href="#fnref:precision" class="reversefootnote">&#8617;</a></p>
+      <p>I guess there is the issue of control over precision, which languages with first-class units have better since they can (I think) have any type + unit combination. Maybe we can do something with type parameters.. Hmm, something to ponder/try. <a href="#fnref:precision" class="reversefootnote">&#8617;</a></p>
     </li>
   </ol>
 </div>

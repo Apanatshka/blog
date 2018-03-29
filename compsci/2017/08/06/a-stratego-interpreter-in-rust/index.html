@@ -10,10 +10,10 @@
     <meta name="description" content="A web log. Mostly about computer science-y stuff. 
 ">
 
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="http://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/">
+    <link rel="stylesheet" href="/blog//css/main.css">
+    <link rel="canonical" href="http://www.jeffsmits.net/blog//compsci/2017/08/06/a-stratego-interpreter-in-rust/">
     
-    <link rel="stylesheet" type="text/css" href="/css/katex.min.css">
+    <link rel="stylesheet" type="text/css" href="/blog//css/katex.min.css">
 </head>
 
 
@@ -23,7 +23,7 @@
 
   <div class="wrapper">
 
-    <a class="site-title" href="/">Whatever</a>
+    <a class="site-title" href="/blog//">Whatever</a>
 
     <nav class="site-nav">
       <a href="#" class="menu-icon">
@@ -37,7 +37,7 @@
       <div class="trigger">
         
           
-          <a class="page-link" href="/about/">About</a>
+          <a class="page-link" href="/blog//about/">About</a>
           
         
           
@@ -83,11 +83,11 @@
     </ul>
   </li>
   <li><a href="#optimising-the-interpreter" id="markdown-toc-optimising-the-interpreter">Optimising the interpreter</a>    <ul>
-      <li><a href="#removing-overzealous-cloning-commit" id="markdown-toc-removing-overzealous-cloning-commit">Removing overzealous cloning <a href="https://gitlab.com/Apanatshka/strs/commit/3c725ab20e6a995a21340551384f5abe7b3899df">(commit)</a></a></li>
-      <li><a href="#fnv-hashing-commit" id="markdown-toc-fnv-hashing-commit">FNV hashing <a href="https://gitlab.com/Apanatshka/strs/commit/cfd4c0ca48412f5e23d2db8e72b7d8a558dc1024">(commit)</a></a></li>
-      <li><a href="#make-structure-follow-common-patterns-commit" id="markdown-toc-make-structure-follow-common-patterns-commit">Make structure follow common patterns <a href="https://gitlab.com/Apanatshka/strs/commit/f100043fc4cc3ba4ed06d74a7e6f941efe028bdd">(commit)</a></a></li>
-      <li><a href="#specialise-pattern-matching-commit" id="markdown-toc-specialise-pattern-matching-commit">Specialise pattern matching <a href="https://gitlab.com/Apanatshka/strs/commit/96fee995511645faa9be6b20bb229af24a56c1c1">(commit)</a></a></li>
-      <li><a href="#less-string-allocation-aka-all-the-lifetimes-commit" id="markdown-toc-less-string-allocation-aka-all-the-lifetimes-commit">Less String allocation a.k.a. <em>all</em> the lifetimes! <a href="https://gitlab.com/Apanatshka/strs/commit/39f8cb8624d21876f32807705b898e24925b3135">(commit)</a></a></li>
+      <li><a href="#removing-overzealous-cloning-commit" id="markdown-toc-removing-overzealous-cloning-commit">Removing overzealous cloning (commit)</a></li>
+      <li><a href="#fnv-hashing-commit" id="markdown-toc-fnv-hashing-commit">FNV hashing (commit)</a></li>
+      <li><a href="#make-structure-follow-common-patterns-commit" id="markdown-toc-make-structure-follow-common-patterns-commit">Make structure follow common patterns (commit)</a></li>
+      <li><a href="#specialise-pattern-matching-commit" id="markdown-toc-specialise-pattern-matching-commit">Specialise pattern matching (commit)</a></li>
+      <li><a href="#less-string-allocation-aka-all-the-lifetimes-commit" id="markdown-toc-less-string-allocation-aka-all-the-lifetimes-commit">Less String allocation a.k.a. <em>all</em> the lifetimes! (commit)</a></li>
       <li><a href="#lazily-cache-constants" id="markdown-toc-lazily-cache-constants">Lazily cache constants</a></li>
       <li><a href="#planned-copy-propagation-on-ctree" id="markdown-toc-planned-copy-propagation-on-ctree">Planned: Copy Propagation on CTree</a></li>
       <li><a href="#primitives-and-perfect-hashing" id="markdown-toc-primitives-and-perfect-hashing">Primitives and Perfect Hashing</a></li>
@@ -138,14 +138,14 @@ strategies
   <li>You can replace the current term by building a different term with <code class="highlighter-rouge">!newterm</code>.</li>
   <li>You can pattern match on the current term to put it in a variable or unpack the structure a little further with <code class="highlighter-rouge">?pattern</code>.</li>
   <li>The semicolon combines strategies into a sequence.</li>
-  <li>Curly braces create a scope in which you can define fresh variables like: <code class="highlighter-rouge"><span class="p">{</span><span class="err">fresha,</span><span class="w"> </span><span class="err">newb:</span><span class="w"> </span><span class="err">strat</span><span class="w"> </span><span class="p">}</span></code>. If you put an already bound variable in a pattern match there is an equality check at that position.</li>
+  <li>Curly braces create a scope in which you can define fresh variables like: <code class="highlighter-rouge">{fresha, newb: strat }</code>. If you put an already bound variable in a pattern match there is an equality check at that position.</li>
   <li>The guarded choice operator <code class="highlighter-rouge">cond &lt; thenbranch + elsebranch</code> catches failure in <code class="highlighter-rouge">cond</code> and goes into either branch. Before going into the <code class="highlighter-rouge">elsebranch</code> after failure, the bindings from <code class="highlighter-rouge">cond</code> are undone.</li>
   <li>There is a let construct <code class="highlighter-rouge">let strategyname(stratarg|termarg) = strategybody in letbodystrategy end</code>, that allows you to define local strategies, which you can call by name. These defined strategies can take term arguments and strategy arguments.</li>
 </ol>
 
 <p>Here’s the enum definition:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">Strategy</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">Strategy</span> <span class="p">{</span>
     <span class="nf">Build</span><span class="p">(</span><span class="n">BuildTerm</span><span class="p">),</span>
     <span class="nf">Match</span><span class="p">(</span><span class="n">MatchTerm</span><span class="p">),</span>
     <span class="nf">Seq</span><span class="p">(</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">),</span>
@@ -153,16 +153,15 @@ strategies
     <span class="nf">GuardedLChoice</span><span class="p">(</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">),</span>
     <span class="nf">Let</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Def</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Box</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">),</span>
     <span class="nf">CallT</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">BuildTerm</span><span class="o">&gt;</span><span class="p">),</span>
-    <span class="err">...</span>
+    <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Beside strategy calls, there can also be primitive calls. Primitives have native implementations, and there are quite a few for Stratego that the compiler uses. There are couple more, so here’s the rest of the enum with some comments on what they are for:</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">Strategy</span> <span class="p">{</span>
-    <span class="err">..</span><span class="nf">.
-    PrimT</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">BuildTerm</span><span class="o">&gt;</span><span class="p">),</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">enum</span> <span class="n">Strategy</span> <span class="p">{</span>
+    <span class="o">...</span>
+    <span class="nf">PrimT</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">BuildTerm</span><span class="o">&gt;</span><span class="p">),</span>
     <span class="nf">CallDynamic</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Strategy</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">BuildTerm</span><span class="o">&gt;</span><span class="p">),</span> <span class="c">// calling strategies by string name</span>
     <span class="n">Fail</span><span class="p">,</span> <span class="c">// fail</span>
     <span class="n">Id</span><span class="p">,</span>   <span class="c">// do nothing</span>
@@ -175,8 +174,7 @@ strategies
     <span class="c">// (yes, this is bananas to put in here when you already have primitives</span>
     <span class="c">//  for such side-effects, it's probably legacy stuff)</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Of particular note are <code class="highlighter-rouge">some</code>, <code class="highlighter-rouge">one</code> and <code class="highlighter-rouge">all</code>. These are the primitives that allow generic traversals over a whole tree, such as <code class="highlighter-rouge">bottomup(s) = all(bottomup(s)); s</code> (used in the example in the intro).</p>
 
@@ -186,14 +184,13 @@ strategies
 
 <p>The interpreter is a simple recursive interpreter, so it uses the normal call stack for Stratego’s call stack too. This is because I’m aiming for a fast interpreter, and I figured it would be both more effort and more overhead to manage my own call stack. We’ve already seen the <code class="highlighter-rouge">Strategy</code> enum that represents the program. We also need a “context” in which the bound and unbound variables are available. The compiler makes sure there are scopes everywhere that explicitly create fresh variables before they are used, those constructs map to push a new scope on the stack of variable scopes. The context also holds other state, like the ATerm factory (which allows us to reuse the parser in the ATerm crate while defining the exact data structure for ATerms ourselves), the state for some stateful primitives, the stack tracer (which I can probably get rid of), and primitives themselves.</p>
 
-<div class="language-rust highlighter-rouge"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Strategy</span> <span class="p">{</span>
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Strategy</span> <span class="p">{</span>
   <span class="k">fn</span> <span class="nf">eval</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">MutContext</span><span class="p">,</span> <span class="n">current</span><span class="p">:</span> <span class="n">ATermRef</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">ATermRef</span><span class="o">&gt;</span> <span class="p">{</span>
-    <span class="err">...</span>
+    <span class="o">...</span>
   <span class="p">}</span>
-  <span class="err">...</span>
+  <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>So the interpreter function is defined on the <code class="highlighter-rouge">Strategy</code> enum, it takes the current term and a context object, and returns a <code class="highlighter-rouge">Result</code> of ATerm where the error can be <code class="highlighter-rouge">StrategyFailure</code> or an internal interpreter error. The context is given by immutable reference because mutable references make it too difficult to work with… I’m afraid I gave up on the borrow checker there and just put <code class="highlighter-rouge">RefCell</code> inside the type and called it <code class="highlighter-rouge">MutContext</code>. I wonder if I can change that once Non-Lexical Lifetimes land.</p>
 
@@ -226,24 +223,21 @@ strategies
 
 <p>In Stratego, if you don’t import the standard library, you need to at least define the constructors <code class="highlighter-rouge">Nil/0</code> and <code class="highlighter-rouge">Cons/2</code>. This is because Stratego provides special syntax for lists like this: <code class="highlighter-rouge">[]</code>, <code class="highlighter-rouge">[head | tail]</code>, <code class="highlighter-rouge">[item1, item2]</code>, <code class="highlighter-rouge">[item1, item2 | tail]</code>. Of course in Stratego Core code you only see the basic cons-nil version. Therefore an explode of a list should give you <code class="highlighter-rouge">"Cons"</code> or <code class="highlighter-rouge">"Nil"</code> for a constructor right?</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; str '![]; ?cons#(children); !cons'
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; str '![]; ?cons#(children); !cons'
 []
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>… Maybe it’s a weird thing with the empty list?</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; str '![1, 2]; ?cons#(children); !(cons, children)'
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; str '![1, 2]; ?cons#(children); !(cons, children)'
 ([], [1,2])
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Ok, I guess lists are handled specially in explosions. But at least you can just use the constructor strings as normal and still get a list right?</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; str '!([], "Nil"#([]))'
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; str '!([], "Nil"#([]))'
 ([], Nil)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>wat.</p>
 
@@ -261,23 +255,21 @@ strategies
 
 <p>Here are some measurements:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code> # Rust based interpreter
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> # Rust based interpreter
 $&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true
  # I shortened the time output here so you don't need to scroll horizontally
 9.44s user 0.05s system 99% cpu 9.515 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code> # Java based interpreter
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> # Java based interpreter
 $&gt; time java -cp /usr/local/share/strategoxt/strategoxt/strategoxt.jar org.strategoxt.HybridInterpreter benches/2015-CONVECS/benchexpr10.ctree main
 result = true
  # snipped the stacktrace here on an explicit exit with code 0, silly interpreter
 6.28s user 0.35s system 279% cpu 2.372 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code> # Compiling to Java and timing the Java execution (without the JVM startup I think)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> # Compiling to Java and timing the Java execution (without the JVM startup I think)
 $&gt; str -i benches/2015-CONVECS/benchexpr10.str
 result = true
 
@@ -285,8 +277,7 @@ real	0m0.450s
 user	0m0.683s
 sys	0m0.085s
  # So the sum total is: 0m1.218s
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>At this point I decided it was time to study some blog posts I has bookmarked about profiling Rust programs. I settled on using valgrind with the callgrind and cachegrind tools. (Cachegrind wasn’t really necessary because I never came close to needing to optimise cache misses, but I included it in the first runs of the profiler anyway). The profiler pointed out that most time was spent in malloc related functions. I <em>had</em> been taking many shortcuts by using clone instead of trying to reason with the borrow checker. Time to reduce those allocations.</p>
 
@@ -296,66 +287,59 @@ sys	0m0.085s
 
 <p>The result of this change was massive:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true
 1.46s user 0.02s system 99% cpu 1.496 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Suddenly we’re already faster than the Java based interpreter and closing in on the compiled version! Let’s switch to a bigger benchmark. This is one where the Java based interpreter takes forever, so I’m excluding that one.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; str -i benches/2015-CONVECS/benchexpr20.str # Compiled version
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; str -i benches/2015-CONVECS/benchexpr20.str # Compiled version
 result = true
 
 real	0m4.552s
 user	0m8.194s
 sys	0m0.729s
  # Sum total: 0m13.475s
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
 result = true
 1298.19s user 2.96s system 99% cpu 21:43.63 total
  # This benchmark could have a slightly higher time
  # because I was doing other things while the benchmark was running
  # but the point is it takes really long for our interpreter to get through this benchmark
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="fnv-hashing-commit">FNV hashing <a href="https://gitlab.com/Apanatshka/strs/commit/cfd4c0ca48412f5e23d2db8e72b7d8a558dc1024">(commit)</a></h2>
 
 <p>One fairly easy thing we can do in Rust (I really ❤ that design), is swap out the hash function for hashsets and hashmaps. This is significant because a scope uses hashmaps to map from variable names to values. So I tried <a href="https://docs.rs/fnv/">FNV</a> hashing, and it sped things up nicely with minimal code change!</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true # this is the smaller benchmark. The old total time was 1.496
 1.15s user 0.02s system 99% cpu 1.177 total
  # Note that this is a faster time than the compiled version!
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
 result = true # this is the larger benchmark. The old total time was 21:43.63
 1000.62s user 2.65s system 99% cpu 16:45.36 total
  # This time is still 77x slower than the compiled version though
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="make-structure-follow-common-patterns-commit">Make structure follow common patterns <a href="https://gitlab.com/Apanatshka/strs/commit/f100043fc4cc3ba4ed06d74a7e6f941efe028bdd">(commit)</a></h2>
 
 <p>While I was figuring out the weirdness around closures and backtracking, I found a little optimisation that the Java based interpreter made to its internal CTree representation. Sequences were lists instead of right-recursive binary trees, and guarded choice were lists of pairs. These are common patterns in Stratego Core, long chains of sequences and guarded choices. Flattening those patterns in the tree representation helps quite a bit. I already had a preprocessing step on the CTree to simplify things a bit, so this fit right in.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true # this is the smaller benchmark. The old total time was 1.177
 1.01s user 0.02s system 99% cpu 1.039 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
 result = true # this is the larger benchmark. The old total time was 16:45.36
 833.91s user 0.70s system 99% cpu 13:54.76 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="specialise-pattern-matching-commit">Specialise pattern matching <a href="https://gitlab.com/Apanatshka/strs/commit/96fee995511645faa9be6b20bb229af24a56c1c1">(commit)</a></h2>
 
@@ -363,17 +347,15 @@ result = true # this is the larger benchmark. The old total time was 16:45.36
 
 <p>(Using commit <a href="https://gitlab.com/Apanatshka/strs/commit/45bb8b56a4439531681e923f86947e2cf95aa584">45bb8b56</a> instead of the commit linked by the heading, because of bugfixes after the change)</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true # this is the smaller benchmark. The old total time was 1.039
 0.18s user 0.02s system 96% cpu 0.204 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
 result = true # this is the larger benchmark. The old total time was 13:54.76
 61.18s user 0.50s system 99% cpu 1:01.81 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Finally getting more reasonable times! Still ~4.5x slower than the compiled version. But it can now take longer to compile the release build than to run this benchmark.</p>
 
@@ -383,17 +365,15 @@ result = true # this is the larger benchmark. The old total time was 13:54.76
 
 <p>(The linked commit in the heading is the one introducing all the lifetimes. Commit <a href="https://gitlab.com/Apanatshka/strs/commit/8689c23e5f34d26c3c5dda33027c549c27d1bc62">8689c23e</a> is used below for the benchmarks. )</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr10.ctree -l libstratego-lib
 result = true # this is the smaller benchmark. The old total time was 0.204
 0.18s user 0.02s system 96% cpu 0.206 total 
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$&gt; time ./target/release/strs benches/2015-CONVECS/benchexpr20.ctree -l libstratego-lib
 result = true # this is the larger benchmark. The old total time was 1:01.81
 60.04s user 0.51s system 99% cpu 1:00.60 total
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>After all that, this isn’t very exciting is it? I’m not sure why this doesn’t have much of an impact.</p>
 
@@ -436,10 +416,10 @@ result = true # this is the larger benchmark. The old total time was 1:01.81
 <div class="footnotes">
   <ol>
     <li id="fn:list-resentment">
-      <p>Actually if I <a href="https://gitlab.com/Apanatshka/strs/commit/dd224f4a35bb5905b5019cdf2cd9787ce1601cb7">look back at my commit message</a>, I truly didn’t resent the change. I was already running into the issues of converting between ATerm list and cons-nil list, so according to the commit message everything became easier actually.&nbsp;<a href="#fnref:list-resentment" class="reversefootnote">&#8617;</a></p>
+      <p>Actually if I <a href="https://gitlab.com/Apanatshka/strs/commit/dd224f4a35bb5905b5019cdf2cd9787ce1601cb7">look back at my commit message</a>, I truly didn’t resent the change. I was already running into the issues of converting between ATerm list and cons-nil list, so according to the commit message everything became easier actually. <a href="#fnref:list-resentment" class="reversefootnote">&#8617;</a></p>
     </li>
     <li id="fn:no-of-tests">
-      <p>Originally there were a few more, but some didn’t make sense and the original compiler and interpreter failed them too.&nbsp;<a href="#fnref:no-of-tests" class="reversefootnote">&#8617;</a></p>
+      <p>Originally there were a few more, but some didn’t make sense and the original compiler and interpreter failed them too. <a href="#fnref:no-of-tests" class="reversefootnote">&#8617;</a></p>
     </li>
   </ol>
 </div>
