@@ -6,9 +6,453 @@
 </description>
     <link>http://blog.jeffsmits.net/</link>
     <atom:link href="http://blog.jeffsmits.net/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 29 Mar 2018 21:57:29 +0200</pubDate>
-    <lastBuildDate>Thu, 29 Mar 2018 21:57:29 +0200</lastBuildDate>
-    <generator>Jekyll v3.6.2</generator>
+    <pubDate>Mon, 30 Apr 2018 02:56:40 +0200</pubDate>
+    <lastBuildDate>Mon, 30 Apr 2018 02:56:40 +0200</lastBuildDate>
+    <generator>Jekyll v3.7.3</generator>
+    
+      <item>
+        <title>Learn Rust by project</title>
+        <description>&lt;p&gt;More than a year ago a friend of mine wanted to learn a bit more about Rust by trying out a project. He had a nice project in mind which suits Rust quite well I think. For fun I joined his effort and created &lt;a href=&quot;https://gitlab.com/Apanatshka/cobs&quot;&gt;an implementation&lt;/a&gt; at the same time as he did, discussing and comparing along the way. In this post I’ll tell you about the project specifics, but the point of the post is more an encouragement. If you’ve read about Rust before but haven’t tried it yet, find a small project like the one below, and learn Rust in a fun and hands-on way yourself. It’s a great programming language, I highly recommend it.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-project-consistent-overhead-byte-stuffing&quot;&gt;The project: consistent overhead byte stuffing&lt;/h1&gt;
+
+&lt;p&gt;Computer networking can be messy business. Depending on what &lt;a href=&quot;https://en.wikipedia.org/wiki/OSI_model#Description_of_OSI_layers&quot;&gt;layer of the network&lt;/a&gt; your software is operating in, you need to worry about different kinds of errors. If you’re receiving raw bytes, you might run into the issue of corrupted messages. You could throw away such a message entirely… Or you could try to chop it into chunks with a clear boundary and recover at the next boundary.&lt;/p&gt;
+
+&lt;p&gt;Byte stuffing is the process of stuffing bytes into a smaller range of values than the full byte, so you can use the unused values for something special like the boundaries of messages. The usual terminology is splitting your bytes of data into &lt;em&gt;frames&lt;/em&gt; and using &lt;em&gt;sentinel values&lt;/em&gt; to delimit the frames.&lt;/p&gt;
+
+&lt;p&gt;The problem that byte stuffing solves then, is what to do with values in your data that are the sentinel value you picked for delimiting frames. These should be turned into something else that can be reliably decoded again. The project of this post is to implement an algorithm for Consistent Overhead Byte Stuffing, or COBS. This algorithm has an overhead of at least one byte and at most one byte in 254 rounded up. If I’d been presented with this problem myself before I’d heard of COBS, I would have probably done something like pick two byte values, one delimiter and one “escape character”. The worst case for that is something like twice the size of the message. So this algorithm is pretty cool. I’ll explain it in my own words, but the &lt;a href=&quot;https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing&quot;&gt;Wikipedia article&lt;/a&gt; is very nice too, so browse that if you don’t follow everything here.&lt;/p&gt;
+
+&lt;h1 id=&quot;cobs-in-short&quot;&gt;COBS in short&lt;/h1&gt;
+
+&lt;p&gt;Let’s choose zero as our sentinel values, our &lt;em&gt;frame marker&lt;/em&gt;. If we need to recover from some error in the middle of the stream of frames, we just look for the next zero, that’s the end of a frame. Then the first byte is our consistent minimum overhead byte, which starts the COBS encoding. This byte tells us the offset to where the next zero should have been in the message. Until that offset is reached, the bytes should be the original message. If in those bytes you find a zero, the message is definitely corrupted and you should skip to the next frame. Once you reach the offset, instead of a zero you should find another number, which is the offset from there to the next zero in the original message. So each zero is turned into a higher number of where the next zero is. The last zero points to the place where the zero of the end of the frame should be&lt;sup id=&quot;fnref:overhead&quot;&gt;&lt;a href=&quot;#fn:overhead&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;Let’s call these offsets to a zero &lt;em&gt;zero markers&lt;/em&gt;. The first &lt;em&gt;zero marker&lt;/em&gt; is &lt;em&gt;fake&lt;/em&gt;, since it doesn’t mark a zero at its place. We need it to point out the first actual zero. There can be more fake zero markers in the message, and this is where the worst case overhead comes from: what if two zeroes are further apart than the size of a byte? Assuming we’re speaking of &lt;a href=&quot;https://en.wikipedia.org/wiki/Octet_(computing)&quot;&gt;octets&lt;/a&gt;, which is usually the case these days, we have 0-255 as the normal value range. We’re changing that range to 1-255. So if 255 is the maximum value for our zero marker, we cannot have more than 254 consecutive non-zero bytes. To fix this we say that zero markers with value 255 signify that the &lt;em&gt;next&lt;/em&gt; zero marker is &lt;em&gt;fake&lt;/em&gt;. Again, a fake zero marker does not signify a zero, but just how many bytes to read until we reach the next zero marker.&lt;/p&gt;
+
+&lt;h1 id=&quot;cobs-in-rust&quot;&gt;COBS in Rust&lt;/h1&gt;
+
+&lt;p&gt;Now that we’ve seen a prose description of COBS in Rust, let’s implement an encode and a decode function for COBS. In this case I’ll present an implementation that is uses a sentinel value of zero, adds that zero as part of the encode procedure, and expects it during decode. Note that this is not going to be the most beautiful implementation possible. We’re not using traits from Rust’s standard library, such as &lt;code class=&quot;highlighter-rouge&quot;&gt;Read&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;Write&lt;/code&gt; even though these work with bytes. We’re hard-coding the sentinel value to &lt;code class=&quot;highlighter-rouge&quot;&gt;0&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;tests&quot;&gt;Tests&lt;/h2&gt;
+
+&lt;p&gt;To start things off, let’s define the types for encode and decode, and then write some tests to make our understanding of the algorithm executable. We start out with some unit tests, and some property based tests using &lt;a href=&quot;https://crates.io/crates/quickcheck&quot;&gt;quickcheck&lt;/a&gt;. Property based tests use a function from some input to boolean and given that input check if a property holds.&lt;/p&gt;
+
+&lt;p&gt;With the property based tests we check that encoding and decoding a given vector of bytes comes to the same thing. The quickcheck framework then generates some random vectors of bytes and checks if our property holds. If it doesn’t, the framework shrinks the counter example with some heuristics. It’s pretty cool stuff. I recommend using this form of testing whenever you can.&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;//! Consistent overhead byte stuffing&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! =================================&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//!&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! This encoding allows for packet loss in a stream of bytes by dividing data into frames.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//!&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! 0 = framemarker, the thing you search for when you recover in the middle of a stream. It marks&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//!  the end of a frame.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! Zeromarkers both mark a zero and have a value of where the next zeromarker is. There are also&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! special zeromarkers, which say the next zeromarker is fake. Fake zeromarkers don't mark zeroes,&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! they only tell where the next zeromarker is.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! The first byte of a frame is a fake zeromarker.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! Other bytes are normal bytes.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! When normally (in the original data) the next zero occurs, this is another zeromarker. The&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//!  first (fake) zeromarker will have the offset after which the next zeromarker occurs.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! The special zeromarker 255 predicts that the next zeromarker is fake. The reason for calling it&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;//! fake is to support data where the are more than 255 bytes between zeroes.&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;#[cfg(test)]&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;#[macro_use]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;extern&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;crate&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;quickcheck&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;unimplemented!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;unimplemented!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;max_encoded_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;input_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;input_size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;max_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;f32&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;max_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;f32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.ceil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;max_decoded_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;encoded_size&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;#[cfg(test)]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;mod&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tests&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;macro_rules!&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;unit_test_set&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$assert:path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;empty&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;zero&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;one&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;byte_max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;five_zeroes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;five_ones&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;byte_max_zeroes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;with_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;257&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;256&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[test]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;byte_max_ones&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;with_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;258&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;254&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+                &lt;span class=&quot;nv&quot;&gt;$assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;mod&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;check_encoded_vs_given&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;assert_eq!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;nd&quot;&gt;unit_test_set!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;check_encoded_vs_given&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;mod&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;check_decoded_vs_given&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;assert_eq!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;nd&quot;&gt;unit_test_set!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;check_decoded_vs_given&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;quickcheck!&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode_decode_identity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;constants&quot;&gt;Constants&lt;/h2&gt;
+
+&lt;p&gt;I really dislike magic values in my code. Here are some constants we’ll use:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAXu8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;max_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAXu8&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_CONSECUTIVE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;MAX*&lt;/code&gt; values are just shorter without using &lt;code class=&quot;highlighter-rouge&quot;&gt;255&lt;/code&gt; literally. I did use them in the tests because there are related numbers off by 2 or 3. It made more sense in the unit tests, which encode specific examples. The code is abstract, should work for any case.&lt;/p&gt;
+
+&lt;h2 id=&quot;decode&quot;&gt;Decode&lt;/h2&gt;
+
+&lt;p&gt;So let’s decode some bytes. For every byte we can either interpret it as a zero marker if it’s at the right offset, or we can copy the byte to the output verbatim. If the copied byte is zero, that’s an error. Unless it’s a predicted zero marker, in which case we’re successfully finished. If it’s a zero marker that’s not fake, we push a zero instead of the byte value of the marker. We also need to compute the index of the next zero marker with the relative offset. This boils down to the following code:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+              &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+              &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fake&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;written&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;written&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;// framemarker, we're done&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fake&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;written&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;fake&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAXu8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;// fail&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;written&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;nf&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;written&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;// fail&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;zero_marker_index&lt;/code&gt; is the absolute offset from the start of the &lt;code class=&quot;highlighter-rouge&quot;&gt;encoded_data&lt;/code&gt; slice. The boolean &lt;code class=&quot;highlighter-rouge&quot;&gt;fake&lt;/code&gt; is for remembering if that zero marker will be fake or not. We also track how many bytes we’ve &lt;code class=&quot;highlighter-rouge&quot;&gt;written&lt;/code&gt; in the buffer of decoded data. We break from the loop to fail, because we may also find no &lt;code class=&quot;highlighter-rouge&quot;&gt;0&lt;/code&gt; at all and run out of encoded data, which is also a corner case where we should fail.&lt;/p&gt;
+
+&lt;h2 id=&quot;encode-buffer-input&quot;&gt;Encode (buffer input)&lt;/h2&gt;
+
+&lt;p&gt;There are two different ways you can implement COBS. One is to look ahead in the data for the zero. This means to need a buffer of 254 bytes at most, but you can sequentially output the encoded bytes. Is to sequentially read the input byte without buffering them, instead buffering the output so you can go back and fill in the space you reserved for the zero marker once you’ve seen the next zero. Let’s first look at the look-ahead version:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode_lookahead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data_iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.chain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;once&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.peekable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_CONSECUTIVE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data_iter&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.peek&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;c&quot;&gt;// Find the next zero, copy bytes seen into buffer&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data_iter&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.by_ref&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.take_while&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(|&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;debug_assert!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;c&quot;&gt;// Write where next zero is, then write the data from the buffer&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;// Note the +1, since buf_index starts at zero and the next zero is always at least one away&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;..&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Given that we take in some &lt;code class=&quot;highlighter-rouge&quot;&gt;Vec&amp;lt;u8&amp;gt;&lt;/code&gt; that we append to, we should save the length and return the difference in length as the amount of bytes written. Then we create an iterator over the data, followed by an extra zero, which should be &lt;code class=&quot;highlighter-rouge&quot;&gt;peekable&lt;/code&gt;. This means we can look ahead without consuming to see if the iterator is done yet. While it isn’t done, we set keep an index of the used part of the buffer. For the bytes in the iterator, we just add them to the buffer unless it’s a zero or the buffer is full. Then we write the zero marker first using the buffer index to see how many non-zeroes we found ahead. And we copy over the buffer. The extra zero on the data iterator compensates for the extra zero-marker at the front of the message. The extra zero pushed at the end ends the message.&lt;/p&gt;
+
+&lt;h2 id=&quot;encode-buffer-output&quot;&gt;Encode (buffer output)&lt;/h2&gt;
+
+&lt;p&gt;If we buffer the output, we can just write a bogus value for the zero marker, remember its index, and overwrite it later. Again only 255 bytes need to be buffered at a maximum, although this isn’t visible in our implementation.&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+    &lt;span class=&quot;c&quot;&gt;// Note that we always start from 1, so we count MAX_CONSEQUTIVE bytes of non-zero data&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;macro_rules!&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_zero_marker&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}};&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;zero_marker_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;c&quot;&gt;// NOTE: the extra zero at the end will become the framemarker&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.chain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;once&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;next_zero_marker!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;byte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nd&quot;&gt;debug_assert!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;non_zero_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nd&quot;&gt;next_zero_marker!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the end, I don’t think the memory requirements and timing behaviour of the two different options should be very different. But to put that to the test, I’ve written a little benchmark:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;macro_rules!&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gen_benches&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$prefix:ident&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;mod&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$prefix&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;test&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Bencher&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;cobs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$prefix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LOREM_IPSUM_RAW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+            &lt;span class=&quot;nd&quot;&gt;#[bench]&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode_r1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bencher&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lorem_ipsum_encoded&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+                    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$prefix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LOREM_IPSUM_RAW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lorem_ipsum_encoded&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;gen_benches!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;gen_benches!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encode_lookahead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This uses the first 4 paragraphs or so from &lt;a href=&quot;https://lipsum.com/&quot;&gt;Lorem Ipsum&lt;/a&gt;, and on my machine the input buffering version is always faster:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; name       encode:: ns/iter  encode_lookahead:: ns/iter  diff ns/iter   diff %  speedup 
+ encode_r1  4,243             3,745                               -498  -11.74%   x 1.13
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;faster-decode&quot;&gt;Faster decode&lt;/h2&gt;
+
+&lt;p&gt;Say we wanted to seriously speed up our decoding. We could do so by dropping the check of an unexpected zero. Why? Well if you drop that check, a zero marker will tell you exactly how many bytes you can copy over verbatim before the next marker. Which you can do in Rust with the &lt;code class=&quot;highlighter-rouge&quot;&gt;extend_from_slice&lt;/code&gt; function, which is probably a bit faster than a manual loop. Let’s try that out:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;loop&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;..&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zero_marker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;max_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;decoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;zero_marker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We don’t use iterators any more in this code. This is not very idiomatic for Rust, since Rust can more easily eliminate bounds checks for loops over iterators. However, we do get the &lt;code class=&quot;highlighter-rouge&quot;&gt;extend_from_slice&lt;/code&gt; which is hopefully more efficient. So what we do is keep the index into the data around, and look up the zero marker. If the zero marker is zero, we’re done, end of message. If the index is out of bounds, that’s an error. Otherwise we extend from the &lt;code class=&quot;highlighter-rouge&quot;&gt;index+1&lt;/code&gt; up to (not including) the next index. The &lt;code class=&quot;highlighter-rouge&quot;&gt;+1&lt;/code&gt; is because &lt;code class=&quot;highlighter-rouge&quot;&gt;index&lt;/code&gt; always points to a zeromarker. Should the zero marker be &lt;code class=&quot;highlighter-rouge&quot;&gt;255&lt;/code&gt; or the next zero marker be &lt;code class=&quot;highlighter-rouge&quot;&gt;0&lt;/code&gt;, then we don’t need to add a zero after the copied data. Then we update the zero marker and index.&lt;/p&gt;
+
+&lt;p&gt;To test this we run another benchmark, this time decoding the encoded lorem ipsum text. The results are quite promising:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; name       naive_decode:: ns/iter  decode:: ns/iter  diff ns/iter   diff %  speedup 
+ decode_r1  3,962                   361                     -3,601  -90.89%  x 10.98
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Naturally, this faster decode &lt;em&gt;is&lt;/em&gt; too permissive. So a quickcheck test such as the following will fail most of the time by finding an incorrect COBS encoded message with an unexpected zero.&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;nd&quot;&gt;quickcheck!&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;naive_decode_eq_decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;naive_decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.as_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;r1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;faster-encode&quot;&gt;Faster encode&lt;/h2&gt;
+
+&lt;p&gt;Perhaps we can also improve our look-ahead encoding, by not explicitly buffering anything. If instead we just find the position of the next zero, we can use some index juggling:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;pub&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encode_itertools&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Vec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;itertools&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Itertools&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;z_index&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.chain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nn&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;once&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.positions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(|&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nd&quot;&gt;debug_assert!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;// index is always still-unvisited, so when z_index == index, we need to write a 1&lt;/span&gt;
+        &lt;span class=&quot;nd&quot;&gt;macro_rules!&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offset_between_zeroes&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z_index&lt;/span&gt; - &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;nd&quot;&gt;offset_between_zeroes!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAXu8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;..&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_CONSECUTIVE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_CONSECUTIVE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;usize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nd&quot;&gt;offset_between_zeroes!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.extend_from_slice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;..&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;z_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;z_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;encoded_data_buffer&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;start_length_out_buffer&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We use &lt;a href=&quot;https://crates.io/crates/itertools&quot;&gt;itertools&lt;/a&gt; here for the &lt;code class=&quot;highlighter-rouge&quot;&gt;positions&lt;/code&gt; iterator method. We go over the whole data looking for the indices of the zero bytes. We’ve encoded up to &lt;code class=&quot;highlighter-rouge&quot;&gt;index&lt;/code&gt;, so if the offset between there and the zero is too far, we need to add the special zero markers and the &lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_CONSECUTIVE&lt;/code&gt; number of data bytes. In the end we always write the offset as zero marker, then the data up to the zero, then set the index to &lt;em&gt;after&lt;/em&gt; the zero.&lt;/p&gt;
+
+&lt;p&gt;This is again a bit faster because we don’t copy each byte into a buffer only to copy the buffer again. The positions iterator method now does the look-ahead for us.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; name       encode_lookahead:: ns/iter  encode_itertools:: ns/iter  diff ns/iter   diff %  speedup 
+ encode_r1  3,750                       2,756                               -994  -26.51%   x 1.36
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;So we’ve seen some Rust code today that was hopefully readable to you. Tests are easy because they’re built-in. Property based tests are just a crate import away. Benchmarks require the nightly compiler, but only those do, so you can just use &lt;code class=&quot;highlighter-rouge&quot;&gt;cargo +nightly bench&lt;/code&gt; to run them. The comparison tables are generated with &lt;a href=&quot;https://crates.io/crates/cargo-benchcmp&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;cargo-benchcmp&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;I’ve shown some of my implementations for COBS in Rust, but this was only a learning exercise. I hope this inspires you to find a project of your own to get more experience with Rust. A &lt;em&gt;real&lt;/em&gt; implementation of COBS in Rust can be found in the &lt;a href=&quot;https://crates.io/crates/cobs&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;cobs&lt;/code&gt;&lt;/a&gt; crate, which allows you to use whichever sentinel value you want, can decode in-place, and doesn’t even use vectors so you can use the crate without the standard library.&lt;/p&gt;
+
+&lt;h1 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h1&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:overhead&quot;&gt;
+      &lt;p&gt;If you count the zero at the end of a frame as part of the COBS algorithm, it has a minimum offset of 2. But apparently people usually count that as a separate “packetize” step, or so it says on Wikipedia. &lt;a href=&quot;#fnref:overhead&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Mon, 30 Apr 2018 00:00:00 +0200</pubDate>
+        <link>http://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</link>
+        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</guid>
+        
+        <category>Rust</category>
+        
+        <category>programming</category>
+        
+        <category>networks</category>
+        
+        <category>frames</category>
+        
+        <category>streams</category>
+        
+        <category>cobs</category>
+        
+        <category>byte stuffing</category>
+        
+        
+        <category>CompSci</category>
+        
+      </item>
     
       <item>
         <title>A Stratego interpreter in Rust</title>
@@ -3863,606 +4307,6 @@ Z1 -- Plus -- Z2 -- Star -- O1;
         <category>context-free grammar</category>
         
         <category>context-free</category>
-        
-        
-        <category>CompSci</category>
-        
-      </item>
-    
-      <item>
-        <title>Finite Automata</title>
-        <description>&lt;p&gt;&lt;a href=&quot;#addendum&quot;&gt;&lt;em&gt;Edited on: Apr 17, 2016&lt;/em&gt;&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;What do Turing machines and regular expressions have in common? One is a theoretical model of a computer, and can be used to prove that some things cannot be computed. The other is a practical tool for matching strings. And yet they are both based on a simple &lt;em&gt;computational model&lt;/em&gt;: a (very constrained) finite state machine (FSM).&lt;/p&gt;
-
-&lt;p&gt;In this blog post we’ll go over the basics of this type of FSM and instead of going over proofs, we’ll go over examples and little implementations in Rust. For more information about this blog post series, see &lt;a href=&quot;/compsci/2016/03/28/theory-of-computation/&quot;&gt;this announcement post&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h1 id=&quot;an-exercise-in-minimalism&quot;&gt;An exercise in minimalism&lt;/h1&gt;
-
-&lt;p&gt;We’ll start with the simplest, most restricted version of our FSMs. These are great for proofs because everything explicitly defined and super simple. But they are not so great to construct by hand, so we’ll discuss a nicer version afterwards and relate &lt;em&gt;that one&lt;/em&gt; to regular expressions. Turing machine will not be part of this post.&lt;/p&gt;
-
-&lt;h2 id=&quot;deterministic-finite-automaton-dfa&quot;&gt;Deterministic Finite Automaton (DFA)&lt;/h2&gt;
-
-&lt;p&gt;DFAs are FSMs (&lt;em&gt;automata&lt;/em&gt;) that work on a &lt;em&gt;finite&lt;/em&gt; input and give a boolean output. &lt;em&gt;True&lt;/em&gt; means the input was recognised as part of the ‘language’ that the DFA encodes, &lt;em&gt;false&lt;/em&gt; means it is not part of the language. &lt;em&gt;Deterministic&lt;/em&gt; automata define all their (&lt;em&gt;finite&lt;/em&gt; amount of) states and &lt;em&gt;exactly one&lt;/em&gt; transition for every possible pair of state and input.&lt;br /&gt;
-The way you formally describe a DFA is by defining:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;the allowable input symbols (or &lt;em&gt;alphabet&lt;/em&gt; &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;Σ&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\Sigma&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.68333em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.68333em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;Σ&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;),&lt;/li&gt;
-  &lt;li&gt;the &lt;em&gt;states&lt;/em&gt; &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;Q&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;Q&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.68333em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.8777699999999999em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;Q&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;,&lt;/li&gt;
-  &lt;li&gt;the &lt;em&gt;state transitions&lt;/em&gt; (as a finite mapping &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;δ&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\delta&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.69444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.69444em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03785em;&quot;&gt;δ&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;),&lt;/li&gt;
-  &lt;li&gt;the &lt;em&gt;start state&lt;/em&gt; &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_0&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; and&lt;/li&gt;
-  &lt;li&gt;the &lt;em&gt;final&lt;/em&gt; or &lt;em&gt;accept states&lt;/em&gt; &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;F&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;F&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.68333em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.68333em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.13889em;&quot;&gt;F&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;example-binary-string&quot;&gt;Example: Binary string&lt;/h3&gt;
-
-&lt;p&gt;Let’s construct a DFA that can recognise inputs that start with a one, has at least two zeroes after that, and then at least one more one, after which the ‘word’ ends.&lt;/p&gt;
-
-&lt;div class=&quot;graphviz-wrapper&quot;&gt;
-
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
- --&gt;
-&lt;!-- Title: Binary string DFA Pages: 1 --&gt;
-&lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA&quot; width=&quot;411pt&quot; height=&quot;78pt&quot; viewBox=&quot;0.00 0.00 411.00 78.00&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;desc&gt;digraph &amp;quot;Binary string DFA&amp;quot; { 
-bgcolor=&amp;quot;transparent&amp;quot;;
-rankdir=LR;
-node [shape=circle, fixedsize=shape, width=0.5];
-start [shape=none, label=&amp;quot;&amp;quot;, width=0];
-q4 [shape=doublecircle, width=0.4];
-start -&amp;gt; q0;
-q0 -&amp;gt; q1 [label=&amp;quot;1&amp;quot;];
-q1 -&amp;gt; q2 [label=&amp;quot;0&amp;quot;];
-q2 -&amp;gt; q3 [label=&amp;quot;0&amp;quot;];
-q3 -&amp;gt; q3 [label=&amp;quot;0&amp;quot;];
-q3 -&amp;gt; q4 [label=&amp;quot;1&amp;quot;];
-q4 -&amp;gt; q4 [label=&amp;quot;1&amp;quot;];
- }&lt;/desc&gt;
-
-&lt;g id=&quot;graph0&quot; class=&quot;graph&quot; transform=&quot;scale(1 1) rotate(0) translate(4 74)&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;!-- start --&gt;
-&lt;g id=&quot;node1&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;start&lt;/title&gt;
-&lt;/g&gt;
-&lt;!-- q0 --&gt;
-&lt;g id=&quot;node3&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q0&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;56&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;56&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;q0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- start&amp;#45;&amp;gt;q0 --&gt;
-&lt;g id=&quot;edge1&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;start&amp;#45;&amp;gt;q0&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M18.6728,-18.5C21.5773,-18.5 24.6413,-18.5 27.7141,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;27.976,-22.0001 37.9759,-18.5 27.9759,-15.0001 27.976,-22.0001&quot; /&gt;
-&lt;/g&gt;
-&lt;!-- q4 --&gt;
-&lt;g id=&quot;node2&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q4&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;384.5&quot; cy=&quot;-18.5&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;384.5&quot; cy=&quot;-18.5&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;384.5&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;q4&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q4&amp;#45;&amp;gt;q4 --&gt;
-&lt;g id=&quot;edge7&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q4&amp;#45;&amp;gt;q4&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M377.412,-35.7739C375.9655,-45.7309 378.3281,-55 384.5,-55 388.4539,-55 390.8444,-51.196 391.6717,-45.844&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;395.1711,-45.7445 391.588,-35.7739 388.1713,-45.8027 395.1711,-45.7445&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;384.5&quot; y=&quot;-58.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q1 --&gt;
-&lt;g id=&quot;node4&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q1&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;138&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;138&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;q1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q0&amp;#45;&amp;gt;q1 --&gt;
-&lt;g id=&quot;edge2&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q0&amp;#45;&amp;gt;q1&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M74.1985,-18.5C84.6024,-18.5 97.8785,-18.5 109.6232,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;109.8524,-22.0001 119.8524,-18.5 109.8524,-15.0001 109.8524,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;97&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q2 --&gt;
-&lt;g id=&quot;node5&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q2&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;220&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;220&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;q2&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q1&amp;#45;&amp;gt;q2 --&gt;
-&lt;g id=&quot;edge3&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q1&amp;#45;&amp;gt;q2&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M156.1985,-18.5C166.6024,-18.5 179.8785,-18.5 191.6232,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;191.8524,-22.0001 201.8524,-18.5 191.8524,-15.0001 191.8524,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;179&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q3 --&gt;
-&lt;g id=&quot;node6&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q3&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;302&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;302&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;q3&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q2&amp;#45;&amp;gt;q3 --&gt;
-&lt;g id=&quot;edge4&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q2&amp;#45;&amp;gt;q3&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M238.1985,-18.5C248.6024,-18.5 261.8785,-18.5 273.6232,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;273.8524,-22.0001 283.8524,-18.5 273.8524,-15.0001 273.8524,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;261&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q3&amp;#45;&amp;gt;q4 --&gt;
-&lt;g id=&quot;edge6&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q3&amp;#45;&amp;gt;q4&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M320.3094,-18.5C330.7041,-18.5 343.9485,-18.5 355.7038,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;355.9565,-22.0001 365.9565,-18.5 355.9564,-15.0001 355.9565,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;343&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q3&amp;#45;&amp;gt;q3 --&gt;
-&lt;g id=&quot;edge5&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q3&amp;#45;&amp;gt;q3&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M294.9688,-35.1641C293.4063,-45.125 295.75,-54.5 302,-54.5 306.0039,-54.5 308.4047,-50.6525 309.2023,-45.2682&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;312.7001,-45.1033 309.0313,-35.1641 305.7011,-45.2219 312.7001,-45.1033&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;302&quot; y=&quot;-58.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;/g&gt;
-&lt;/svg&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Note that I’ve already started cheating with the construction of this DFA. Not every state handles all symbols in the alphabet (0 and 1). This partially defined DFA is usually easier to write and read. The usual way to make it fully defined is to add an explicit &lt;em&gt;stuck state&lt;/em&gt;. All the unhandled symbols go to that state, and with any next input the DFA will stay in that state.&lt;/p&gt;
-
-&lt;h3 id=&quot;code-code-code&quot;&gt;Code code code&lt;/h3&gt;
-
-&lt;p&gt;In Rust we can do the partial definition of the DFA with an &lt;code class=&quot;highlighter-rouge&quot;&gt;Option&lt;/code&gt; type:&lt;/p&gt;
-
-&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;u8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Input&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Input&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Input&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;transition&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;State&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Input&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;match&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;START&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;State&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FINALS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;State&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
-
-
-&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;INPUTS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Input&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ZERO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;fn&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;mut&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Some&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;START&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;INPUTS&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.and_then&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;st&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;transition&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;st&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.clone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()));&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.map_or&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;st&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FINALS&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.any&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(|&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;st&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nd&quot;&gt;println!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;The input is accepted&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nd&quot;&gt;println!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;The input is not accepted&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;(The crate is in this &lt;a href=&quot;https://github.com/Apanatshka/Apanatshka.github.io/tree/jekyll/_includes/compsci/2016/04/10/finite-automata/binary_string/&quot;&gt;blog’s repository&lt;/a&gt;)&lt;br /&gt;
-So &lt;code class=&quot;highlighter-rouge&quot;&gt;None&lt;/code&gt; is the stuck state and the ‘real’ states are wrapped in a &lt;code class=&quot;highlighter-rouge&quot;&gt;Some&lt;/code&gt;. In this code the transitions are given as a function, not a mapping. When you generalise this into an automaton library (there &lt;a href=&quot;https://crates.io/search?q=automaton&quot;&gt;are&lt;/a&gt; &lt;a href=&quot;https://crates.io/search?q=automata&quot;&gt;several&lt;/a&gt; on &lt;a href=&quot;https://crates.io/&quot;&gt;crates.io&lt;/a&gt;), you’re more likely to end up with a map.&lt;/p&gt;
-
-&lt;h3 id=&quot;memory&quot;&gt;Memory&lt;/h3&gt;
-
-&lt;p&gt;Note that DFAs are so restricted that they don’t really have mutable memory. Any kind of memory of what you’ve already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:&lt;/p&gt;
-
-&lt;div class=&quot;graphviz-wrapper&quot;&gt;
-
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
- --&gt;
-&lt;!-- Title: Binary string DFA Pages: 1 --&gt;
-&lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA&quot; width=&quot;416pt&quot; height=&quot;340pt&quot; viewBox=&quot;0.00 0.00 415.89 339.89&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;desc&gt;digraph &amp;quot;Binary string DFA&amp;quot; { 
-layout=&amp;quot;circo&amp;quot;;
-bgcolor=&amp;quot;transparent&amp;quot;;
-rankdir=LR;
-start [shape=none, label=&amp;quot;&amp;quot;, width=0];
-node [shape=doublecircle, fixedsize=shape, width=0.4, mindist=2];
-q100 [label=&amp;quot;100&amp;quot;];
-q101 [label=&amp;quot;101&amp;quot;];
-q110 [label=&amp;quot;110&amp;quot;];
-q111 [label=&amp;quot;111&amp;quot;];
-node [shape=circle, fixedsize=shape, width=0.5];
-q000 [label=&amp;quot;000&amp;quot;];
-q001 [label=&amp;quot;001&amp;quot;];
-q010 [label=&amp;quot;010&amp;quot;];
-q011 [label=&amp;quot;011&amp;quot;];
-start -&amp;gt; q000;
-q000 -&amp;gt; q000 [label=&amp;quot;0&amp;quot;];
-q000 -&amp;gt; q001 [label=&amp;quot;1&amp;quot;];
-q001 -&amp;gt; q010 [label=&amp;quot;0&amp;quot;];
-q001 -&amp;gt; q011 [label=&amp;quot;1&amp;quot;];
-q010 -&amp;gt; q100 [label=&amp;quot;0&amp;quot;];
-q010 -&amp;gt; q101 [label=&amp;quot;1&amp;quot;];
-q011 -&amp;gt; q110 [label=&amp;quot;0&amp;quot;];
-q011 -&amp;gt; q111 [label=&amp;quot;1&amp;quot;];
-q100 -&amp;gt; q000 [label=&amp;quot;0&amp;quot;];
-q100 -&amp;gt; q001 [label=&amp;quot;1&amp;quot;];
-q101 -&amp;gt; q010 [label=&amp;quot;0&amp;quot;];
-q101 -&amp;gt; q011 [label=&amp;quot;1&amp;quot;];
-q110 -&amp;gt; q100 [label=&amp;quot;0&amp;quot;];
-q110 -&amp;gt; q101 [label=&amp;quot;1&amp;quot;];
-q111 -&amp;gt; q110 [label=&amp;quot;0&amp;quot;];
-q111 -&amp;gt; q111 [label=&amp;quot;1&amp;quot;];
- }&lt;/desc&gt;
-
-&lt;g id=&quot;graph0&quot; class=&quot;graph&quot; transform=&quot;scale(1 1) rotate(0) translate(4 335.8916)&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;!-- start --&gt;
-&lt;g id=&quot;node1&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;start&lt;/title&gt;
-&lt;/g&gt;
-&lt;!-- q000 --&gt;
-&lt;g id=&quot;node6&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q000&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;90.5&quot; cy=&quot;-166.1958&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;90.5&quot; y=&quot;-162.4958&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;000&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- start&amp;#45;&amp;gt;q000 --&gt;
-&lt;g id=&quot;edge1&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;start&amp;#45;&amp;gt;q000&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M1.0747,-166.1958C5.7173,-166.1958 37.5418,-166.1958 61.9178,-166.1958&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;62.138,-169.6959 72.1379,-166.1958 62.1379,-162.6959 62.138,-169.6959&quot; /&gt;
-&lt;/g&gt;
-&lt;!-- q100 --&gt;
-&lt;g id=&quot;node2&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q100&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;133.7591&quot; cy=&quot;-61.7591&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;133.7591&quot; cy=&quot;-61.7591&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;133.7591&quot; y=&quot;-58.0591&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;100&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q100&amp;#45;&amp;gt;q000 --&gt;
-&lt;g id=&quot;edge10&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q100&amp;#45;&amp;gt;q000&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M126.6157,-79.0047C119.7494,-95.5815 109.2785,-120.8605 101.3761,-139.9386&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;98.1038,-138.6929 97.5104,-149.2711 104.5709,-141.3717 98.1038,-138.6929&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;108.9959&quot; y=&quot;-113.2717&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q001 --&gt;
-&lt;g id=&quot;node7&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q001&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;133.7591&quot; cy=&quot;-270.6325&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;133.7591&quot; y=&quot;-266.9325&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;001&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q100&amp;#45;&amp;gt;q001 --&gt;
-&lt;g id=&quot;edge11&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q100&amp;#45;&amp;gt;q001&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M133.7591,-80.2952C133.7591,-116.9279 133.7591,-198.8025 133.7591,-242.2649&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;130.2592,-242.4361 133.7591,-252.4361 137.2592,-242.4362 130.2592,-242.4361&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;128.7591&quot; y=&quot;-150.0801&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q101 --&gt;
-&lt;g id=&quot;node3&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q101&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;342.6325&quot; cy=&quot;-270.6325&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;342.6325&quot; cy=&quot;-270.6325&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;342.6325&quot; y=&quot;-266.9325&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;101&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q010 --&gt;
-&lt;g id=&quot;node8&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q010&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;238.1958&quot; cy=&quot;-313.8916&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;238.1958&quot; y=&quot;-310.1916&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;010&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q101&amp;#45;&amp;gt;q010 --&gt;
-&lt;g id=&quot;edge12&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q101&amp;#45;&amp;gt;q010&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M323.8956,-272.8573C306.3836,-278.0762 280.234,-288.6274 261.4122,-297.8979&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;259.6002,-294.8945 252.3222,-302.594 262.8131,-301.1136 259.6002,-294.8945&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;287.6539&quot; y=&quot;-274.1776&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q011 --&gt;
-&lt;g id=&quot;node9&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q011&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;385.8916&quot; cy=&quot;-166.1958&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;385.8916&quot; y=&quot;-162.4958&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;011&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q101&amp;#45;&amp;gt;q011 --&gt;
-&lt;g id=&quot;edge13&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q101&amp;#45;&amp;gt;q011&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M349.7758,-253.3869C356.6422,-236.8101 367.1131,-211.531 375.0155,-192.4529&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;378.2878,-193.6987 378.8811,-183.1205 371.8207,-191.0199 378.2878,-193.6987&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;357.3957&quot; y=&quot;-226.7199&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q110 --&gt;
-&lt;g id=&quot;node4&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q110&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;238.1958&quot; cy=&quot;-18.5&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;238.1958&quot; cy=&quot;-18.5&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;238.1958&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;110&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q110&amp;#45;&amp;gt;q100 --&gt;
-&lt;g id=&quot;edge14&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q110&amp;#45;&amp;gt;q100&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M220.9502,-25.6434C204.4721,-32.4688 179.395,-42.8561 160.3576,-50.7416&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;158.9297,-47.5446 151.0303,-54.6051 161.6085,-54.0118 158.9297,-47.5446&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;185.6539&quot; y=&quot;-41.9925&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q110&amp;#45;&amp;gt;q101 --&gt;
-&lt;g id=&quot;edge15&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q110&amp;#45;&amp;gt;q101&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M245.3741,-35.8301C263.3039,-79.1162 310.1442,-192.199 331.6044,-244.0084&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;328.4815,-245.6151 335.542,-253.5145 334.9487,-242.9363 328.4815,-245.6151&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;283.4893&quot; y=&quot;-143.7193&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q111 --&gt;
-&lt;g id=&quot;node5&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q111&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;342.6325&quot; cy=&quot;-61.7591&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;342.6325&quot; cy=&quot;-61.7591&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;342.6325&quot; y=&quot;-58.0591&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;111&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q111&amp;#45;&amp;gt;q110 --&gt;
-&lt;g id=&quot;edge16&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q111&amp;#45;&amp;gt;q110&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M325.3869,-54.6157C308.9088,-47.7903 283.8317,-37.403 264.7943,-29.5174&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;266.0452,-26.2473 255.467,-25.654 263.3664,-32.7144 266.0452,-26.2473&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;290.0906&quot; y=&quot;-45.8666&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q111&amp;#45;&amp;gt;q111 --&gt;
-&lt;g id=&quot;edge17&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q111&amp;#45;&amp;gt;q111&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M360.317,-67.9752C371.6885,-69.5967 382.6325,-67.5247 382.6325,-61.7591 382.6325,-57.7952 377.4597,-55.5772 370.5316,-55.1049&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;370.1578,-51.6176 360.317,-55.543 370.4578,-58.6112 370.1578,-51.6176&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;387.6325&quot; y=&quot;-58.0591&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q000&amp;#45;&amp;gt;q000 --&gt;
-&lt;g id=&quot;edge2&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q000&amp;#45;&amp;gt;q000&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M107.7683,-172.3509C119.2874,-174.0834 130.5,-172.0317 130.5,-166.1958 130.5,-162.1836 125.2003,-159.96 118.1448,-159.5251&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;117.5822,-156.0486 107.7683,-160.0407 117.9297,-163.04 117.5822,-156.0486&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;135.5&quot; y=&quot;-162.4958&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q000&amp;#45;&amp;gt;q001 --&gt;
-&lt;g id=&quot;edge3&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q000&amp;#45;&amp;gt;q001&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M97.4503,-182.9753C104.3247,-199.5715 114.9446,-225.2103 122.9264,-244.4799&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;119.7655,-245.9952 126.826,-253.8946 126.2327,-243.3163 119.7655,-245.9952&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;105.1883&quot; y=&quot;-217.5276&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q001&amp;#45;&amp;gt;q010 --&gt;
-&lt;g id=&quot;edge4&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q001&amp;#45;&amp;gt;q010&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M150.5387,-277.5828C167.1348,-284.4571 192.7736,-295.0771 212.0433,-303.0588&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;210.8797,-306.3652 221.4579,-306.9585 213.5585,-299.898 210.8797,-306.3652&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;176.291&quot; y=&quot;-294.1208&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q001&amp;#45;&amp;gt;q011 --&gt;
-&lt;g id=&quot;edge5&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q001&amp;#45;&amp;gt;q011&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M150.6937,-263.6179C193.7546,-245.7815 307.6804,-198.5919 359.5282,-177.1159&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;361.1313,-180.2403 369.0307,-173.1798 358.4524,-173.7731 361.1313,-180.2403&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;250.111&quot; y=&quot;-224.1669&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q010&amp;#45;&amp;gt;q100 --&gt;
-&lt;g id=&quot;edge6&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q010&amp;#45;&amp;gt;q100&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M231.1812,-296.9569C213.3877,-253.9996 166.3819,-140.5176 144.8345,-88.4975&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;147.9411,-86.8514 140.8806,-78.952 141.474,-89.5302 147.9411,-86.8514&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;183.0079&quot; y=&quot;-196.5272&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q010&amp;#45;&amp;gt;q101 --&gt;
-&lt;g id=&quot;edge7&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q010&amp;#45;&amp;gt;q101&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M256.4514,-311.8095C273.8713,-306.6692 300.1453,-296.093 319.1182,-286.7726&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;320.7396,-289.8746 328.0316,-282.1884 317.538,-283.6496 320.7396,-289.8746&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;282.7848&quot; y=&quot;-303.0911&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q011&amp;#45;&amp;gt;q110 --&gt;
-&lt;g id=&quot;edge8&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q011&amp;#45;&amp;gt;q110&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M373.0429,-153.3471C347.4219,-127.7261 289.7826,-70.0868 258.8092,-39.1134&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;261.0909,-36.4453 251.5449,-31.8491 256.1411,-41.3951 261.0909,-36.4453&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;310.9261&quot; y=&quot;-100.0303&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q011&amp;#45;&amp;gt;q111 --&gt;
-&lt;g id=&quot;edge9&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q011&amp;#45;&amp;gt;q111&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M378.9413,-149.4162C372.1483,-133.0165 361.6978,-107.7869 353.7497,-88.5984&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;356.9145,-87.0929 349.854,-79.1935 350.4474,-89.7717 356.9145,-87.0929&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;361.3455&quot; y=&quot;-122.8073&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;/g&gt;
-&lt;/svg&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We remember the last three input symbols in our states. That gives us &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msup&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;mn&gt;3&lt;/mn&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;2^3&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.8141079999999999em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.8141079999999999em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:-0.363em;margin-right:0.05em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;3&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; states, an exponential relation. So with these kinds of problems, you really don’t want to design these DFAs by hand.&lt;/p&gt;
-
-&lt;h2 id=&quot;non-deterministic-finite-automaton-nfa&quot;&gt;Non-deterministic Finite Automaton (NFA)&lt;/h2&gt;
-
-&lt;p&gt;Non-determinism allows states to have multiple transitions per symbol. That means that when you simulate an NFA, you can be in multiple states at once. This allows us to avoid the exponential blowup of the last example:&lt;/p&gt;
-
-&lt;div class=&quot;graphviz-wrapper&quot;&gt;
-
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
- --&gt;
-&lt;!-- Title: Binary string DFA Pages: 1 --&gt;
-&lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA&quot; width=&quot;355pt&quot; height=&quot;78pt&quot; viewBox=&quot;0.00 0.00 355.00 77.50&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;desc&gt;digraph &amp;quot;Binary string DFA&amp;quot; { 
-bgcolor=&amp;quot;transparent&amp;quot;;
-rankdir=LR;
-start [shape=none, label=&amp;quot;&amp;quot;, width=0];
-node [shape=doublecircle, fixedsize=shape, width=0.4, mindist=2];
-q4 [label=&amp;quot;1..&amp;quot;];
-node [shape=circle, fixedsize=shape, width=0.5];
-q1 [label=&amp;quot;...&amp;quot;];
-q2 [label=&amp;quot;..1&amp;quot;];
-q3 [label=&amp;quot;.1.&amp;quot;];
-start -&amp;gt; q1;
-q1 -&amp;gt; q1 [label=&amp;quot;0,1&amp;quot;];
-q1 -&amp;gt; q2 [label=&amp;quot;1&amp;quot;];
-q2 -&amp;gt; q3 [label=&amp;quot;0,1&amp;quot;];
-q3 -&amp;gt; q4 [label=&amp;quot;0,1&amp;quot;];
- }&lt;/desc&gt;
-
-&lt;g id=&quot;graph0&quot; class=&quot;graph&quot; transform=&quot;scale(1 1) rotate(0) translate(4 73.5)&quot;&gt;
-&lt;title&gt;Binary string DFA&lt;/title&gt;
-&lt;!-- start --&gt;
-&lt;g id=&quot;node1&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;start&lt;/title&gt;
-&lt;/g&gt;
-&lt;!-- q1 --&gt;
-&lt;g id=&quot;node3&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q1&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;56&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;56&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;...&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- start&amp;#45;&amp;gt;q1 --&gt;
-&lt;g id=&quot;edge1&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;start&amp;#45;&amp;gt;q1&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M1.1233,-18.5C3.9234,-18.5 15.7247,-18.5 27.6695,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;27.9808,-22.0001 37.9807,-18.5 27.9807,-15.0001 27.9808,-22.0001&quot; /&gt;
-&lt;/g&gt;
-&lt;!-- q4 --&gt;
-&lt;g id=&quot;node2&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q4&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;328.5&quot; cy=&quot;-18.5&quot; rx=&quot;14.5&quot; ry=&quot;14.5&quot; /&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;328.5&quot; cy=&quot;-18.5&quot; rx=&quot;18.5&quot; ry=&quot;18.5&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;328.5&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1..&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q1&amp;#45;&amp;gt;q1 --&gt;
-&lt;g id=&quot;edge2&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q1&amp;#45;&amp;gt;q1&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M49.6208,-35.5373C48.3189,-45.3579 50.4453,-54.5 56,-54.5 59.4717,-54.5 61.6042,-50.9289 62.3975,-45.8529&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;65.8971,-45.531 62.3792,-35.5373 58.8971,-45.5435 65.8971,-45.531&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;56&quot; y=&quot;-58.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0,1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q2 --&gt;
-&lt;g id=&quot;node4&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q2&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;138&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;138&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;..1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q1&amp;#45;&amp;gt;q2 --&gt;
-&lt;g id=&quot;edge3&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q1&amp;#45;&amp;gt;q2&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M74.1985,-18.5C84.6024,-18.5 97.8785,-18.5 109.6232,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;109.8524,-22.0001 119.8524,-18.5 109.8524,-15.0001 109.8524,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;97&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q3 --&gt;
-&lt;g id=&quot;node5&quot; class=&quot;node&quot;&gt;
-&lt;title&gt;q3&lt;/title&gt;
-&lt;ellipse fill=&quot;none&quot; stroke=&quot;#000000&quot; cx=&quot;233&quot; cy=&quot;-18.5&quot; rx=&quot;18&quot; ry=&quot;18&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;233&quot; y=&quot;-14.8&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;.1.&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q2&amp;#45;&amp;gt;q3 --&gt;
-&lt;g id=&quot;edge4&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q2&amp;#45;&amp;gt;q3&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M156.317,-18.5C169.9851,-18.5 188.9167,-18.5 204.5492,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;204.7393,-22.0001 214.7393,-18.5 204.7392,-15.0001 204.7393,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;185.5&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0,1&lt;/text&gt;
-&lt;/g&gt;
-&lt;!-- q3&amp;#45;&amp;gt;q4 --&gt;
-&lt;g id=&quot;edge5&quot; class=&quot;edge&quot;&gt;
-&lt;title&gt;q3&amp;#45;&amp;gt;q4&lt;/title&gt;
-&lt;path fill=&quot;none&quot; stroke=&quot;#000000&quot; d=&quot;M251.4134,-18.5C265.0654,-18.5 283.941,-18.5 299.5968,-18.5&quot; /&gt;
-&lt;polygon fill=&quot;#000000&quot; stroke=&quot;#000000&quot; points=&quot;299.8174,-22.0001 309.8173,-18.5 299.8173,-15.0001 299.8174,-22.0001&quot; /&gt;
-&lt;text text-anchor=&quot;middle&quot; x=&quot;280.5&quot; y=&quot;-22.3&quot; font-family=&quot;Times,serif&quot; font-size=&quot;14.00&quot; fill=&quot;#000000&quot;&gt;0,1&lt;/text&gt;
-&lt;/g&gt;
-&lt;/g&gt;
-&lt;/svg&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Although this NFA is easier to describe, it’s still always translatable to a DFA. This translation algorithm is called powerset construction or subset construction. The powerset of a set is the set of all combinations: &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mrow&gt;&lt;mi mathvariant=&quot;double-struck&quot;&gt;P&lt;/mi&gt;&lt;/mrow&gt;&lt;mo&gt;(&lt;/mo&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;mo&gt;)&lt;/mo&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;∅&lt;/mi&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\mathbb{P}(\{0,1\}) = \{\emptyset, \{0\}, \{1\}, \{0,1\}\}&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.75em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:1em;vertical-align:-0.25em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathbb&quot;&gt;P&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;mrel&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;∅&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;powerset-construction&quot;&gt;Powerset construction&lt;/h3&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The &lt;em&gt;alphabet&lt;/em&gt; stays the same.&lt;/li&gt;
-  &lt;li&gt;We use the powerset of the states of the NFA to create the states for the DFA. (That’s where the exponential blowup comes from, &lt;strong&gt;if&lt;/strong&gt; all those states are used.) The state with the &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;∅&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\emptyset&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.75em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.80556em;vertical-align:-0.05556em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;∅&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; is the &lt;em&gt;stuck state&lt;/em&gt; that we already saw earlier.&lt;/li&gt;
-  &lt;li&gt;The transitions are based on the simulation of the NFA. So if you are in &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;/msub&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;/msub&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;3&lt;/mn&gt;&lt;/msub&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\{q_0, q_1, q_3\}&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.75em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:1em;vertical-align:-0.25em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;1&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;3&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; then the transition with symbol &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;σ&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\sigma_2&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.58056em;vertical-align:-0.15em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;σ&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;2&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; takes you to the state in the DFA that is labelled with states of the NFA that are reachable with &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;σ&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\sigma_2&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.58056em;vertical-align:-0.15em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;σ&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;2&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; from the states &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_0&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;, &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_1&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;1&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; and &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;3&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_3&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;3&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;.&lt;/li&gt;
-  &lt;li&gt;The start state is still the same although now called &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mi&gt;o&lt;/mi&gt;&lt;/msub&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\{q_o\}&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.75em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:1em;vertical-align:-0.25em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;o&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; instead of &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mi&gt;o&lt;/mi&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_o&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;o&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;.&lt;/li&gt;
-  &lt;li&gt;The final states are every state that has an NFA final state in its set.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;epsilon-moves&quot;&gt;Epsilon moves&lt;/h3&gt;
-
-&lt;p&gt;The empty string is referred to with the greek letter &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;. If you allow transitions in an NFA to be labelled with &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;, you get the NFA-&lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; type of automata. This changes the powerset construction slightly, because an &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; move from the start state in the NFA &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;/msub&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;q_0&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.625em;vertical-align:-0.19444em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt; means that the start state of the DFA will be one of the compound states &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mo&gt;{&lt;/mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;/mi&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;/msub&gt;&lt;mo separator=&quot;true&quot;&gt;,&lt;/mo&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;.&lt;/mi&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;.&lt;/mi&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;.&lt;/mi&gt;&lt;mo&gt;}&lt;/mo&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\{q_0, ...\}&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.75em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:1em;vertical-align:-0.25em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mopen&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mord&quot;&gt;&lt;span class=&quot;mord mathit&quot; style=&quot;margin-right:0.03588em;&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;vlist&quot;&gt;&lt;span style=&quot;top:0.15em;margin-right:0.05em;margin-left:-0.03588em;&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;reset-textstyle scriptstyle cramped&quot;&gt;&lt;span class=&quot;mord mathrm&quot;&gt;0&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;baseline-fix&quot;&gt;&lt;span class=&quot;fontsize-ensurer reset-size5 size5&quot;&gt;&lt;span style=&quot;font-size:0em;&quot;&gt;​&lt;/span&gt;&lt;/span&gt;​&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;mpunct&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mord mathrm&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mclose&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;. This class of automata is still not more powerful than the NFA or DFA. But it &lt;em&gt;is&lt;/em&gt; useful for the definition of the basic regular expression operators.&lt;/p&gt;
-
-&lt;h3 id=&quot;regular-expressions&quot;&gt;Regular expressions&lt;/h3&gt;
-
-&lt;p&gt;Now just to warn you: regular expressions in programming were once based on this automata theory, but have since been made much more powerful. Regex can describe much more than just &lt;em&gt;regular&lt;/em&gt; languages.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The basics&lt;/strong&gt; Ok, say you have an empty regular expression. That’s an NFA with one state, the start state, which is also a final state. It only recognises &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;.&lt;br /&gt;
-A regular expression that matches exactly &lt;code class=&quot;highlighter-rouge&quot;&gt;1&lt;/code&gt; is the same as an NFA with two states, the start state, and a separate final state with a transition in between labelled with &lt;code class=&quot;highlighter-rouge&quot;&gt;1&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Option&lt;/strong&gt; Let’s take two regular expressions put an ‘or’ (&lt;code class=&quot;highlighter-rouge&quot;&gt;|&lt;/code&gt;) in between. If either one matches, the whole regex matches. If we have two NFA equivalents, we can make a new start state and &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;-transitions to the two old start states.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Concatenation&lt;/strong&gt; Let’s take two regular expressions and stick them together, one after the other. In NFA-land that means that the final states of the first NFA become normal states with &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;-transitions to the start state of the second NFA.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Kleene Star&lt;/strong&gt; This is the &lt;code class=&quot;highlighter-rouge&quot;&gt;*&lt;/code&gt; in a regular expression, a zero-or-more. With this and the option, you can make a one-or-more (&lt;code class=&quot;highlighter-rouge&quot;&gt;+&lt;/code&gt;). The way this works in NFA-land is as follows: Create a new start state, which is a final state, and give it an &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;-transition to the old start state (the zero part). Give the old final states &lt;span class=&quot;katex&quot;&gt;&lt;span class=&quot;katex-mathml&quot;&gt;&lt;math&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;ε&lt;/mi&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\varepsilon&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;&lt;span class=&quot;katex-html&quot; aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;strut&quot; style=&quot;height:0.43056em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;strut bottom&quot; style=&quot;height:0.43056em;vertical-align:0em;&quot;&gt;&lt;/span&gt;&lt;span class=&quot;base textstyle uncramped&quot;&gt;&lt;span class=&quot;mord mathit&quot;&gt;ε&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;-transitions to the old start state (the more part).&lt;/p&gt;
-
-&lt;h2 id=&quot;limitations-and-non-regular-languages&quot;&gt;Limitations and Non-regular languages&lt;/h2&gt;
-
-&lt;p&gt;Say you want to recognise binary strings that starts with any number of zeroes, but then is followed by an equal number of ones. Because the number of zeroes is unbounded, we cannot use a finite number of states to count how many zeroes we’ve seen so far, to match with the amount of ones to come. Basically, it’s impossible to use DFAs or NFAs to recognise ‘words’ of this language.&lt;/p&gt;
-
-&lt;p&gt;More generally you can prove languages non-regular with the &lt;a href=&quot;https://en.wikipedia.org/wiki/Pumping_lemma_for_regular_languages&quot;&gt;pumping lemma for regular languages&lt;/a&gt;. I don’t have a super-intuitive way of explaining the pumping lemma, so if you want to know more, try reading the theory on it. &lt;em&gt;(Or do I? See the &lt;a href=&quot;#addendum&quot;&gt;Addendum&lt;/a&gt;!)&lt;/em&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;ps&quot;&gt;P.S.&lt;/h1&gt;
-
-&lt;p&gt;Next blog post we’ll look at context-free languages, which is a superset of the regular languages. They can be described with context-free grammars (which you may know from the definitions of programming language syntax) and which you can recognise with an automaton that has a single stack for memory.&lt;/p&gt;
-
-&lt;p&gt;I was going to write some more Rust code for you to look at, like a generally usable automaton library and the powerset construction. But this post has taken so long, it is already long, and there are Rust crates available with that kind of stuff… So, whatever ¯\_(ツ)_/¯&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;hr /&gt;
-
-&lt;h1 id=&quot;addendum&quot;&gt;Addendum&lt;/h1&gt;
-
-&lt;p&gt;&lt;em&gt;Apr 17, 2016&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;non-regularity-and-the-pumping-lemma&quot;&gt;Non-regularity and the pumping lemma&lt;/h2&gt;
-
-&lt;p&gt;Most of the examples I’ve seen of non-regular languages have some form of unbounded counting in them. But if you have a different language that doesn’t seem to fit, you can try to prove it non-regular too. The usual way to prove that a language is not regular, is to show that the &lt;a href=&quot;https://en.wikipedia.org/wiki/Pumping_lemma_for_regular_languages&quot;&gt;pumping lemma for regular languages&lt;/a&gt; doesn’t hold for the language. The pumping lemma is a property that all regular languages have (though there are some non-regular languages which are have this property). The basic idea is this:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Your language either consists of a finite set of words, and is therefore regular, or it consists of an infinite set. (The finite set means you can just union the DFAs for every separate word. )&lt;/li&gt;
-  &lt;li&gt;With an infinite set of words, and a finite alphabet, you’ll have words that have more symbols in them than your language’s DFA has states. That means the DFA has to loop somewhere.&lt;/li&gt;
-  &lt;li&gt;Every word in your language that is longer and uses a loop has three parts: the part before the loop, the part in the loop and the part after the loop. Such a word is part of an infinite class of words where you can repeat the middle part however many times you like.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;To prove that a language doesn’t have this &lt;em&gt;pumping length&lt;/em&gt; from the lemma, you need to be pretty abstract and use a cleverly chosen word. So if you want to write such a proof and haven’t done it before, I advise you to look up some examples!&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Thanks to &lt;a href=&quot;https://www.reddit.com/user/so_you_like_donuts&quot;&gt;/u/so_you_like_donuts&lt;/a&gt; for giving an &lt;a href=&quot;https://www.reddit.com/r/rust/comments/4eq01l/my_first_blog_post_finite_automata_with_a_bit_of/d22bw6q?context=3&quot;&gt;intuitive description of the pumping lemma&lt;/a&gt; which drove me to write this addendum.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;next-post&quot;&gt;Next post&lt;/h2&gt;
-
-&lt;p&gt;I had another week to read other blog posts, including an excellent one about &lt;a href=&quot;http://blog.burntsushi.net/transducers/&quot;&gt;automata in rust for string indexes&lt;/a&gt; and now I feel bad for not giving you the Rust code for every algorithm I explained. So, I might just postpone the blog post about context-free languages and dive into regex first. I doubt I’ll do better than the existing &lt;a href=&quot;https://crates.io/crates/regex&quot;&gt;regex crate&lt;/a&gt;, but, you know, whatever ¯\_(ツ)_/¯&lt;/p&gt;
-</description>
-        <pubDate>Sun, 10 Apr 2016 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2016/04/10/finite-automata/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/04/10/finite-automata/</guid>
-        
-        <category>theory</category>
-        
-        <category>automata</category>
-        
-        <category>computation</category>
-        
-        <category>nfa</category>
-        
-        <category>dfa</category>
-        
-        <category>regular expression</category>
         
         
         <category>CompSci</category>
