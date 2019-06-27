@@ -4,11 +4,11 @@
     <title>Whatever</title>
     <description>A web log. Mostly about computer science-y stuff. 
 </description>
-    <link>http://blog.jeffsmits.net/</link>
-    <atom:link href="http://blog.jeffsmits.net/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 08 May 2018 10:43:41 +0200</pubDate>
-    <lastBuildDate>Tue, 08 May 2018 10:43:41 +0200</lastBuildDate>
-    <generator>Jekyll v3.7.3</generator>
+    <link>https://blog.jeffsmits.net/</link>
+    <atom:link href="https://blog.jeffsmits.net/feed.xml" rel="self" type="application/rss+xml" />
+    <pubDate>Thu, 27 Jun 2019 21:11:07 +0200</pubDate>
+    <lastBuildDate>Thu, 27 Jun 2019 21:11:07 +0200</lastBuildDate>
+    <generator>Jekyll v3.6.2</generator>
     
       <item>
         <title>Optimising CTree and strs</title>
@@ -180,8 +180,8 @@ strs benchexpr15.opt.ctree   2.34s user 0.04s system 99% cpu 2.396 total
 &lt;p&gt;So there you have it. A CTree optimisation tool with abstract interpretation, and a slightly crazy scheme to model the stack memory of the interpreter with a single vector. Not that that’s completely working yet, and I haven’t had time to fix the last issues for a while now, but such is the fate of my side-projects constantly. So I’ll just close with: meh, whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Tue, 08 May 2018 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2018/05/08/optimising-stratego-core/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2018/05/08/optimising-stratego-core/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2018/05/08/optimising-stratego-core/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2018/05/08/optimising-stratego-core/</guid>
         
         <category>Rust</category>
         
@@ -618,8 +618,8 @@ strs benchexpr15.opt.ctree   2.34s user 0.04s system 99% cpu 2.396 total
 &lt;/div&gt;
 </description>
         <pubDate>Mon, 30 Apr 2018 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2018/04/30/learn-rust-by-project/</guid>
         
         <category>Rust</category>
         
@@ -1003,8 +1003,8 @@ result = true # this is the larger benchmark. The old total time was 1:01.81
 &lt;/div&gt;
 </description>
         <pubDate>Sun, 06 Aug 2017 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2017/08/06/a-stratego-interpreter-in-rust/</guid>
         
         <category>stratego</category>
         
@@ -1125,8 +1125,8 @@ result = true # this is the larger benchmark. The old total time was 1:01.81
 &lt;/div&gt;
 </description>
         <pubDate>Sun, 07 May 2017 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2017/05/07/first-published-crate-aterm/</guid>
         
         <category>annotated term</category>
         
@@ -1299,8 +1299,8 @@ a units of measure implementation, based on quantities and normalisation actuall
 &lt;/div&gt;
 </description>
         <pubDate>Wed, 15 Feb 2017 00:00:00 +0100</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2017/02/15/physical-quantity-as-type/</guid>
         
         <category>units</category>
         
@@ -1348,8 +1348,8 @@ other than the original intended use-case of networks&lt;sup id=&quot;fnref:net-
 &lt;/div&gt;
 </description>
         <pubDate>Sat, 11 Feb 2017 00:00:00 +0100</pubDate>
-        <link>http://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</guid>
+        <link>https://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/meta/2017/02/11/new-domain-name/</guid>
         
         <category>RSS</category>
         
@@ -1378,7 +1378,7 @@ other than the original intended use-case of networks&lt;sup id=&quot;fnref:net-
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: Binary string DFA 1 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA 1&quot; width=&quot;411pt&quot; height=&quot;78pt&quot; viewBox=&quot;0.00 0.00 411.00 78.00&quot;&gt;
@@ -1489,7 +1489,7 @@ q4 -&amp;gt; q4 [label=&amp;quot;1&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: Binary string DFA 2 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA 2&quot; width=&quot;411pt&quot; height=&quot;78pt&quot; viewBox=&quot;0.00 0.00 411.00 78.00&quot;&gt;
@@ -1600,7 +1600,7 @@ q9 -&amp;gt; q9 [label=&amp;quot;1&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: NFA union of DFAs 1 and 2 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;NFA union of DFAs 1 and 2&quot; width=&quot;411pt&quot; height=&quot;166pt&quot; viewBox=&quot;0.00 0.00 411.00 166.00&quot;&gt;
@@ -1787,7 +1787,7 @@ q9 -&amp;gt; q9 [label=&amp;quot;1&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: Binary string DFA 3 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA 3&quot; width=&quot;247pt&quot; height=&quot;47pt&quot; viewBox=&quot;0.00 0.00 247.00 46.85&quot;&gt;
@@ -1864,7 +1864,7 @@ q1 -&amp;gt; q2 [label=&amp;quot;1&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: Binary string DFA 4 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;Binary string DFA 4&quot; width=&quot;247pt&quot; height=&quot;45pt&quot; viewBox=&quot;0.00 0.00 247.00 45.00&quot;&gt;
@@ -1935,7 +1935,7 @@ q4 -&amp;gt; q5 [label=&amp;quot;0&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: (wrong) NFA union of DFAs 3 and 4 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;(wrong) NFA union of DFAs 3 and 4&quot; width=&quot;247pt&quot; height=&quot;110pt&quot; viewBox=&quot;0.00 0.00 247.00 110.00&quot;&gt;
@@ -2046,7 +2046,7 @@ q4 -&amp;gt; q5 [label=&amp;quot;0&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: (correct) NFA&amp;#45;e union of DFAs 3 and 4 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;(correct) NFA-e union of DFAs 3 and 4&quot; width=&quot;335pt&quot; height=&quot;114pt&quot; viewBox=&quot;0.00 0.00 335.00 114.00&quot;&gt;
@@ -2181,7 +2181,7 @@ q4 -&amp;gt; q5 [label=&amp;quot;0&amp;quot;];
 
 &lt;div class=&quot;graphviz-wrapper&quot;&gt;
 
-&lt;!-- Generated by graphviz version 2.40.1 (20161225.0304)
+&lt;!-- Generated by graphviz version 2.40.1 (0)
  --&gt;
 &lt;!-- Title: (correct) NFA&amp;#45;e union of DFAs 3 and 4 Pages: 1 --&gt;
 &lt;svg role=&quot;img&quot; aria-label=&quot;(correct) NFA-e union of DFAs 3 and 4&quot; width=&quot;255pt&quot; height=&quot;159pt&quot; viewBox=&quot;0.00 0.00 255.00 159.00&quot;&gt;
@@ -2511,8 +2511,8 @@ q4 -&amp;gt; q5 [label=&amp;quot;0&amp;quot;];
 &lt;/div&gt;
 </description>
         <pubDate>Sat, 12 Nov 2016 00:00:00 +0100</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2016/11/12/implementing-finite-automata-part-2/</guid>
         
         <category>theory</category>
         
@@ -2871,8 +2871,8 @@ Now that we’ve discovered a new state we didn’t know about before, we’ll a
 &lt;/div&gt;
 </description>
         <pubDate>Mon, 03 Oct 2016 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2016/10/03/implementing-finite-automata-part-1/</guid>
         
         <category>automata</category>
         
@@ -3005,8 +3005,8 @@ $ cargo bench | cargo benchcmp --variance dense:: dense_boxed:: -
 &lt;p&gt;This post uses only small examples of &lt;code class=&quot;highlighter-rouge&quot;&gt;cargo benchcmp&lt;/code&gt; output. I want to write a longer post on the implementation of finite automata with benchmark comparisons, along with performance traces and optimisations. But that may take some more time because I’m still figuring out how to use &lt;code class=&quot;highlighter-rouge&quot;&gt;perf&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;callgrind&lt;/code&gt; etc., and my implementation is still squarely beaten by BurntSushi’s &lt;a href=&quot;https://github.com/burntsushi/aho-corasick&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;aho-corasick&lt;/code&gt;&lt;/a&gt; crate. But, you know, whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Sun, 04 Sep 2016 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2016/09/04/porting-cargo-benchcmp/</guid>
         
         <category>rust</category>
         
@@ -3168,8 +3168,8 @@ sed &lt;span class=&quot;nt&quot;&gt;-i&lt;/span&gt; &lt;span class=&quot;s1&quo
 &lt;p&gt;Sorry, but I don’t develop on windows. I think you can probably reuse most of these instructions if you can get a proper terminal emulator. Or you could switch to a linux or whatever ¯\_(ツ)_/¯&lt;/p&gt;
 </description>
         <pubDate>Sat, 23 Jul 2016 00:00:00 +0200</pubDate>
-        <link>http://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</link>
-        <guid isPermaLink="true">http://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</guid>
+        <link>https://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</link>
+        <guid isPermaLink="true">https://blog.jeffsmits.net/compsci/2016/07/23/pretty-terminal/</guid>
         
         <category>terminal</category>
         
