@@ -6,7 +6,7 @@ category: CompSci
 tags:     [theory, automata, computation, push-down automata, stack, context-free languages, context-free grammar, context-free]
 ---
 
-Hello again! I'm picking up my [series on Automata]({% post_url 2016-03-28-theory-of-computation %}), with this post that goes into what I had always meant to get to: parsers. We'll start with a brief refresher from the previous post of the series: [pushy automata]({% post_url 2016-05-15-pushy-automata %}).
+Hello again! I'm picking up my [series on Automata]({% post_url 2016-03-28-theory-of-computation %}), with this post that goes into what I had always meant to get to: parsers. We'll start with a brief refresher from the previous post of the series, [pushy automata]({% post_url 2016-05-15-pushy-automata %}), since that was a little while ago.
 
 # Push-down Automata
 
@@ -148,13 +148,13 @@ In general, you can always use this trick to construct a strong, *structurally e
 
 Building the above tables was a matter of keeping in mind what they mean, and squinting a little. But in the case of a larger grammar, or a parsetable generator, of course you want an exact process.
 
-So a cell in the table at the row labeled with sort {%latex%}A{%endlatex%} and the column labeled with terminal(s) {%latex%}v{%endlatex%} should have the grammar rule {%latex%}A = w{%endlatex%} (where {%latex%}w{%endlatex%} is a mix of terminals and sorts or {%latex%}\varepsilon{%endlatex%}), under the following condition: {%latex%}v{%endlatex%} is in the FIRST set of {%latex%}w{%endlatex%}, or {%latex%}\varepsilon{%endlatex%} is in the FIRST set of {%latex%}w{%endlatex%} and {%latex%}v{%endlatex%} is in the FOLLOW set of {%latex%}A{%endlatex%}. In other words: {%latex%}v \in \textit{FIRST}(w) \cdot \textit{FOLLOW}(A){%endlatex%}
+So a cell in the table at the row labeled with sort {%latex%}A{%endlatex%} and the column labeled with terminal(s) {%latex%}v{%endlatex%} should have the grammar rule {%latex%}A = w{%endlatex%} (where {%latex%}w{%endlatex%} is a mix of terminals and sorts or {%latex%}\varepsilon{%endlatex%}), under the following condition: {%latex%}v{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%}, or {%latex%}\varepsilon{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%} and {%latex%}v{%endlatex%} is in the _Follow_ set of {%latex%}A{%endlatex%}. In other words: {%latex%}v \in \textit{First}(w) \cdot \textit{Follow}(A){%endlatex%}
 
-Huh? Well, the FIRST set of a sort is the set of first non-terminals that the sort can expand to, directly or indirectly. So a rule {%latex%}A = a \textrm{\footnotesize[...]}{%endlatex%} causes {%latex%}a{%endlatex%} to appear in the FIRST set of {%latex%}A{%endlatex%}, {%latex%}A = B \textrm{\footnotesize[...]}{%endlatex%} causes the FIRST set of {%latex%}B{%endlatex%} to also be in the FIRST set of {%latex%}A{%endlatex%}, and {%latex%}A = \varepsilon{%endlatex%} causes {%latex%}\varepsilon{%endlatex%} to appear in the FIRST set of {%latex%}A{%endlatex%}. This last rule says {%latex%}A{%endlatex%} can be expanded to "nothing", so if that's an option we need to check the FOLLOW set of {%latex%}A{%endlatex%}.
+Huh? Well, the _First_ set of a sort is the set of first non-terminals that the sort can expand to, directly or indirectly. So a rule {%latex%}A = a \textrm{\footnotesize[...]}{%endlatex%} causes {%latex%}a{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}, {%latex%}A = B \textrm{\footnotesize[...]}{%endlatex%} causes the _First_ set of {%latex%}B{%endlatex%} to also be in the _First_ set of {%latex%}A{%endlatex%}, and {%latex%}A = \varepsilon{%endlatex%} causes {%latex%}\varepsilon{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}. This last rule says {%latex%}A{%endlatex%} can be expanded to "nothing", so if that's an option we need to check the _Follow_ set of {%latex%}A{%endlatex%}.
 
-The FOLLOW set is basically every non-terminal that can follow {%latex%}A{%endlatex%} in the grammar. So when you have {%latex%}B = \textrm{\footnotesize[...]} A\ a \textrm{\footnotesize[...]}{%endlatex%}, {%latex%}a{%endlatex%} is in the follow set of {%latex%}A{%endlatex%}. A rule {%latex%}B = \textrm{\footnotesize[...]} A{%endlatex%} causes the FOLLOW set of {%latex%}B{%endlatex%} to be in the FOLLOW set of {%latex%}A{%endlatex%}. And the FOLLOW set of the start symbol has the end-of-file meta-terminal of course.
+The _Follow_ set is basically every non-terminal that can follow {%latex%}A{%endlatex%} in the grammar. So when you have {%latex%}B = \textrm{\footnotesize[...]} A\ a \textrm{\footnotesize[...]}{%endlatex%}, {%latex%}a{%endlatex%} is in the follow set of {%latex%}A{%endlatex%}. A rule {%latex%}B = \textrm{\footnotesize[...]} A{%endlatex%} causes the _Follow_ set of {%latex%}B{%endlatex%} to be in the _Follow_ set of {%latex%}A{%endlatex%}. And the _Follow_ set of the start symbol has the end-of-file meta-terminal of course.
 
-Finally, there is the dot operator between the FIRST and FOLLOW sets: this is a truncated product, that takes every combination of the two sets, sticks them together (in order), and truncates to length k. That's a bit of an abstraction over the k in LL(k), which I didn't take into account in the explanation of FIRST and FOLLOW sets. The FIRST sets should have length k strings of course, and so you may need to take more FIRST/FOLLOW sets into account when computing these.
+Finally, there is the dot operator between the _First_ and _Follow_ sets: this is a truncated product, that takes every combination of the two sets, sticks them together (in order), and truncates to length k. That's a bit of an abstraction over the k in LL(k), which I didn't take into account in the explanation of _First_ and _Follow_ sets. The _First_ sets should have length k strings of course, and so you may need to take more _First/Follow_ sets into account when computing these. Another thing I glossed over is that we actually use the _First_ set of {%latex%}w{%endlatex%}, a mix of terminals and sorts on the right-hand side of our grammar rules. If {%latex%}w{%endlatex%} is {%latex%}v\ A\ B\ x{%endlatex%}, then its _First_ set is {%latex%}\{v\} \cdot \textit{First}(A) \cdot \textit{First}(B) \cdot \{x\}{%endlatex%}.
 
 Ok, with that all done, we can use those tables. But first we need to talk expressive power, because LL is not particularly powerful...
 
@@ -164,7 +164,244 @@ There are always languages that cannot be captured by an LL(k) grammar that can 
 
 In fact, a class of grammars called LL-regular (LLR) grammars captures all LL(k) grammars for any k and slightly more. These LLR grammars are cool in that they are still parseable in linear time, as long as you have something called a "regular partition" of your grammar. Getting that is an undecidable problem though. And since there is an LR(1) grammar that is not in LLR, this stuff is the trifecta of confusing, impractical, and less powerful[^LLR] than a much more useful technique that we will cover later in this post: LR. But first, going from tables to parsers!
 
-## Recursive Descent or Predictive Parsing
+## Predictive Parsing
+
+Since we already know what the tables mean, we can write a simple parse table interpreter to finish our _predictive parser_. The parser is called predictive because based on the _k_ lookahead character, we decide the grammar rule to use to continue parsing, which typically predicts some of the structure of the input well beyond the part we peeked at for the lookahead.
+
+Ok, let's write a quick parse table interpreter for our LL(2) example. We'll start with some definitions.
+
+```rust
+use std::collections::HashMap;
+use std::env;
+
+use lazy_static::lazy_static;
+use peekmore::PeekMore;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Terminal {
+    A,
+    B,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Sort {
+    S,
+    A1,
+    A2,
+}
+
+enum Symbol {
+    Sort(Sort),
+    Terminal(Terminal),
+}
+
+enum Rule {
+    S,
+    Aa,
+    AEpsilon,
+}
+```
+
+The imports become useful in a second, for now we have our terminals, sorts, a combination type `Symbol`, and the names of our grammar rules. Assuming we keep around a proper PDA stack of symbols, we can write our grammar rules now:
+
+```rust
+impl Rule {
+    fn apply(&self, stack: &mut Vec<Symbol>) {
+        match self {
+            Rule::S => Self::s(stack),
+            Rule::Aa => Self::aa(stack),
+            Rule::AEpsilon => Self::a_epsilon(stack),
+        }
+    }
+
+    fn s(stack: &mut Vec<Symbol>) {
+        stack.push(Symbol::Terminal(Terminal::A));
+        stack.push(Symbol::Terminal(Terminal::B));
+        stack.push(Symbol::Sort(Sort::A2));
+        stack.push(Symbol::Terminal(Terminal::B));
+        stack.push(Symbol::Terminal(Terminal::A));
+        stack.push(Symbol::Sort(Sort::A1));
+    }
+
+    fn aa(stack: &mut Vec<Symbol>) {
+        stack.push(Symbol::Terminal(Terminal::A));
+    }
+
+    #[allow(clippy::ptr_arg)]
+    fn a_epsilon(_stack: &mut Vec<Symbol>) {}
+}
+```
+
+Clippy is great for catching all kinds of poor code, but for consistency I've chosen to `#[allow]` this time. Note that to effectively run a context-free grammar on a PDA, you need to push the symbols in your rules on the stack in reverse, as mentioned in passing in [the last blog post]({% post_url 2016-05-15-pushy-automata %}#context-free-grammars).
+
+```rust
+lazy_static! {
+    static ref TABLE: HashMap<(Sort, Terminal, Terminal), Rule> = {
+        let mut table = HashMap::new();
+        assert_eq!(None, table.insert((Sort::S,  Terminal::A, Terminal::A), Rule::S));
+        assert_eq!(None, table.insert((Sort::S,  Terminal::A, Terminal::B), Rule::S));
+        assert_eq!(None, table.insert((Sort::A1, Terminal::A, Terminal::A), Rule::Aa));
+        assert_eq!(None, table.insert((Sort::A1, Terminal::A, Terminal::B), Rule::AEpsilon));
+        assert_eq!(None, table.insert((Sort::A2, Terminal::A, Terminal::B), Rule::Aa));
+        assert_eq!(None, table.insert((Sort::A2, Terminal::B, Terminal::A), Rule::AEpsilon));
+        table
+    };
+}
+```
+
+Nothing very special really, just encoding what we had already. The main parse loop is also very unexciting now that we have implemented most of the logic of the grammar already. We basically manage the stack, eliminating terminals on the stack with those from the input and applying rules from the table based on sort and lookahead, and give errors if we get unexpected input:
+
+```rust
+pub fn lex(_input: String) -> Vec<Terminal> {
+    // Out of scope :D
+    Vec::new()
+}
+
+pub fn main() -> Result<(), String> {
+    let input = env::args().next().expect("Argument string to parse");
+    let input = lex(input);
+    let mut input = input.iter().peekmore();
+    let mut stack = Vec::new();
+    stack.push(Symbol::Sort(Sort::S));
+    while let Some(symbol) = stack.pop() {
+        return match symbol {
+            Symbol::Terminal(predicted) => {
+                if let Some(&&actual) = input.peek() {
+                    if predicted == actual {
+                        continue;
+                    }
+                    Err(format!(
+                        "Expected terminal {predicted:?}, but got {actual:?}."
+                    ))
+                } else {
+                    Err(format!("Expected terminal {predicted:?}, but got EOF."))
+                }
+            }
+            Symbol::Sort(sort) => {
+                if let &[Some(&term1), Some(&term2)] = input.peek_amount(2) {
+                    if let Some(r) = TABLE.get(&(sort, term1, term2)) {
+                        r.apply(&mut stack);
+                        continue;
+                    } else {
+                        Err(format!(
+                            "Unexpected {term1:?} {term2:?} while parsing {sort:?}"
+                        ))
+                    }
+                } else {
+                    Err("Unexpected end of input.".to_owned())
+                }
+            }
+        };
+    }
+    Ok(())
+}
+```
+
+## Recursive Descent
+
+By encoding the parse table in data, we get some amount of _interpretive overhead_. We have a parse table interpreter with a stack we manage ourselves, but the stack is not really used any different from a call stack. So what if we use function calls instead? That's the idea of _recursive descent_ parsing. It actually makes our code smaller and more straight-forward, which is why it's so popular as a technique for hand-written parsers.
+
+```rust
+use std::env;
+
+use peekmore::PeekMore;
+use peekmore::PeekMoreIterator;
+
+type Iter<'a> = PeekMoreIterator<std::slice::Iter<'a, Terminal>>;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Terminal {
+    A,
+    B,
+}
+
+fn consume(input: &mut Iter, predicted: Terminal) -> Result<(), String> {
+    if let Some(&actual) = input.next() {
+        if actual == predicted {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected terminal {predicted:?}, but got {actual:?}."
+            ))
+        }
+    } else {
+        Err("Unexpected end of file.".to_owned())
+    }
+}
+```
+
+This time we only need terminals as a type, the rest is gone, and so is the hashmap import for the parsetable. We will need the input, and be able to remove predicted terminals from it, so `consume` comes in handy.
+
+```rust
+fn sort_s(input: &mut Iter) -> Result<(), String> {
+    // S
+    match input.peek_amount(2) {
+        &[Some(Terminal::A), Some(Terminal::A)] => s(input),
+        &[Some(Terminal::A), Some(Terminal::B)] => s(input),
+        &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing S")),
+        _ => unreachable!(),
+    }
+}
+
+fn sort_A1(input: &mut Iter) -> Result<(), String> {
+    // A1
+    match input.peek_amount(2) {
+        &[Some(Terminal::A), Some(Terminal::A)] => a_a(input),
+        &[Some(Terminal::A), Some(Terminal::B)] => a_epsilon(input),
+        &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing A")),
+        _ => unreachable!(),
+    }
+}
+
+fn sort_A2(input: &mut Iter) -> Result<(), String> {
+    // A2
+    match input.peek_amount(2) {
+        &[Some(Terminal::A), Some(Terminal::B)] => a_a(input),
+        &[Some(Terminal::B), Some(Terminal::A)] => a_epsilon(input),
+        &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing A")),
+        _ => unreachable!(),
+    }
+}
+```
+
+Our parse table has now become code directly, with these functions named after the sorts of the rows.
+
+```rust
+fn s(input: &mut Iter) -> Result<(), String> {
+    sort_A1(input)?;
+    consume(input, Terminal::A)?;
+    consume(input, Terminal::B)?;
+    sort_A2(input)?;
+    consume(input, Terminal::B)?;
+    consume(input, Terminal::A)
+}
+
+fn a_a(input: &mut Iter) -> Result<(), String> {
+    consume(input, Terminal::A)
+}
+
+fn a_epsilon(_input: &mut Iter) -> Result<(), String> {
+    Ok(())
+}
+```
+
+Our rules are also functions using `consume` and the sort functions, this time without having to revert any orders.
+
+```rust
+pub fn lex(_input: String) -> Vec<Terminal> {
+    // Out of scope :D
+    Vec::new()
+}
+
+pub fn main() -> Result<(), String> {
+    let input = env::args().next().expect("Argument string to parse");
+    let input = lex(input);
+    let mut input = input.iter().peekmore();
+    sort_s(&mut input)
+}
+```
+
+Finally, our main function just calls the right sort function instead of putting that sort on the stack. And the loop is gone, since we now use recursion.
 
 # Bottomup, LR parsing
 
@@ -178,9 +415,9 @@ In fact, a class of grammars called LL-regular (LLR) grammars captures all LL(k)
 
 ## Recursive Ascent
 
-# Rust code
+# Fin
 
-I originally wrote a bunch of Rust code along with the blog posts in this series. Didn't get to that this time, because just writing up all of this took long enough. And I really wanted to get this thing posted already, so I just went:
+I usually have a pithy remark or sneak the Kaomoji into the footnotes, but I must be out of practice, because I can't think of a good way to do that...
 
 Ehh, whatever ¯\\\_(ツ)\_/¯
 
