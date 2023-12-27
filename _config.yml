@@ -1,6 +1,6 @@
 # Site settings
 title: Whatever
-email: jeff.smits@gmail.com
+email: "mail [at] this domain"
 description: > # this means to ignore newlines until "baseurl:"
   A web log. Mostly about computer science-y stuff. 
 baseurl: "" # the subpath of your site, e.g. /blog/
