@@ -177,11 +177,7 @@ use std::env;
 use lazy_static::lazy_static;
 use peekmore::PeekMore;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Terminal {
-    A,
-    B,
-}
+type Terminal = char;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Sort {
@@ -195,6 +191,7 @@ enum Symbol {
     Terminal(Terminal),
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Rule {
     S,
     Aa,
@@ -215,16 +212,16 @@ impl Rule {
     }
 
     fn s(stack: &mut Vec<Symbol>) {
-        stack.push(Symbol::Terminal(Terminal::A));
-        stack.push(Symbol::Terminal(Terminal::B));
+        stack.push(Symbol::Terminal('a'));
+        stack.push(Symbol::Terminal('b'));
         stack.push(Symbol::Sort(Sort::A2));
-        stack.push(Symbol::Terminal(Terminal::B));
-        stack.push(Symbol::Terminal(Terminal::A));
+        stack.push(Symbol::Terminal('b'));
+        stack.push(Symbol::Terminal('a'));
         stack.push(Symbol::Sort(Sort::A1));
     }
 
     fn aa(stack: &mut Vec<Symbol>) {
-        stack.push(Symbol::Terminal(Terminal::A));
+        stack.push(Symbol::Terminal('a'));
     }
 
     #[allow(clippy::ptr_arg)]
@@ -238,12 +235,12 @@ Clippy is great for catching all kinds of poor code, but for consistency I've ch
 lazy_static! {
     static ref TABLE: HashMap<(Sort, Terminal, Terminal), Rule> = {
         let mut table = HashMap::new();
-        assert_eq!(None, table.insert((Sort::S,  Terminal::A, Terminal::A), Rule::S));
-        assert_eq!(None, table.insert((Sort::S,  Terminal::A, Terminal::B), Rule::S));
-        assert_eq!(None, table.insert((Sort::A1, Terminal::A, Terminal::A), Rule::Aa));
-        assert_eq!(None, table.insert((Sort::A1, Terminal::A, Terminal::B), Rule::AEpsilon));
-        assert_eq!(None, table.insert((Sort::A2, Terminal::A, Terminal::B), Rule::Aa));
-        assert_eq!(None, table.insert((Sort::A2, Terminal::B, Terminal::A), Rule::AEpsilon));
+        assert_eq!(None, table.insert((Sort::S,  'a', 'a'), Rule::S));
+        assert_eq!(None, table.insert((Sort::S,  'a', 'b'), Rule::S));
+        assert_eq!(None, table.insert((Sort::A1, 'a', 'a'), Rule::Aa));
+        assert_eq!(None, table.insert((Sort::A1, 'a', 'b'), Rule::AEpsilon));
+        assert_eq!(None, table.insert((Sort::A2, 'a', 'b'), Rule::Aa));
+        assert_eq!(None, table.insert((Sort::A2, 'b', 'a'), Rule::AEpsilon));
         table
     };
 }
@@ -252,9 +249,8 @@ lazy_static! {
 Nothing very special really, just encoding what we had already. The main parse loop is also very unexciting now that we have implemented most of the logic of the grammar already. We basically manage the stack, eliminating terminals on the stack with those from the input and applying rules from the table based on sort and lookahead, and give errors if we get unexpected input:
 
 ```rust
-pub fn lex(_input: String) -> Vec<Terminal> {
-    // Out of scope :D
-    Vec::new()
+pub fn lex(input: String) -> Vec<Terminal> {
+    input.chars().collect()
 }
 
 pub fn main() -> Result<(), String> {
@@ -309,11 +305,7 @@ use peekmore::PeekMoreIterator;
 
 type Iter<'a> = PeekMoreIterator<std::slice::Iter<'a, Terminal>>;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Terminal {
-    A,
-    B,
-}
+type Terminal = char;
 
 fn consume(input: &mut Iter, predicted: Terminal) -> Result<(), String> {
     if let Some(&actual) = input.next() {
@@ -336,8 +328,8 @@ This time we only need terminals as a type, the rest is gone, and so is the hash
 fn sort_s(input: &mut Iter) -> Result<(), String> {
     // S
     match input.peek_amount(2) {
-        &[Some(Terminal::A), Some(Terminal::A)] => s(input),
-        &[Some(Terminal::A), Some(Terminal::B)] => s(input),
+        &[Some('a'), Some('a')] => s(input),
+        &[Some('a'), Some('b')] => s(input),
         &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing S")),
         _ => unreachable!(),
     }
@@ -346,8 +338,8 @@ fn sort_s(input: &mut Iter) -> Result<(), String> {
 fn sort_A1(input: &mut Iter) -> Result<(), String> {
     // A1
     match input.peek_amount(2) {
-        &[Some(Terminal::A), Some(Terminal::A)] => a_a(input),
-        &[Some(Terminal::A), Some(Terminal::B)] => a_epsilon(input),
+        &[Some('a'), Some('a')] => a_a(input),
+        &[Some('a'), Some('b')] => a_epsilon(input),
         &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing A")),
         _ => unreachable!(),
     }
@@ -356,28 +348,24 @@ fn sort_A1(input: &mut Iter) -> Result<(), String> {
 fn sort_A2(input: &mut Iter) -> Result<(), String> {
     // A2
     match input.peek_amount(2) {
-        &[Some(Terminal::A), Some(Terminal::B)] => a_a(input),
-        &[Some(Terminal::B), Some(Terminal::A)] => a_epsilon(input),
+        &[Some('a'), Some('b')] => a_a(input),
+        &[Some('b'), Some('a')] => a_epsilon(input),
         &[term1, term2] => Err(format!("Unexpected {term1:?} {term2:?} while parsing A")),
         _ => unreachable!(),
     }
 }
-```
 
-Our parse table has now become code directly, with these functions named after the sorts of the rows.
-
-```rust
 fn s(input: &mut Iter) -> Result<(), String> {
     sort_A1(input)?;
-    consume(input, Terminal::A)?;
-    consume(input, Terminal::B)?;
+    consume(input, 'a')?;
+    consume(input, 'b')?;
     sort_A2(input)?;
-    consume(input, Terminal::B)?;
-    consume(input, Terminal::A)
+    consume(input, 'b')?;
+    consume(input, 'a')
 }
 
 fn a_a(input: &mut Iter) -> Result<(), String> {
-    consume(input, Terminal::A)
+    consume(input, 'a')
 }
 
 fn a_epsilon(_input: &mut Iter) -> Result<(), String> {
@@ -385,12 +373,11 @@ fn a_epsilon(_input: &mut Iter) -> Result<(), String> {
 }
 ```
 
-Our rules are also functions using `consume` and the sort functions, this time without having to revert any orders.
+Our parse table has now become code directly, with these functions named after the sorts of the rows. They call rules that are also functions, which in turn use the sort functions. Those rules also use `consume`, this time without having to revert any orders.
 
 ```rust
-pub fn lex(_input: String) -> Vec<Terminal> {
-    // Out of scope :D
-    Vec::new()
+pub fn lex(input: String) -> Vec<Terminal> {
+    input.chars().collect()
 }
 
 pub fn main() -> Result<(), String> {
