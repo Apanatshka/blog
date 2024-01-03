@@ -152,7 +152,7 @@ I left in extra prints to observe the behaviour of the PDA:
 The input is accepted
 ```
 
-Something to note is that the amount of `(state, stack)` tuples peaks at 3 and is mostly 2. That's not so bad. But in general you can have input strings with much worse behaviour! ([Try](https://github.com/Apanatshka/Apanatshka.github.io/tree/jekyll/_includes{{page.id}}/binary_palindrome/) a long string with only zeroes for example). 
+Something to note is that the amount of `(state, stack)` tuples peaks at 3 and is mostly 2. That's not so bad. But in general you can have input strings with much worse behaviour! ([Try](https://github.com/Apanatshka/blog/tree/jekyll/_includes{{page.id}}/binary_palindrome/) a long string with only zeroes for example). 
 
 # Context-free grammars
 
@@ -235,7 +235,7 @@ q₀ -> q₀ [label="0, S → 0 S\n1, S → 1 S\n0, S → 0\n1, S → 1\n0, 0 �
 
 Now the sort {%latex%}S{%endlatex%} has been changed from a fairly useless overhead to a marker of "we're not halfway yet". In our hand-written PDA this was not a symbol on the stack but a different state. 
 
-When you [implement](https://github.com/Apanatshka/Apanatshka.github.io/tree/jekyll/_includes{{page.id}}/binary_palindrome/src/grammar_based.rs) this PDA you get an output that shows that there is one redundant state that it's always in:
+When you [implement](https://github.com/Apanatshka/blog/tree/jekyll/_includes{{page.id}}/binary_palindrome/src/grammar_based.rs) this PDA you get an output that shows that there is one redundant state that it's always in:
 
 ```rust
 [(0, [2, 3]), (1, [])]
