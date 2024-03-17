@@ -47,3 +47,21 @@ $on-laptop:        800px;
         "layout",
         "syntax-highlighting"
 ;
+
+table.parsetable {
+  border: 1px solid;
+  border-collapse: collapse;
+  thead {
+	background-color: $grey-color-light;
+  }
+  th, td {
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid;
+    border-color: $grey-color;
+  }
+  th {
+    font-weight: normal;
+  }
+}
+
