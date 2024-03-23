@@ -952,13 +952,60 @@ Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting
 | **E₂**    |        | r 2  |          |      |
 {: .parsetable}
 
-### Lookahead LR (LALR)
+### Look-Ahead LR (LALR)
 
-> Lookahead LR parsing uses basically the method we've seen above with the LR(0) automaton, followed by an analysis of what shifts can happen after certain reduces. LALR is weaker than LR(1), you can get reduce-reduce conflicts from applying LALR automaton/parse table construction on an LR(1) grammar.
+> Look-ahead LR parsing uses basically the method we've seen above with the LR(0) automaton, followed by an analysis of what shifts can happen after certain reduces. LALR is weaker than LR(1), you can get reduce-reduce conflicts from applying LALR automaton/parse table construction on an LR(1) grammar.
+
+:- | :-
+{%latex%} S = a E c         {%endlatex%} | {%latex%} \text{(1)} {%endlatex%}
+{%latex%} S = a E d         {%endlatex%} | {%latex%} \text{(2)} {%endlatex%}
+{%latex%} S = b F c         {%endlatex%} | {%latex%} \text{(3)} {%endlatex%}
+{%latex%} E = e             {%endlatex%} | {%latex%} \text{(4)} {%endlatex%}
+{%latex%} F = e             {%endlatex%} | {%latex%} \text{(5)} {%endlatex%}
+
+{% digraph A simple LR(0) automaton for the above grammar %}
+bgcolor="transparent";
+node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#010101", color="#010101"];
+edge [fontcolor="#010101", color="#010101"];
+rankdir=LR;
+
+subgraph {
+rank=same;
+Box0 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr><tr><td bgcolor="#aaa">S₃₀</td></tr></table>>];
+fin [shape=doublecircle, width=0.4, label=""];
+Box0:t:s -> fin:n [xlabel="S  "];
+}
+
+start1 [shape=none, label="", width=0];
+fin [shape=doublecircle, width=0.4, label=""];
+S₁₂;
+S₁;
+S₂₂ [style=filled, fillcolor="#ddd"];
+S₂ [style=filled, fillcolor="#ddd"];
+S₃₂ [style=filled, fillcolor="#aaa"];
+S₃ [style=filled, fillcolor="#aaa"];
+F₅ [style=filled, fillcolor="#777"];
+Box1 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₁</td></tr><tr><td bgcolor="#ddd">S₂₁</td></tr><tr><td bgcolor="#777"><font color="#fefefe">E₄₀</font></td></tr><tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr></table>>];
+Box2 [shape=none, label=<<table cellborder="0" port="t"><tr><td bgcolor="#aaa">S₃₁</td></tr><tr><td bgcolor="#777"><font color="#fefefe">E₄₀</font></td></tr><tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr></table>>];
+Box3 [shape=none, label=<<table cellborder="0" port="t"><tr><td bgcolor="#777"><font color="#fefefe">E₄</font></td></tr><tr><td bgcolor="#777"><font color="#fefefe">F₅</font></td></tr></table>>];
+start1 -> Box0:t;
+Box0:t -> Box1:t [label="a"];
+Box0:t -> Box2:t [label="b"];
+Box1:t -> Box3:t [label="e"];
+Box2:t -> F₅ [label="e"];
+{% enddigraph %}
 
 ### LR(1)
 
 > LR(1) or canonical LR parsers use 1 character of lookahead to decide what action (shift or reduce) to take. This makes for significantly larger parse tables because every rule is duplicated for every possible symbol in the Follow set of the sort of the rule, and then the epsilon edges are connected specifically based on the Follow set for that occurrence of the sort (similar to how you make strong LL grammars!).
+
+:- | :-
+{%latex%} S = a E c         {%endlatex%} | {%latex%} \text{(1)} {%endlatex%}
+{%latex%} S = a E d         {%endlatex%} | {%latex%} \text{(2)} {%endlatex%}
+{%latex%} S = b F c         {%endlatex%} | {%latex%} \text{(3)} {%endlatex%}
+{%latex%} E = e             {%endlatex%} | {%latex%} \text{(4)} {%endlatex%}
+{%latex%} F = e             {%endlatex%} | {%latex%} \text{(5)} {%endlatex%}
+{%latex%} S = b F d         {%endlatex%} | {%latex%} \text{(6)} {%endlatex%}
 
 ### Parse table construction algorithm
 
