@@ -1,7 +1,7 @@
 ---
 layout:   post
 title:    "Parsing and all that"
-date:     2024-04-06
+date:     2024-04-07
 category: CompSci
 tags:     [theory, automata, computation, push-down automata, stack, context-free languages, context-free grammar, context-free]
 ---
