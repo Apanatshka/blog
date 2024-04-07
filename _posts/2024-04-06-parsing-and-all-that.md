@@ -12,9 +12,9 @@ Hello again! I'm picking up my [series on Automata]({% post_url 2016-03-28-theor
 
 We'll start with a brief refresher from the previous post of the series, [pushy automata]({% post_url 2016-05-15-pushy-automata %}), since that was a little while back.
 
-## Push-down Automata
+## Push-Down Automata
 
-Push-down automata (PDAs) are automata with a _stack_. They don't just consume input and have fixed memory in their states, they can remember things on that single stack too, by pushing onto it and popping from it. Here's a deterministic PDA for recognising the language of words that start with zeroes, followed by an equal number of ones:
+Push-down automata (PDAs) are automata with a _stack_. Normal finite automata just consume input and have fixed memory via their states. PDAs can remember things on a single stack too, by pushing onto it and popping from it. Here's a deterministic PDA for recognising the language of words that start with zeroes, followed by an equal number of ones:
 
 {% digraph Non-regular language example, deterministic %}
 bgcolor="transparent";
@@ -32,7 +32,7 @@ q₁ -> q₁ [label="0, ε → 0"];
 q₂ -> q₂ [label="1, 0 → ε"];
 {% enddigraph %}
 
-So we start at {%latex%}q_0{%endlatex%}, see if there is a {%latex%}0{%endlatex%} as input, ignore the stack, and push a {%latex%}\${%endlatex%} on the stack as a marker for the end of the stack. Now we're in state {%latex%}q_1{%endlatex%}, in which we can consume more zeroes from the input and put those on the stack. If we find a one as input, we remove a zero from the stack by not pushing anything new on the stack. Now we're in state {%latex%}q_2{%endlatex%} where we remove zeroes from the stack for every one in the input, until we consume the final one by removing the {%latex%}\${%endlatex%} from the stack.
+So we start at {%latex%}q_0{%endlatex%}, see if there is a {%latex%}0{%endlatex%} as input, ignore the top of the stack, and put a {%latex%}\${%endlatex%} on the stack as a marker for the end of the stack. Now we're in state {%latex%}q_1{%endlatex%}, in which we can consume more zeroes from the input and put those on the stack. If we find a one as input, we remove a zero from the stack by not pushing anything new on the stack. Now we're in state {%latex%}q_2{%endlatex%} where we remove zeroes from the stack for every one in the input, until we consume the final one by removing the {%latex%}\${%endlatex%} from the stack.
 
 > Aside: This is one of the examples from the old blog post, and I now see that it is missing a transition! This automaton rejects the input {%latex%}01{%endlatex%}, because there is no transition {%latex%}q_1 \xrightarrow{1,\ \$\ \to\ \varepsilon} q_3{%endlatex%}. Oops ^_^
 
@@ -44,7 +44,7 @@ A context-free grammar that describes the above language is:
 {%latex%} S = 0 S 1 {%endlatex%}       | {%latex%} \text{(step)} {%endlatex%}
 {%latex%} S = \varepsilon {%endlatex%} | {%latex%} \text{(}\varepsilon\text{)} {%endlatex%}
 
-Sort {%latex%}S{%endlatex%} is the start symbol, the starting point in the grammar. If we're using the grammar _productively_ we start from the start symbol and use the rules left-to-right to replace sorts until we get the sentence in the language that we want. Something like: {%latex%} S \to 0 S 1 \to 0 0 S 1 1 \to 0 0 1 1 {%endlatex%}. This is called a _derivation_.
+Sort {%latex%}S{%endlatex%} is the start symbol, the starting point in the grammar. If we're using the grammar _productively_ we start from the start symbol and use the rules left-to-right to replace sorts until we get the sentence in the corresponding context-free language that we want. Something like: {%latex%} S \to 0 S 1 \to 0 0 S 1 1 \to 0 0 1 1 {%endlatex%}. This is called a _derivation_.
 
 The most general, naive way to derive a push-down automaton for any context-free grammar is by pushing the end-of-stack and start symbol at the start, having a "main" state that uses the grammar rules with the body reversed (to deal with the stack order), and an accept state that pops the end-of-stack:
 
@@ -148,7 +148,7 @@ So sort {%latex%} S {%endlatex%} is the start symbol, we also have sort {%latex%
 | {%latex%}F{%endlatex%} |     |   3 |
 {: .parsetable}
 
-A table like the above is an LL(1) parse table, because it uses only 1 symbol of "look-ahead" in the columns. LL(1) grammars are always strong LL grammars, which means that they only need the combination of the sort to be parsed and the next symbol(s) to decide on a unique grammar rule to apply. In general, LL(k) grammars do not have to be strong, and if they are not, you also need to know what was already parsed from the input in order to choose a unique grammar rule[^LLdef]. For example, the following grammar is LL(2), and not strong:
+A table like the above is an LL(1) parse table, because it uses only 1 symbol of "look-ahead" in the columns. LL(1) grammars are always strong LL grammars, which means that they only need the combination of the sort to be parsed and the next symbol(s) to decide on a unique grammar rule to apply. In general, LL(k) grammars do not have to be strong, and if they are not, you also need to know what was already parsed from the input (the "left context") in order to choose a unique grammar rule[^LLdef]. For example, the following grammar is LL(2), and not strong:
 
 :- | :-
 {%latex%} S = A\ a\ b\ A\ b\ a {%endlatex%} | {%latex%} \text{(1)} {%endlatex%}
@@ -213,23 +213,20 @@ start3 -> A₃;
 }
 {% enddigraph %}
 
-Note how each node of a rule automaton has the number of of the rule followed by the offset into the body of the rule. This is where we are in parsing by that rule, when that is our current state. The last node doesn't have this offset so you can easily identify it, when when it's no longer a final state.
+Note how each node of a rule automaton has the number of the rule followed by the offset into the body of the rule. The state represents where we are in the rule while parsing by that rule. The last node doesn't have this offset so you can easily identify it, even when it's no longer a final state.
 
-Typically you'll find texts on parsers display the position in a rule more visually with "LR item" notation. This uses the actual rule and a dot to indicate where we are in the rule. While this makes individual automata states more readable, it makes the automata large and therefore harder to display in a readable way as a whole. Here's an example of the notation:
+Typically you'll find texts on parsers display the position in a rule more visually with "LR item" notation. This uses the actual rule and a dot to indicate where we are in the rule. While this makes individual automata states more readable, it makes the automata large and therefore harder to display in a readable way as a whole. That's why you won't find that notation in this post's automata. But just to illustrate an example of the notation:
 
 
 | Shorthand in this blog   | LR Item notation                                   |
 | :----------------------- | :------------------------------------------------- |
 | S₁₀                      | {%latex%} S = .\ A\ a\ b\ A\ b\ a {%endlatex%} |
 | S₁₁                      | {%latex%} S = A\ .\ a\ b\ A\ b\ a {%endlatex%} |
-| S₁₂                      | {%latex%} S = A\ a\ .\ b\ A\ b\ a {%endlatex%} |
-| S₁₃                      | {%latex%} S = A\ a\ b\ .\ A\ b\ a {%endlatex%} |
-| S₁₄                      | {%latex%} S = A\ a\ b\ A\ .\ b\ a {%endlatex%} |
 | S₁₅                      | {%latex%} S = A\ a\ b\ A\ b\ .\ a {%endlatex%} |
 | S₁                       | {%latex%} S = A\ a\ b\ A\ b\ a\ . {%endlatex%} |
 {: .parsetable}
 
-Step 2: Now instead of consuming a sort with an automaton, use {%latex%}\varepsilon{%endlatex%} rules to jump to the automata of the rules for that sort instead. Use the PDA stack with unique labels to get back to where you would be after consuming the sort.
+Step 2: Now instead of consuming a sort with an automaton, we'll use {%latex%}\varepsilon{%endlatex%} rules to jump to the automata of the rules for that sort instead. We'll use the PDA stack with unique labels to get back to where you would be after consuming the sort.
 
 {% digraph Single PDA using the automata from the grammar rules %}
 bgcolor="transparent";
@@ -278,7 +275,7 @@ S₁₃ -> A₃ [taillabel="↓S₁₄", labelangle=-50, labeldistance=2, constr
 A₃ -> S₁₄ [taillabel="↑ S₁₄", labelangle=40, labeldistance=2, constraint=false];
 {% enddigraph %}
 
-The {%latex%}\downarrow{}X{%endlatex%} is an abbreviation for an {%latex%}\varepsilon, \varepsilon \rightarrow X{%endlatex%} edge that pushes a symbol on the stack unconditionally, it was hard to get graphviz to cooperate on node placement of this graph otherwise... Now at every node that had a sort transition you have multiple transition options, these are where you need to look ahead. So:
+The {%latex%}\downarrow{}X{%endlatex%} is an abbreviation for an {%latex%}\varepsilon, \varepsilon \rightarrow X{%endlatex%} edge that pushes a symbol on the stack unconditionally, it was hard to get graphviz to cooperate on node placement of this graph otherwise... Now at every node that had a sort transition you have multiple transition options, these are where you need to look ahead. Soooo...
 
 Step 3: at a sort transition node, for each {%latex%}\downarrow{%endlatex%} transition, follow transitions until you've consumed _k_ terminals (2 in this example) from the input. These are the terminals of the column in the parse table, and the rule of the {%latex%}\downarrow{%endlatex%} transition gets put into that cell. You can also put the look-ahead into the automaton:
 
@@ -331,21 +328,23 @@ A₃ -> S₁₄ [taillabel="↑ S₁₄", labelangle=40, labeldistance=2, constr
 
 ### Building LL tables for strong LL grammars by traditional method
 
-While the above building of automata gives a visual intuition, it's not the most efficient way to express how we can build LL tables. The traditional method does the same thing in essence, but using some pre-computed sets to calculate the cells.
+While the above building of automata gives a visual intuition, it's not the most efficient way to express how we can build LL tables. The traditional method does the same thing in essence, but using some pre-computed sets to calculate the cells in the table.
 
-A cell in the table at the row labeled with sort {%latex%}A{%endlatex%} and the column labeled with terminal(s) {%latex%}v{%endlatex%} should have the grammar rule {%latex%}A = w{%endlatex%} (where {%latex%}w{%endlatex%} is a mix of terminals and sorts or {%latex%}\varepsilon{%endlatex%}), under the following condition: {%latex%}v{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%}, or {%latex%}\varepsilon{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%} and {%latex%}v{%endlatex%} is in the _Follow_ set of {%latex%}A{%endlatex%}. In other words: {%latex%}v \in \textit{First}(w) \cdot \textit{Follow}(A){%endlatex%}
+A cell at the row labeled with sort {%latex%}A{%endlatex%} and the column labeled with terminal(s) {%latex%}v{%endlatex%} should have the grammar rule {%latex%}A = w{%endlatex%} (where {%latex%}w{%endlatex%} is a mix of terminals and sorts or {%latex%}\varepsilon{%endlatex%}), under the following condition: {%latex%}v{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%}, or {%latex%}\varepsilon{%endlatex%} is in the _First_ set of {%latex%}w{%endlatex%} and {%latex%}v{%endlatex%} is in the _Follow_ set of {%latex%}A{%endlatex%}. In other words: {%latex%}v \in \textit{First}(w) \cdot \textit{Follow}(A){%endlatex%}
 
-Let's unpack that. The _First_ set of a terminal is a singleton set with that terminal. The _First_ set of a sort is the set of first non-terminals that the sort can expand to, directly or indirectly. So a rule {%latex%}A = a \textrm{\footnotesize[...]}{%endlatex%} causes {%latex%}a{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}, {%latex%}A = B \textrm{\footnotesize[...]}{%endlatex%} causes the _First_ set of {%latex%}B{%endlatex%} to also be in the _First_ set of {%latex%}A{%endlatex%}, and {%latex%}A = \varepsilon{%endlatex%} causes {%latex%}\varepsilon{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}. This last rule says {%latex%}A{%endlatex%} can be expanded to "nothing", so if that's an option we need to check the _Follow_ set of {%latex%}A{%endlatex%}.
+Let's unpack that. The _First_ set of a terminal is a singleton set with that terminal. The _First_ set of a sort is the set of first non-terminals that the sort can expand to, directly or indirectly. So a rule {%latex%}A = a \textrm{\footnotesize[...]}{%endlatex%} causes {%latex%}a{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}, {%latex%}A = B \textrm{\footnotesize[...]}{%endlatex%} causes the _First_ set of {%latex%}B{%endlatex%} to be included in the _First_ set of {%latex%}A{%endlatex%}, and {%latex%}A = \varepsilon{%endlatex%} causes {%latex%}\varepsilon{%endlatex%} to appear in the _First_ set of {%latex%}A{%endlatex%}. This last rule says {%latex%}A{%endlatex%} can be expanded to "nothing", so if that's an option we need to check the _Follow_ set of {%latex%}A{%endlatex%}.
 
-The _Follow_ set is basically every non-terminal that can follow {%latex%}A{%endlatex%} in the grammar. So when you have {%latex%}B = \textrm{\footnotesize[...]} A\ a \textrm{\footnotesize[...]}{%endlatex%}, {%latex%}a{%endlatex%} is in the follow set of {%latex%}A{%endlatex%}. A rule {%latex%}B = \textrm{\footnotesize[...]} A{%endlatex%} causes the _Follow_ set of {%latex%}B{%endlatex%} to be in the _Follow_ set of {%latex%}A{%endlatex%}. And the _Follow_ set of the start symbol has the end-of-file meta-terminal.
+The _Follow_ set is basically every non-terminal that can follow {%latex%}A{%endlatex%} in the grammar. So when you have {%latex%}B = \textrm{\footnotesize[...]} A\ a \textrm{\footnotesize[...]}{%endlatex%}, {%latex%}a{%endlatex%} is in the _Follow_ set of {%latex%}A{%endlatex%}. A rule {%latex%}B = \textrm{\footnotesize[...]} A{%endlatex%} causes the _Follow_ set of {%latex%}B{%endlatex%} to be included in the _Follow_ set of {%latex%}A{%endlatex%}. And the _Follow_ set of the start symbol has the end-of-file 'terminal' {%latex%}\${%endlatex%}.
 
-Finally, there is the dot operator between the _First_ and _Follow_ sets: this is a _truncated product_, that takes every combination of the two sets, sticks them together (in order), and truncates to length k. That's a bit of an abstraction over the k in LL(k), which I didn't take into account in the explanation of _First_ and _Follow_ sets. The _First_ sets should have length k strings of course, and so you may need to take more _First/Follow_ sets into account when computing these. Another thing I glossed over is that we actually use the _First_ set of {%latex%}w{%endlatex%}, a mix of terminals and sorts on the right-hand side of our grammar rules. If {%latex%}w{%endlatex%} is {%latex%}v\ A\ B\ x{%endlatex%}, then its _First_ set is {%latex%}\{v\} \cdot \textit{First}(A) \cdot \textit{First}(B) \cdot \{x\}{%endlatex%}.
+The _Follow_ set is basically every non-terminal that can follow {%latex%}A{%endlatex%} in the grammar. So when you have {%latex%}B = \textrm{\footnotesize[...]} A\ a \textrm{\footnotesize[...]}{%endlatex%}, {%latex%}a{%endlatex%} is in the _Follow_ set of {%latex%}A{%endlatex%}. A rule {%latex%}B = \textrm{\footnotesize[...]} A{%endlatex%} causes the _Follow_ set of {%latex%}B{%endlatex%} to be included in the _Follow_ set of {%latex%}A{%endlatex%}. And the _Follow_ set of the start symbol has the end-of-file 'terminal' {%latex%}\${%endlatex%}.
 
-Ok, with that all done, we can use those tables. But first we need to talk expressive power, because LL is not particularly powerful...
+Finally, there is the dot operator between the _First_ and _Follow_ sets: this is a _truncated product_, that takes every combination of the two sets, sticks them together (in order), and truncates to length k. That's a bit of an abstraction over the k in LL(k), which I didn't take into account in the explanation of _First_ and _Follow_ sets. The _First_ sets should have length k strings of course, and so you may need to take more _First/Follow_ sets into account when computing these. Another thing I glossed over is that we actually use the _First_ set of {%latex%}w{%endlatex%}, a mix of terminals and sorts on the right-hand side of our grammar rules. If {%latex%}w{%endlatex%} is {%latex%}a\ A\ B\ b{%endlatex%}, then its _First_ set is {%latex%}\{a\} \cdot \textit{First}(A) \cdot \textit{First}(B) \cdot \{b\}{%endlatex%}.
+
+Ok, with that all done, we can use those tables. But before we do, a quick word about expressive power, because LL is not particularly powerful...
 
 ### Limitations and Expressive power
 
-There are always languages that cannot be captured by an LL(k) grammar that can be captured by an LL(k+1) grammar. In other words, look-ahead size is important in the expressivity of an LL grammar, and LL(k) for any specific k does not capture _all_ context-free languages.
+There are always languages that cannot be captured by an LL(k) grammar that can be captured by an LL(k+1) grammar. In other words, look-ahead size is important in the expressivity of an LL grammar, and LL(k) for any specific k does not capture _all_ deterministic context-free languages[^nondet].
 
 We've already seen an example of an LL(2) grammar, but what would be a language that cannot be captured by any LL(k)? Take the language of a's followed by b's, where the number of a's {%latex%}\geq{%endlatex%} the number of b's. Or as a grammar:
 
@@ -568,7 +567,7 @@ fn a_epsilon(_input: &mut Iter) -> Result<(), String> {
 }
 ```
 
-Our parse table has now become code directly, with these functions named after the sorts of the rows. They call rules that are also functions, which in turn use the sort functions. Those rules also use `consume`, this time without having to reverse any orders.
+Our parse table has now become code directly, with these functions named after the sorts of the rows. They call rules that are also functions, which in turn use the sort functions. Those rules also use `consume`, this time without having to reverse the order of the rule body.
 
 ```rust
 pub fn lex(input: String) -> Vec<Terminal> {
@@ -595,11 +594,11 @@ We've seen how we can construct simple DFAs for each rule in our grammar, and th
 
 The recursive descent way of writing a parser directly as code is nice and simple, it really just follows the grammar. Since you're writing plain old code with function calls, you can imagine people have found nice ways to extend and adapt the pattern of recursive descent parsers. For one, it's quite easy to reason about where you are in the parse when hitting an error state, which makes it fairly easy to give friendly error messages when the parser doesn't accept an input. You can also use a trick to fix up direct left-recursion called [node reparenting](https://en.wikipedia.org/wiki/Tail_recursive_parser), where you use a loop or tail-recursion locally construct the tree bottom-up. You could argue that such a parser is a hybrid between recursive descent and ascent, a "recursive descent-ascent parser".
 
-Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs]({% post_url 2016-04-10-finite-automata %}) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The table is really just another DFA, but one that doesn't consume the input, just looks at it. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
+Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs]({% post_url 2016-04-10-finite-automata %}) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
 
 # Bottomup, LR parsing
 
-LR stands for left-to-right, rightmost derivation in reverse. If you think about it, left-to-right and rightmost derivation are incompatible: The rightmost derivation chooses the rule for the rightmost sort first every time, but that means skipping over some unknown amount of input if you read left-to-right to even get to that point. However, the _reverse_ of the rightmost derivation is a left-to-right form of parsing. This reverse derivation describes going bottomup, left-to-right through the parse tree.
+LR stands for left-to-right, rightmost derivation _in reverse_. If you think about it, left-to-right and rightmost derivation are incompatible: The rightmost derivation chooses the rule for the rightmost sort first every time, but that means skipping over some unknown amount of input if you read left-to-right to even get to that point. However, the _reverse_ of the rightmost derivation is a left-to-right form of parsing. This reverse derivation describes going bottomup, left-to-right through the parse tree.
 
 ## Expressive power and relation to LL
 
@@ -671,11 +670,11 @@ start2 [shape=box, label="", width=0, color="#00000000"];
 start3 [shape=none, label="", width=0];
 subgraph {
 node [style=filled, fillcolor="#777", fontcolor="#fefefe"];
-A₄ [shape=doublecircle, width=0.4];
+A₄;
 }
 subgraph {
 node [style=filled, fillcolor="#aaa"];
-A₃ [shape=doublecircle, width=0.4];
+A₃;
 start3 -> A₃₀ [style=invis, weight=3];
 A₃₀ -> A₃₁ [label="a", weight=10];
 A₃₁ -> A₃₂ [label="A", weight=3];
@@ -683,13 +682,13 @@ A₃₂ -> A₃ [label="b", weight=3];
 }
 subgraph {
 node [style=filled, fillcolor="#ddd"];
-S₂ [shape=doublecircle, width=0.4];
+S₂;
 start1 -> start2:w [arrowhead=none];
 start2:e -> S₂₀ [weight=3];
 S₂₀ -> S₂ [label="A", weight=3];
 }
 subgraph {
-S₁ [shape=doublecircle, width=0.4];
+S₁;
 start1 -> S₁₀ [weight=3];
 S₁₀ -> S₁₁ [label="a", weight=3];
 S₁₁ -> S₁ [label="S", weight=3];
@@ -736,12 +735,12 @@ edge [fontcolor="#010101", color="#010101"];
 rankdir=LR;
 
 start1 [shape=none, label="", width=0];
-S₁ [shape=doublecircle, width=0.4];
-S₂ [shape=doublecircle, width=0.4, style=filled, fillcolor="#ddd"];
-A₃ [shape=doublecircle, width=0.4, style=filled, fillcolor="#aaa"];
-Box0 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr><tr><td bgcolor="#aaa">A₃₀</td></tr><tr><td border="1" bgcolor="#777"><font color="#fefefe">A₄</font></td></tr></table>>];
-Box1 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td>S₁₁</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr><tr><td bgcolor="#aaa">A₃₀</td></tr><tr><td bgcolor="#aaa">A₃₁</td></tr><tr><td border="1" bgcolor="#777"><font color="#fefefe">A₄</font></td></tr></table>>];
-Box2 [shape=none, label=<<table cellborder="0" port="t"><tr><td border="1" bgcolor="#ddd">S₂</td></tr><tr><td bgcolor="#aaa">A₃₂</td></tr></table>>];
+S₁;
+S₂ [style=filled, fillcolor="#ddd"];
+A₃ [style=filled, fillcolor="#aaa"];
+Box0 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr><tr><td bgcolor="#aaa">A₃₀</td></tr><tr><td bgcolor="#777"><font color="#fefefe">A₄</font></td></tr></table>>];
+Box1 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td>S₁₁</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr><tr><td bgcolor="#aaa">A₃₀</td></tr><tr><td bgcolor="#aaa">A₃₁</td></tr><tr><td bgcolor="#777"><font color="#fefefe">A₄</font></td></tr></table>>];
+Box2 [shape=none, label=<<table cellborder="0" port="t"><tr><td bgcolor="#ddd">S₂</td></tr><tr><td bgcolor="#aaa">A₃₂</td></tr></table>>];
 start1 -> Box0:t;
 Box0:t -> Box1:t [label="a", weight=2];
 Box0:t -> S₂ [label="A"];
@@ -762,7 +761,7 @@ Box1:t -> S₂ [minlen=0];
 }
 {% enddigraph %}
 
-This is almost exactly how an LR(0) parse table would be drawn. Instead of S₁₀ and S₁₁, you write out "LR item"s like `S = . a S` and `S = a . S`, and this would allow you to leave off the extra borders on all the fully finished rules because they would be recognisable by the dot at the end. But otherwise it would be pretty much this. That's because what's actually happening on the stack is very structured, but a little involved. That makes the PDA harder to read and draw, but I'll demonstrate it once:
+This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the "LR item"s `S = . a S` and `S = a . S`. But otherwise it would be pretty much this. This is considered a PDA, though what's happening on the stack is left implicit. That's because what's actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I'll demonstrate it once:
 
 {% digraph A fully explicit PDA that does LR parsing %}
 bgcolor="transparent";
@@ -805,9 +804,9 @@ S₂ -> fin [minlen=0];
 }
 {% enddigraph %}
 
-This should look quite familiar. We're pushing inputs on the stack as we consume them. And then we're popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a _shift_ transition, the second is called _reduce_ transition. We've seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher.
+This should look quite familiar. We're pushing inputs on the stack as we consume them, paired with the state we're in at that point. And then we're popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a _shift_ action, the second is called a _reduce_ action. We've seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher. But this time we get an automaton with more states.
 
-Notice that _where_ a reduce transition goes depends on originating state of the last thing that's popped. That's why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the `a` came from box 1 or box 0, we go to different places. This is easier to see in our LR automaton, where box 1 points to state S₁ with a transition labeled `A`. This is a _goto_ transition. In an LR parse table interpreter, the _goto_ is a separate action that immediately follows a _reduce_ action, just returns to the last popped state. That's also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.
+Notice that _where_ a reduce action goes depends on originating state of the last thing that's popped. That's why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the `a` came from box 1 or box 0, we go to different places. This is easier to see in our proper LR(0) automaton, where box 1 points to state S₁ with a transition labeled `A`. This is a _goto_ action. In an LR parse table interpreter, the _goto_ is a separate action that immediately follows a _reduce_ action, which merely returns to the last popped state. When a reduce just returns that's also more like a function call and return, so that's nice. Anyway, that's also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.
 
 Something worth repeating now that we're looking at the details: LL decides what rule to take _before_ consuming the input for that rule, whereas LR decides what rule to take _after_ consuming all the input for that rule. In other words, we only reduce by a rule when we've seen the entire body of the rule, that why there's less trouble with look-ahead.
 
@@ -854,7 +853,7 @@ S₂ -> fin [minlen=0];
 }
 {% enddigraph %}
 
-As you can see, we need at most 1 look-ahead to deterministically parse this grammar. We're sometimes looking ahead to the end-of-input represented with `$`. The look-ahead makes this an LALR(1) grammar; LR(1) is slightly more involved as we'll see in the next section. 
+As you can see, we need at most 1 look-ahead to deterministically parse this grammar. We're sometimes looking ahead to the end-of-input represented with `$`. The look-ahead makes this an LALR(1) grammar; what that is and why it's different from normal LR(1) is what we'll see in the next section. 
 
 ## LR parsetable construction and expressivity
 
@@ -880,7 +879,12 @@ rankdir=LR;
 
 subgraph {
 rank=same;
-Box0 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">E₂₀</td></tr><tr><td bgcolor="#aaa">E₃₀</td></tr></table>>];
+Box0 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box0</td></tr>
+	<tr><td>S₁₀</td></tr>
+	<tr><td bgcolor="#ddd">E₂₀</td></tr>
+	<tr><td bgcolor="#aaa">E₃₀</td></tr>
+</table>>];
 fin [shape=doublecircle, width=0.4, label=""];
 Box0:t:s -> fin:n [xlabel="S  "];
 }
@@ -890,7 +894,11 @@ fin [shape=doublecircle, width=0.4, label=""];
 S₁;
 E₂ [style=filled, fillcolor="#ddd"];
 E₃ [style=filled, fillcolor="#aaa"];
-Box1 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₁</td></tr><tr><td bgcolor="#ddd">E₂₁</td></tr></table>>];
+Box1 [shape=none, label=<<table cellborder="0" port="t">
+<tr><td>Box1</td></tr>
+<tr><td>S₁₁</td></tr>
+<tr><td bgcolor="#ddd">E₂₁</td></tr>
+</table>>];
 start1 -> Box0:t;
 Box0:t -> Box1:t [label="E", weight=2, minlen=2];
 Box0:t -> E₃ [label="1"];
@@ -920,7 +928,7 @@ The smallest motivating example for Simple LR is the following grammar that pars
 {%latex%} E = 1 E         {%endlatex%} | {%latex%} \text{(2)} {%endlatex%}
 {%latex%} E = 1           {%endlatex%} | {%latex%} \text{(3)} {%endlatex%}
 
-Notice how rule 2 is now right-recursive instead of left-recursive. It's a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules give you trouble in LR[^indirect-recursion]. 
+Notice how rule 2 is now right-recursive instead of left-recursive. It's a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules (can) give you trouble in LR[^indirect-recursion]. 
 
 {% digraph An LR(0) automaton for the above grammar %}
 bgcolor="transparent";
@@ -930,7 +938,12 @@ rankdir=LR;
 
 subgraph {
 rank=same;
-Box0 [shape=none, label=<<table cellborder="0" port="t"><tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">E₂₀</td></tr><tr><td bgcolor="#aaa">E₃₀</td></tr></table>>];
+Box0 [shape=none, label=<<table cellborder="0" port="t">
+<tr><td>Box0</td></tr>
+<tr><td>S₁₀</td></tr>
+<tr><td bgcolor="#ddd">E₂₀</td></tr>
+<tr><td bgcolor="#aaa">E₃₀</td></tr>
+</table>>];
 fin [shape=doublecircle, width=0.4, label=""];
 Box0:t:s -> fin:n [xlabel="S  "];
 }
@@ -939,7 +952,12 @@ start1 [shape=none, label="", width=0];
 fin [shape=doublecircle, width=0.4, label=""];
 S₁₁;
 E₂ [style=filled, fillcolor="#ddd"];
-Box1 [shape=none, label=<<table cellborder="0" port="t"><tr><td bgcolor="#ddd">E₂₀</td></tr><tr><td bgcolor="#ddd">E₂₁</td></tr><tr><td bgcolor="#aaa">E₃</td></tr></table>>];
+Box1 [shape=none, label=<<table cellborder="0" port="t">
+<tr><td>Box1</td></tr>
+<tr><td bgcolor="#ddd">E₂₀</td></tr>
+<tr><td bgcolor="#ddd">E₂₁</td></tr>
+<tr><td bgcolor="#aaa">E₃</td></tr>
+</table>>];
 start1 -> Box0:t;
 Box0:t -> Box1:t [label="1", weight=2];
 Box0:t -> S₁₁ [label="E"];
@@ -957,7 +975,7 @@ Box1:t:s -> Box1:t:s [label="1"];
 | **E₂**    | r 2          | r 2  | r 2      |      |
 {: .parsetable}
 
-Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting a reduce in the entire row of a state that could reduce. If we check the _Follow_ set of the sort we're reducing to (we defined that when we built LL parse tables, remember?), we can put the reduce action in only the column of the input symbols that are in that follow set. If we look at the grammar, we can see that only `2` can follow `E`. So the SLR table for this grammar is:
+Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting a reduce in the entire row of a state that could reduce. If we check the _Follow_ set of the sort we're reducing to (we defined that when we built LL parse tables, remember?), we can put the reduce action in only the column of the terminals that are in that follow set. If we look at the grammar, we can see that only `2` can follow `E`. So the SLR table for this grammar is:
 
 |           | `1`    | `2`  | `$`      | `E`  |
 |:----------|:------:|:----:|:--------:|:----:|
@@ -992,7 +1010,9 @@ rankdir=LR;
 subgraph {
 rank=same;
 Box0 [shape=none, label=<<table cellborder="0" port="t">
-	<tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr>
+	<tr><td>Box0</td></tr>
+	<tr><td>S₁₀</td></tr>
+	<tr><td bgcolor="#ddd">S₂₀</td></tr>
 	<tr><td>S₃₀</td></tr>
 </table>>];
 fin [shape=doublecircle, width=0.4, label=""];
@@ -1009,17 +1029,20 @@ S₃₂;
 S₃;
 F₅ [fontcolor="#fefefe", style=filled, fillcolor="#777"];
 Box1 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box1</td></tr>
 	<tr><td>S₁₁</td></tr>
 	<tr><td bgcolor="#ddd">S₂₁</td></tr>
 	<tr><td bgcolor="#aaa">E₄₀</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr>
 </table>>];
 Box2 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box2</td></tr>
 	<tr><td>S₃₁</td></tr>
 	<tr><td bgcolor="#aaa">E₄₀</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr>
 </table>>];
 Box3 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box3</td></tr>
 	<tr><td bgcolor="#aaa">E₄</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅</font></td></tr>
 </table>>];
@@ -1051,7 +1074,7 @@ S₃₂ -> S₃ [label="c"];
 | **F₅**    |        |        | r 5       | r 5  |        |          |      |      |
 {: .parsetable}
 
-The reduce-reduce conflict, as promised. It's in box 3 (E₄/F₅) when the look-ahead is `c`. This is because the look-ahead sets of both `E` and `F` contain `c` due to rules 1 and 3. If we look at the automaton though, we can clearly see that if we reduce and we have a `c` next, we should reduce by `E`.
+The reduce-reduce conflict, as promised. It's in box 3, where we can reduce by E₄ or F₅, when the look-ahead is `c`. This is because the look-ahead sets of both `E` and `F` contain `c` due to rules 1 and 3. If we look at the automaton though, we can clearly see that if we reduce and we have a `c` next, we should reduce by `E`.
 
 Look-Ahead LR parsing uses basically this method, analysing what shifts can happen after certain reduces. Putting it is algorithmic terms, LALR doesn't use LL _Follow_ sets, but defines more accurate _Follow_ sets based on the automaton. Each instance of the start of a rule in the automaton (F₅₀ in boxes 1 and 2) gets a separate _Follow_ set computed. That's how we resolve the conflict with LALR:
 
@@ -1074,7 +1097,7 @@ I like this LALR parsing story. It's so intuitive with the NFA-to-DFA conversion
 {%latex%} F = e             {%endlatex%} | {%latex%} \text{(5)} {%endlatex%}
 {%latex%} S = b E d         {%endlatex%} | {%latex%} \text{(6)} {%endlatex%}
 
-You might think: "What's the problem? You've changed the LL _Follow_ set of E, but we have the more accurate LALR _Follow_ set to take care of that." You would be wrong, due to state merging in the NFA-to-DFA conversion:
+This results in an automaton that's almost the same as before:
 
 {% digraph A LR(0) automaton for the above grammar %}
 bgcolor="transparent";
@@ -1085,7 +1108,9 @@ rankdir=LR;
 subgraph {
 rank=same;
 Box0 [shape=none, label=<<table cellborder="0" port="t">
-	<tr><td>S₁₀</td></tr><tr><td bgcolor="#ddd">S₂₀</td></tr>
+	<tr><td>Box0</td></tr>
+	<tr><td>S₁₀</td></tr>
+	<tr><td bgcolor="#ddd">S₂₀</td></tr>
 	<tr><td>S₃₀</td></tr>
 	<tr><td bgcolor="#ddd">S₆₀</td></tr>
 </table>>];
@@ -1104,18 +1129,21 @@ S₃;
 S₆₂ [style=filled, fillcolor="#ddd"];
 S₆ [style=filled, fillcolor="#ddd"];
 Box1 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box1</td></tr>
 	<tr><td>S₁₁</td></tr>
 	<tr><td bgcolor="#ddd">S₂₁</td></tr>
 	<tr><td bgcolor="#aaa">E₄₀</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr>
 </table>>];
 Box2 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box2</td></tr>
 	<tr><td>S₃₁</td></tr>
 	<tr><td bgcolor="#ddd">S₆₁</td></tr>
 	<tr><td bgcolor="#aaa">E₄₀</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀</font></td></tr>
 </table>>];
 Box3 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box3</td></tr>
 	<tr><td bgcolor="#aaa">E₄</td></tr>
 	<tr><td bgcolor="#777"><font color="#fefefe">F₅</font></td></tr>
 </table>>];
@@ -1134,25 +1162,95 @@ Box2:t -> S₆₂ [label="E"];
 S₆₂ -> S₆ [label="d"];
 {% enddigraph %}
 
-We have to face it, with LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That's keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above :(
+We now have a reduce-reduce conflict in box 3 again. With look-ahead `a` you can reduce to both `E` and `F`. Same for look-ahead `b` by the way. It _is_ deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.
 
-So let's look at LR(k) automata/parsers, which use their states to summarise the entire left context of the input. We're basically going to distinguish almost every occurrence of a sort in the grammar, like we did when we made our LL(2) grammar strong. But remember, only if the left context is different, otherwise it doesn't matter.
+With LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That's keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above: the left context. I know the information is technically on the stack, but our parsing process decides on the rule to reduce by based on the state and look-ahead only. 
+
+LR(k) automata/parsers keep the same parsing process still, they just have larger automata in which their states summarise the left context. We're basically going to distinguish almost every occurrence of a sort in the grammar, similar to when we made our LL(2) grammar strong:
+
+{% digraph A LR(1) automaton for the above grammar %}
+bgcolor="transparent";
+node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#010101", color="#010101"];
+edge [fontcolor="#010101", color="#010101"];
+rankdir=LR;
+
+subgraph {
+rank=same;
+Box0 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box0</td></tr>
+	<tr><td>S₁₀ ($)</td></tr>
+	<tr><td bgcolor="#ddd">S₂₀ ($)</td></tr>
+	<tr><td>S₃₀ ($)</td></tr>
+	<tr><td bgcolor="#ddd">S₆₀ ($)</td></tr>
+</table>>];
+fin [shape=doublecircle, width=0.4, label=""];
+Box0:t:s -> fin:n [xlabel="S  "];
+}
+
+start1 [shape=none, label="", width=0];
+fin [shape=doublecircle, width=0.4, label=""];
+S₁₂;
+S₁;
+S₂₂ [style=filled, fillcolor="#ddd"];
+S₂ [style=filled, fillcolor="#ddd"];
+Box1 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box1</td></tr>
+	<tr><td>S₁₁ ($)</td></tr>
+	<tr><td bgcolor="#ddd">S₂₁ ($)</td></tr>
+	<tr><td bgcolor="#aaa">E₄₀ (c)</td></tr>
+	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀ (d)</font></td></tr>
+</table>>];
+Box2 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box2</td></tr>
+	<tr><td>S₃₁ ($)</td></tr>
+	<tr><td bgcolor="#ddd">S₆₁ ($)</td></tr>
+	<tr><td bgcolor="#aaa">E₄₀ (d)</td></tr>
+	<tr><td bgcolor="#777"><font color="#fefefe">F₅₀ (c)</font></td></tr>
+</table>>];
+Box3 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box3</td></tr>
+	<tr><td bgcolor="#aaa">E₄₁ (c)</td></tr>
+	<tr><td bgcolor="#777"><font color="#fefefe">F₅₁ (d)</font></td></tr>
+</table>>];
+Box4 [shape=none, label=<<table cellborder="0" port="t">
+	<tr><td>Box4</td></tr>
+	<tr><td bgcolor="#aaa">E₄₁ (d)</td></tr>
+	<tr><td bgcolor="#777"><font color="#fefefe">F₅₁ (c)</font></td></tr>
+</table>>];
+S₃₂;
+S₃;
+S₆₂ [style=filled, fillcolor="#ddd"];
+S₆ [style=filled, fillcolor="#ddd"];
+start1 -> Box0:t;
+Box0:t -> Box1:t [label="a"];
+Box0:t -> Box2:t [label="b"];
+Box1:t -> Box3:t [label="e"];
+Box1:t -> S₁₂ [label="E"];
+Box1:t -> S₂₂ [label="F"];
+S₁₂ -> S₁ [label="c"];
+S₂₂ -> S₂ [label="d"];
+Box2:t -> Box4:t [label="e"];
+Box2:t -> S₃₂ [label="F"];
+S₃₂ -> S₃ [label="c"];
+Box2:t -> S₆₂ [label="E"];
+S₆₂ -> S₆ [label="d"];
+{% enddigraph %}
 
 How do we do this? We duplicate each rule for each terminal in the LL follow set of the sort of that rule. We annotate each of those rules with that terminal. Now we do our usual thing: rule to automaton, epsilons, NFA-to-DFA. But when wiring the epsilons, extra terminal annotations should now match up with the _LALR_ follow set of the occurrence of the sort.
 
-For this particular example, this has the effect of splitting up the above box 3 into two, allowing us to distinguish the context in which `E` and `F` are actually required. In general though, duplicating each rule for each terminal in the LL follow set leads to a very large amount of rules, and plenty of the time this isn't necessary to redundant states in the automaton that do basically the same thing and would have been merged in LALR without any reduce-reduce conflicts.
+With this particular example, the automaton looks almost the same. There's a bit more fluff with the annotations, but they basically propagate the look-ahead for each rule. Which means we can distinguish the context in which `E` and `F` are used differently! In general though, duplicating each rule for each terminal in the LL follow set leads to a very large amount of rules, and plenty of the time this isn't necessary... LR(1) automata have lots of redundant states that do basically the same thing and would have been merged in LALR without any reduce-reduce conflicts.
 
 ### Parse table construction algorithm
 
-You've already seen parse table construction by automaton for both LL and the many flavours of LR now. And you've seen parse table construction by _First_ and _Follow_ set for LL. Parse table construction for LR will of course also require _First_ and _Follow_ sets, sometimes including more accurate _Follow_ sets for particular occurrences of sorts. It's mostly NFA-to-DFA (powerset construction) though. 
+You've already seen parse table construction by automaton for both LL and the many flavours of LR now. And you've seen parse table construction by _First_ and _Follow_ set for LL. Parse table construction for LR will of course also require _First_ and _Follow_ sets, sometimes including more accurate _Follow_ sets for particular occurrences of sorts. It's mostly an iterative build-up of the NFA-to-DFA (powerset construction) though. I'm not going to detail that in this post.
 
-Where this really gets interesting with _minimal_ LR(1) algorithms and how they create LALR(1) tables when possible, and slightly larger tables when necessary. But that's quite something to figure out, and I haven't gotten to what I wanted to write about most yet, so it will have to wait until the next blog post.
+While researching the material, I found some claims for _minimal_ LR(1) algorithms, which create LALR(1) tables when possible, and slightly larger tables when necessary. They look interesting, but quite something to figure out, and I haven't gotten to what I wanted to write about most yet, so that will have to wait until some other time. Perhaps I'll include the normal LR parse table construction algorithm there too as a start.
 
 ## Recursive Ascent
 
-We finally get to the original impetus for this blog post: recursive ascent parsing. As you might be able to guess, this is the LR analogue to recursive _descent_ for LL. So we're going to generate code that directly executes the LR automaton instead of simulating it by parse table interpretation.
+We finally get to the original impetus for this blog post: recursive ascent parsing. As you might be able to guess, this is the LR analogue to recursive _descent_ for LL. So we're going to write code that directly executes the LR automaton instead of simulating it by parse table interpretation.
 
-In recursive descent parsing we saw that rules and sorts become functions. Rules call sort functions to parse a sort, and sorts check the look-ahead to choose a rule by which to parse the alternative of the sort.
+Before, in recursive descent parsing, we saw that rules and sorts become functions. Rules call sort functions to parse a sort, and sorts check the look-ahead to choose a rule by which to parse the alternative of the sort. Basically grammar rules became functions, and the parse table was split into functions for each sort.
 
 In recursive _ascent_ parsing we will turn states of the LR automaton into functions. Each function will shift or reduce based on the input and call the corresponding state for that edge. Let's expand our LR(1) example a little bit, and then take a look at the recursive ascent parsing:
 
@@ -1165,7 +1263,7 @@ In recursive _ascent_ parsing we will turn states of the LR automaton into funct
 {%latex%} S = b E d         {%endlatex%} | {%latex%} \text{(6)} {%endlatex%}
 {%latex%} S = b e e a       {%endlatex%} | {%latex%} \text{(7)} {%endlatex%}
 
-The reason I'm adding extra `e`s in rules 3 and 4 is to show that the split up from LR(1) can make the automaton quite big. We'll now have 4 states instead of 2 + an LALR reduce-reduce conflict. The reason I'm adding rule 7 is so we have a state where we might shift or reduce depending on the lookahead, which influences the code we generate. Let's check out the automaton first:
+The reason for the extra `e`s in rules 3 and 4 is to show how that increases the LR(1) automaton size. We'll now have 4 states instead of 2 + an LALR reduce-reduce conflict. The reason for adding rule 7 is so we have a state where we might shift or reduce depending on the look-ahead, which influences the code we generate. Let's check out the automaton first:
 
 {% digraph A LR(0) automaton for the above grammar %}
 bgcolor="transparent";
@@ -1251,7 +1349,7 @@ Box4:t -> Box6:t [label="e"];
 Box6:t -> S₇ [label="a"];
 {% enddigraph %}
 
-Perhaps making both changes at the same time makes this a bad example to show off why LR(1) automata can get so large... If you imagine the automaton without rule 7 you'll see that boxes 3 and 4 are the same except for their ingoing and outgoing edges. This is what happens with longer rules and having to distinguish the final state of the rules for a different look-ahead (boxes 5 and 6 here).
+Perhaps making both changes at the same time makes this a bad example to show off LR(1) automaton size... If you imagine the automaton without rule 7 you'll see that boxes 3 and 4 are the same except for their ingoing and outgoing edges. This is what happens with longer rules and having to distinguish the final state of the rules for a different look-ahead (boxes 5 and 6 here).
 
 The other notable difference is that we now have a box 6 that can both shift and reduce. This will make the code for the recursive ascent more interesting. Let's start with the basics:
 
@@ -1384,7 +1482,7 @@ fn box5(input: &mut Iter) -> Result<Sort, String> {
 }
 ```
 
-This bit of code should give you an idea of the pattern when you have states in the automaton that very predictably result in a sort that we expect to do a goto action on.
+This bit of code should give you an idea of the code pattern in the "easy case". Each state either shifts in one-or-more rules it's in (e.g. `s12`, `box3`), shifts into a new rule expecting a sort back to use for the goto (e.g. `box1`), or reduces (e.g. `s1`, `box5`).
 
 ```rust
 /// Box2
@@ -1412,7 +1510,7 @@ fn box2(input: &mut Iter) -> Result<Sort, String> {
 
 This is the point where things start looking different. In box 2 we might shift `e` because we've entered rules 4 or 5 which will reduce to `E` or `F`. But we could also be in rule 7. If the result from box 4 is that we were in rule 7, we need to go back to the previous caller. So function `box4` returns a pair of the number of returns left to go and the sort we're reducing to. This way we can distinguish the two cases and take the appropriate action.
 
-If you want to keep a recursive ascent code generator simpler you can of course always return a pair. You could also generate the code in [_continuation passing style_](https://en.wikipedia.org/wiki/Continuation-passing_style), where you pass a function that takes the sort and does the goto action instead of accepting a pair as a result. But because the Rust compiler is not very good at tail call optimisation, so I'm not doing that pattern in Rust code here.
+If you want to keep a recursive ascent code generator simpler you can of course always return a pair. You could also generate the code in [_continuation passing style_](https://en.wikipedia.org/wiki/Continuation-passing_style), where you pass a function that takes the sort and does the goto action instead of accepting a pair as a result. But because the Rust compiler is not very good at tail call optimisation, so I'm not doing that pattern here.
 
 ```rust
 /// S = b F . c
@@ -1476,7 +1574,7 @@ fn decr((c, s): (usize, Sort)) -> (usize, Sort) {
 }
 ```
 
-Note how we're now calling the decrement helper function after the call to `box6` to count one `return` we're going to do immediately after. 
+Note how in `box4` we're now calling the decrement helper function after the call to `box6` to count one `return` we're going to do immediately after.
 
 ```rust
 /// Box6
@@ -1500,11 +1598,11 @@ fn box6(input: &mut Iter) -> Result<(usize, Sort), String> {
 }
 ```
 
-The number of returns to do is equal to the size of the body of the rule we are reducing. Of course we immediately decrement because we are going to immediately return. Hence the `map(decr)`, which I didn't inline and do already so keep the constants in the code more intuitive.
+The number of returns to do is equal to the size of the body of the rule we are reducing. Of course we immediately decrement because we are going to immediately return, hence the `map(decr)`.
 
 ```rust
 /// S = b e e a .
-fn s7(input: &mut Iter) -> Result<(usize, Sort), String> {
+fn s7(_input: &mut Iter) -> Result<(usize, Sort), String> {
     Ok((4, Sort::S)).map(decr)
 }
 
@@ -1512,7 +1610,7 @@ fn lex(input: String) -> Vec<Terminal> {
     input.chars().collect()
 }
 
-pub(crate) fn main() -> Result<(), String> {
+pub fn main() -> Result<(), String> {
     let input = env::args().next().expect("Argument string to parse");
     let input = lex(input);
     let mut input = input.iter().peekable();
@@ -1524,11 +1622,11 @@ In our main function we can call `box0` with the input. Since this is LR(1) we o
 
 ### Table size = Code size
 
-With both recursive descent and recursive ascent parsing, we're representing the parsing logic directly in code, not as an explicit data representation of a parse table. As such, if you have a larger parse table, you get more code. In LL these parse tables don't grow so quickly, it's mostly related to the size of the grammar, perhaps a bit more if you have larger look-ahead and make the grammar strong. But in LR, when LALR doesn't suffice, parse tables can potentially grow quite large, as we saw to a limited extent with the last example. 
+With both recursive descent and recursive ascent parsing, we're representing the parsing logic directly in code, not as an explicit data representation of a parse table. As such, if you have a larger parse table, you get more code. In LR, when LALR doesn't suffice, parse tables can potentially grow quite large, as we saw to a limited extent with the last example. 
 
 ## Recursive Ascent-Descent Parsing
 
-Have you noticed that in the recursive ascent code there are some pretty boring and tiny looking functions? I'm talking about `s12`, `s1`, `s22`, `s2`, `s32`, `s3`, `s62`, `s6`. These will likely be targeted by the inliner of the Rust compiler, so optimise out some function calls. But aren't they a bit much to even generate?
+Have you noticed that in the recursive ascent code there are some pretty boring and tiny looking functions? I'm talking about `s12`, `s1`, `s22`, `s2`, `s32`, `s3`, `s62`, `s6`. These will likely be targeted by the inliner of the Rust compiler[^inlining], but aren't they a bit much to even generate?
 
 The common denominator of these functions, and the states of the LR automaton they correspond to, is that they have already honed in on a single rule from the grammar and are only parsing that. Kind of like in an LL parser, except we used the LR automaton mechanism to select the rule instead of an LL look-ahead. If we follow that idea to its logical conclusion, we can do LL parsing from any point where we know there's only one rule left (or equivalently, inline those simple functions). This means we only have box functions left:
 
@@ -1578,13 +1676,13 @@ fn box6(input: &mut Iter) -> Result<(usize, Sort), String> {
 }
 ```
 
-Note that in box 6 we now count the number of items in the body of the rule before the dot to come up with the number of returns.
+Note that in box 6 we now count the number of symbols in the body of the rule before the dot to come up with the number of returns.
 
 ### Left Corners?
 
 The left corner of a rule in the grammar is the left-most symbol in the body of the rule, plus the left corners of any sorts in left corner. So it's basically a _First_ set with the sorts included. I found this is some of the older literature, and figured I'd add a note for myself in here.
 
-There is/was such a thing as left-corner parsing, seemingly mostly used in natural language processing (NLP). NLP mostly uses _ambiguous_ context-free grammars, and typically uses (used?) a backtracking parser to deal with that. These can be slow of course, so optimising it a bit does help. And it turns out left corners helped with this, by adding some filtering that allows the parser to backtrack less. 
+There is/was such a thing as left-corner parsing, seemingly mostly used in natural language processing (NLP). NLP mostly uses _ambiguous_ context-free grammars, and typically uses (used?) a backtracking parser to deal with that. These can be slow of course. And it turns out left corners helped with this, by adding some "filtering" that allows the parser to backtrack less. This is connected to recursive ascent-descent parsing, which you could also see as filtering with LR to finish parsing with LL. In our case we just don't do backtracking.
 
 # Fin
 
@@ -1596,12 +1694,16 @@ Ehh, whatever ¯\\\_(ツ)\_/¯
 
 # Footnotes
 
-[^LLdef]: I'm fairly sure my prose description there is the same as a formal definition, and it feel a bit nicer to think about than the ones you can find on [Wikipedia](https://en.wikipedia.org/wiki/LL_grammar#Formal_definition).
+[^LLdef]: I'm fairly sure my prose description there is the same as a formal definition, and it feel a bit nicer to think about than [the ones you can find on Wikipedia](https://en.wikipedia.org/wiki/LL_grammar#Formal_definition).
 
 [^table]: Technically you'd need to see {%latex%} A₁ {%endlatex%} and {%latex%} A₂ {%endlatex%} as separate symbols and duplicate the rules for {%latex%} A {%endlatex%}, resulting in a larger grammar in correspondence with the larger table. But I couldn't be bothered, and the parse table as shown works just as well. This is relevant to the code size of a recursive descent parser too, since you can just reuse the code for rules 2 and 3 instead of having duplicate code for the two extra rules. What's a recursive descent parser? That comes just a little later in the post, so keep reading ;)
 
+[^nondet]: Yes, there are non-deterministic context-free languages. Those are the context-free languages that can only be parsed with a non-deterministic PDA. Since this post is about deterministic parsers, we'll ignore the non-deterministic languages.
+
 [^LLR]: While I find the [Wikipedia article on LLR](https://en.wikipedia.org/wiki/LL_grammar#Regular_case) confusing, and it makes a good case for why it's not really used, I'm still somewhat intrigued. This is one of those things that will stay on my reading list for a while I think, something I still want to understand further...
 
-[^indirect-recursion]: Indirect left recursion is even worse in LL, because the direct version can still be dealt with by an automatic grammar rewrite algorithm. That's more or less what the node-reparenting trick mentioned at the end of the LL section does. Similarly, there are automatic grammar rewrites for direct right-recursion for LR, and indirect right recursion is more problematic...
+[^indirect-recursion]: _Indirect_ left recursion is even worse in LL. At least the direct version can still be dealt with by an automatic grammar rewrite algorithm. That's more or less what the node-reparenting trick mentioned at the end of the LL section does. Similarly, there are automatic grammar rewrites for direct right-recursion for LR, and indirect right recursion can be more problematic...
+
+[^inlining]: Actually, I checked in [Compiler Explorer](https://godbolt.org/) how this turns out, and while `s7` is inlined and compiled away entirely, adapting `box1` to consume directly will make the assembly at `opt-level=3` smaller. Adding an `#[inline]` hint on `consume` helps as well. Though I may just be seeing the effect of uniform error messages through `consume`. Actually following and understanding the optimised assembly code is a pain, so I just clicked around a bit to verify that the example code is reduced to a state machine with jumps and labels instead of using function `call` instructions. So that's neat, basically what I was hoping for :)
 
 [^graphviz]: I hope you appreciate how much time it took to find example grammars to steal (or occasionally develop myself) and especially how much time it took to get GraphViz to output somewhat decent automata of those examples!
