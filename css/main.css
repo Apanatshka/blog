@@ -472,3 +472,16 @@ kbd {
     color: #008080; }
   .highlight .il {
     color: #718C00; }
+
+table.parsetable {
+  border: 1px solid;
+  border-collapse: collapse; }
+  table.parsetable thead {
+    background-color: #e8e8e8; }
+  table.parsetable th, table.parsetable td {
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid;
+    border-color: #828282; }
+  table.parsetable th {
+    font-weight: normal; }

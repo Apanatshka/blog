@@ -76,13 +76,13 @@
 
 <h1 id="cobs-in-short">COBS in short</h1>
 
-<p>Let’s choose zero as our sentinel values, our <em>frame marker</em>. If we need to recover from some error in the middle of the stream of frames, we just look for the next zero, that’s the end of a frame. Then the first byte is our consistent minimum overhead byte, which starts the COBS encoding. This byte tells us the offset to where the next zero should have been in the message. Until that offset is reached, the bytes should be the original message. If in those bytes you find a zero, the message is definitely corrupted and you should skip to the next frame. Once you reach the offset, instead of a zero you should find another number, which is the offset from there to the next zero in the original message. So each zero is turned into a higher number of where the next zero is. The last zero points to the place where the zero of the end of the frame should be<sup id="fnref:overhead"><a href="#fn:overhead" class="footnote">1</a></sup>.</p>
+<p>Let’s choose zero as our sentinel values, our <em>frame marker</em>. If we need to recover from some error in the middle of the stream of frames, we just look for the next zero, that’s the end of a frame. Then the first byte is our consistent minimum overhead byte, which starts the COBS encoding. This byte tells us the offset to where the next zero should have been in the message. Until that offset is reached, the bytes should be the original message. If in those bytes you find a zero, the message is definitely corrupted and you should skip to the next frame. Once you reach the offset, instead of a zero you should find another number, which is the offset from there to the next zero in the original message. So each zero is turned into a higher number of where the next zero is. The last zero points to the place where the zero of the end of the frame should be<sup id="fnref:overhead" role="doc-noteref"><a href="#fn:overhead" class="footnote" rel="footnote">1</a></sup>.</p>
 
 <p>Let’s call these offsets to a zero <em>zero markers</em>. The first <em>zero marker</em> is <em>fake</em>, since it doesn’t mark a zero at its place. We need it to point out the first actual zero. There can be more fake zero markers in the message, and this is where the worst case overhead comes from: what if two zeroes are further apart than the size of a byte? Assuming we’re speaking of <a href="https://en.wikipedia.org/wiki/Octet_(computing)">octets</a>, which is usually the case these days, we have 0-255 as the normal value range. We’re changing that range to 1-255. So if 255 is the maximum value for our zero marker, we cannot have more than 254 consecutive non-zero bytes. To fix this we say that zero markers with value 255 signify that the <em>next</em> zero marker is <em>fake</em>. Again, a fake zero marker does not signify a zero, but just how many bytes to read until we reach the next zero marker.</p>
 
 <h1 id="cobs-in-rust">COBS in Rust</h1>
 
-<p>Now that we’ve seen a prose description of COBS in Rust, let’s implement an encode and a decode function for COBS. In this case I’ll present an implementation that is uses a sentinel value of zero, adds that zero as part of the encode procedure, and expects it during decode. Note that this is not going to be the most beautiful implementation possible. We’re not using traits from Rust’s standard library, such as <code class="highlighter-rouge">Read</code> and <code class="highlighter-rouge">Write</code> even though these work with bytes. We’re hard-coding the sentinel value to <code class="highlighter-rouge">0</code>.</p>
+<p>Now that we’ve seen a prose description of COBS in Rust, let’s implement an encode and a decode function for COBS. In this case I’ll present an implementation that is uses a sentinel value of zero, adds that zero as part of the encode procedure, and expects it during decode. Note that this is not going to be the most beautiful implementation possible. We’re not using traits from Rust’s standard library, such as <code class="language-plaintext highlighter-rouge">Read</code> and <code class="language-plaintext highlighter-rouge">Write</code> even though these work with bytes. We’re hard-coding the sentinel value to <code class="language-plaintext highlighter-rouge">0</code>.</p>
 
 <h2 id="tests">Tests</h2>
 
@@ -122,11 +122,11 @@
 <span class="p">}</span>
 
 <span class="k">pub</span> <span class="k">fn</span> <span class="nf">max_encoded_size</span><span class="p">(</span><span class="n">input_size</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">usize</span> <span class="p">{</span>
-    <span class="n">input_size</span> <span class="o">*</span> <span class="p">(</span><span class="nn">u8</span><span class="p">::</span><span class="nf">max_value</span><span class="p">()</span> <span class="k">as</span> <span class="nb">f32</span> <span class="err">/</span> <span class="p">(</span><span class="nn">u8</span><span class="p">::</span><span class="nf">max_value</span><span class="p">()</span> <span class="err">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">as</span> <span class="nb">f32</span><span class="p">)</span><span class="nf">.ceil</span><span class="p">()</span> <span class="k">as</span> <span class="nb">usize</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">input_size</span> <span class="o">*</span> <span class="p">(</span><span class="nn">u8</span><span class="p">::</span><span class="nf">max_value</span><span class="p">()</span> <span class="k">as</span> <span class="nb">f32</span> <span class="o">/</span> <span class="p">(</span><span class="nn">u8</span><span class="p">::</span><span class="nf">max_value</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">as</span> <span class="nb">f32</span><span class="p">)</span><span class="nf">.ceil</span><span class="p">()</span> <span class="k">as</span> <span class="nb">usize</span> <span class="o">+</span> <span class="mi">1</span>
 <span class="p">}</span>
 
 <span class="k">pub</span> <span class="k">fn</span> <span class="nf">max_decoded_size</span><span class="p">(</span><span class="n">encoded_size</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">usize</span> <span class="p">{</span>
-    <span class="n">encoded_size</span> <span class="err">-</span> <span class="mi">2</span>
+    <span class="n">encoded_size</span> <span class="o">-</span> <span class="mi">2</span>
 <span class="p">}</span>
 
 <span class="nd">#[cfg(test)]</span>
@@ -187,7 +187,7 @@
 
         <span class="k">fn</span> <span class="nf">check_encoded_vs_given</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">],</span> <span class="n">encoded</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="p">{</span>
             <span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-            <span class="k">let</span> <span class="n">_</span> <span class="o">=</span> <span class="nf">encode</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">buffer</span><span class="p">);</span>
+            <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="nf">encode</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">buffer</span><span class="p">);</span>
             <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="n">buffer</span><span class="nf">.as_slice</span><span class="p">());</span>
         <span class="p">}</span>
 
@@ -199,7 +199,7 @@
 
         <span class="k">fn</span> <span class="nf">check_decoded_vs_given</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">],</span> <span class="n">encoded</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">])</span> <span class="p">{</span>
             <span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-            <span class="k">let</span> <span class="n">_</span> <span class="o">=</span> <span class="nf">decode</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">buffer</span><span class="p">);</span>
+            <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="nf">decode</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">buffer</span><span class="p">);</span>
             <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">buffer</span><span class="nf">.as_slice</span><span class="p">());</span>
         <span class="p">}</span>
 
@@ -212,8 +212,8 @@
         <span class="k">fn</span> <span class="nf">encode_decode_identity</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">bool</span> <span class="p">{</span>
             <span class="k">let</span> <span class="k">mut</span> <span class="n">b1</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
             <span class="k">let</span> <span class="k">mut</span> <span class="n">b2</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-            <span class="k">let</span> <span class="n">_</span> <span class="o">=</span> <span class="nf">encode</span><span class="p">(</span><span class="n">data</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b1</span><span class="p">);</span>
-            <span class="k">let</span> <span class="n">_</span> <span class="o">=</span> <span class="nf">decode</span><span class="p">(</span><span class="n">b1</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b2</span><span class="p">);</span>
+            <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="nf">encode</span><span class="p">(</span><span class="n">data</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b1</span><span class="p">);</span>
+            <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="nf">decode</span><span class="p">(</span><span class="n">b1</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b2</span><span class="p">);</span>
             <span class="n">data</span> <span class="o">==</span> <span class="n">b2</span>
         <span class="p">}</span>
     <span class="p">}</span>
@@ -226,10 +226,10 @@
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="n">MAXu8</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="nn">u8</span><span class="p">::</span><span class="nf">max_value</span><span class="p">();</span>
 <span class="k">const</span> <span class="n">MAX</span><span class="p">:</span> <span class="nb">usize</span> <span class="o">=</span> <span class="n">MAXu8</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">;</span>
-<span class="k">const</span> <span class="n">MAX_CONSECUTIVE</span><span class="p">:</span> <span class="nb">usize</span> <span class="o">=</span> <span class="n">MAX</span> <span class="err">-</span> <span class="mi">1</span><span class="p">;</span>
+<span class="k">const</span> <span class="n">MAX_CONSECUTIVE</span><span class="p">:</span> <span class="nb">usize</span> <span class="o">=</span> <span class="n">MAX</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-<p>The <code class="highlighter-rouge">MAX*</code> values are just shorter without using <code class="highlighter-rouge">255</code> literally. I did use them in the tests because there are related numbers off by 2 or 3. It made more sense in the unit tests, which encode specific examples. The code is abstract, should work for any case.</p>
+<p>The <code class="language-plaintext highlighter-rouge">MAX*</code> values are just shorter without using <code class="language-plaintext highlighter-rouge">255</code> literally. I did use them in the tests because there are related numbers off by 2 or 3. It made more sense in the unit tests, which encode specific examples. The code is abstract, should work for any case.</p>
 
 <h2 id="decode">Decode</h2>
 
@@ -264,7 +264,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The <code class="highlighter-rouge">zero_marker_index</code> is the absolute offset from the start of the <code class="highlighter-rouge">encoded_data</code> slice. The boolean <code class="highlighter-rouge">fake</code> is for remembering if that zero marker will be fake or not. We also track how many bytes we’ve <code class="highlighter-rouge">written</code> in the buffer of decoded data. We break from the loop to fail, because we may also find no <code class="highlighter-rouge">0</code> at all and run out of encoded data, which is also a corner case where we should fail.</p>
+<p>The <code class="language-plaintext highlighter-rouge">zero_marker_index</code> is the absolute offset from the start of the <code class="language-plaintext highlighter-rouge">encoded_data</code> slice. The boolean <code class="language-plaintext highlighter-rouge">fake</code> is for remembering if that zero marker will be fake or not. We also track how many bytes we’ve <code class="language-plaintext highlighter-rouge">written</code> in the buffer of decoded data. We break from the loop to fail, because we may also find no <code class="language-plaintext highlighter-rouge">0</code> at all and run out of encoded data, which is also a corner case where we should fail.</p>
 
 <h2 id="encode-buffer-input">Encode (buffer input)</h2>
 
@@ -274,10 +274,10 @@
     <span class="k">let</span> <span class="n">start_length_out_buffer</span> <span class="o">=</span> <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">();</span>
 
     <span class="k">let</span> <span class="k">mut</span> <span class="n">data_iter</span> <span class="o">=</span> <span class="n">data</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.chain</span><span class="p">(</span><span class="nn">iter</span><span class="p">::</span><span class="nf">once</span><span class="p">(</span><span class="o">&amp;</span><span class="mi">0</span><span class="p">))</span><span class="nf">.peekable</span><span class="p">();</span>
-    <span class="k">let</span> <span class="k">mut</span> <span class="n">buf</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="n">_u8</span><span class="p">;</span> <span class="n">MAX_CONSECUTIVE</span><span class="p">];</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">buf</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0_u8</span><span class="p">;</span> <span class="n">MAX_CONSECUTIVE</span><span class="p">];</span>
     <span class="k">let</span> <span class="k">mut</span> <span class="n">buf_index</span><span class="p">:</span> <span class="nb">usize</span><span class="p">;</span>
 
-    <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">data_iter</span><span class="nf">.peek</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="mi">_</span><span class="p">)</span> <span class="o">=</span> <span class="n">data_iter</span><span class="nf">.peek</span><span class="p">()</span> <span class="p">{</span>
         <span class="n">buf_index</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
         <span class="c">// Find the next zero, copy bytes seen into buffer</span>
@@ -298,11 +298,11 @@
 
     <span class="n">encoded_data_buffer</span><span class="nf">.push</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
 
-    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="err">-</span> <span class="n">start_length_out_buffer</span>
+    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_length_out_buffer</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Given that we take in some <code class="highlighter-rouge">Vec&lt;u8&gt;</code> that we append to, we should save the length and return the difference in length as the amount of bytes written. Then we create an iterator over the data, followed by an extra zero, which should be <code class="highlighter-rouge">peekable</code>. This means we can look ahead without consuming to see if the iterator is done yet. While it isn’t done, we set keep an index of the used part of the buffer. For the bytes in the iterator, we just add them to the buffer unless it’s a zero or the buffer is full. Then we write the zero marker first using the buffer index to see how many non-zeroes we found ahead. And we copy over the buffer. The extra zero on the data iterator compensates for the extra zero-marker at the front of the message. The extra zero pushed at the end ends the message.</p>
+<p>Given that we take in some <code class="language-plaintext highlighter-rouge">Vec&lt;u8&gt;</code> that we append to, we should save the length and return the difference in length as the amount of bytes written. Then we create an iterator over the data, followed by an extra zero, which should be <code class="language-plaintext highlighter-rouge">peekable</code>. This means we can look ahead without consuming to see if the iterator is done yet. While it isn’t done, we set keep an index of the used part of the buffer. For the bytes in the iterator, we just add them to the buffer unless it’s a zero or the buffer is full. Then we write the zero marker first using the buffer index to see how many non-zeroes we found ahead. And we copy over the buffer. The extra zero on the data iterator compensates for the extra zero-marker at the front of the message. The extra zero pushed at the end ends the message.</p>
 
 <h2 id="encode-buffer-output">Encode (buffer output)</h2>
 
@@ -312,12 +312,12 @@
     <span class="k">let</span> <span class="n">start_length_out_buffer</span> <span class="o">=</span> <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">();</span>
 
     <span class="c">// Note that we always start from 1, so we count MAX_CONSEQUTIVE bytes of non-zero data</span>
-    <span class="k">let</span> <span class="k">mut</span> <span class="n">non_zero_count</span> <span class="o">=</span> <span class="mi">1</span><span class="n">_usize</span><span class="p">;</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">non_zero_count</span> <span class="o">=</span> <span class="mi">1_u</span><span class="n">size</span><span class="p">;</span>
     <span class="k">let</span> <span class="k">mut</span> <span class="n">zero_marker_index</span><span class="p">;</span>
 
     <span class="nd">macro_rules!</span> <span class="n">next_zero_marker</span> <span class="p">{</span> <span class="p">()</span> <span class="k">=&gt;</span> <span class="p">{</span>
         <span class="n">encoded_data_buffer</span><span class="p">[</span><span class="n">zero_marker_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">non_zero_count</span> <span class="k">as</span> <span class="nb">u8</span><span class="p">;</span>
-        <span class="n">non_zero_count</span> <span class="o">=</span> <span class="mi">1</span><span class="n">_usize</span><span class="p">;</span>
+        <span class="n">non_zero_count</span> <span class="o">=</span> <span class="mi">1_u</span><span class="n">size</span><span class="p">;</span>
         <span class="n">zero_marker_index</span> <span class="o">=</span> <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">();</span>
         <span class="n">encoded_data_buffer</span><span class="nf">.push</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
     <span class="p">}};</span>
@@ -338,7 +338,7 @@
         <span class="p">}</span>
     <span class="p">}</span>
 
-    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="err">-</span> <span class="n">start_length_out_buffer</span>
+    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_length_out_buffer</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
@@ -355,7 +355,7 @@
             <span class="k">fn</span> <span class="nf">encode_r1</span><span class="p">(</span><span class="n">b</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Bencher</span><span class="p">)</span> <span class="p">{</span>
                 <span class="n">b</span><span class="nf">.iter</span><span class="p">(||</span> <span class="p">{</span>
                     <span class="k">let</span> <span class="k">mut</span> <span class="n">lorem_ipsum_encoded</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
-                    <span class="k">let</span> <span class="n">_</span> <span class="o">=</span> <span class="nv">$prefix</span><span class="p">(</span><span class="n">LOREM_IPSUM_RAW</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">lorem_ipsum_encoded</span><span class="p">);</span>
+                    <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="nv">$prefix</span><span class="p">(</span><span class="n">LOREM_IPSUM_RAW</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">lorem_ipsum_encoded</span><span class="p">);</span>
                 <span class="p">});</span>
             <span class="p">}</span>
         <span class="p">}</span>
@@ -368,13 +368,13 @@
 
 <p>This uses the first 4 paragraphs or so from <a href="https://lipsum.com/">Lorem Ipsum</a>, and on my machine the input buffering version is always faster:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       encode:: ns/iter  encode_lookahead:: ns/iter  diff ns/iter   diff %  speedup 
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       encode:: ns/iter  encode_lookahead:: ns/iter  diff ns/iter   diff %  speedup 
  encode_r1  4,243             3,745                               -498  -11.74%   x 1.13
 </code></pre></div></div>
 
 <h2 id="faster-decode">Faster decode</h2>
 
-<p>Say we wanted to seriously speed up our decoding. We could do so by dropping the check of an unexpected zero. Why? Well if you drop that check, a zero marker will tell you exactly how many bytes you can copy over verbatim before the next marker. Which you can do in Rust with the <code class="highlighter-rouge">extend_from_slice</code> function, which is probably a bit faster than a manual loop. Let’s try that out:</p>
+<p>Say we wanted to seriously speed up our decoding. We could do so by dropping the check of an unexpected zero. Why? Well if you drop that check, a zero marker will tell you exactly how many bytes you can copy over verbatim before the next marker. Which you can do in Rust with the <code class="language-plaintext highlighter-rouge">extend_from_slice</code> function, which is probably a bit faster than a manual loop. Let’s try that out:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="nf">decode</span><span class="p">(</span><span class="n">encoded_data</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="nb">u8</span><span class="p">],</span> <span class="n">decoded_data_buffer</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nb">usize</span><span class="p">,</span> <span class="nb">usize</span><span class="o">&gt;</span> <span class="p">{</span>
     <span class="k">if</span> <span class="n">encoded_data</span><span class="nf">.len</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
@@ -388,10 +388,10 @@
     <span class="k">loop</span> <span class="p">{</span>
         <span class="k">let</span> <span class="n">next_index</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="n">zero_marker</span><span class="p">;</span>
         <span class="k">if</span> <span class="n">zero_marker</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
-            <span class="k">return</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">decoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="err">-</span> <span class="n">start_length_out_buffer</span><span class="p">);</span>
+            <span class="k">return</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">decoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_length_out_buffer</span><span class="p">);</span>
         <span class="p">}</span>
         <span class="k">if</span> <span class="n">next_index</span> <span class="o">&gt;=</span> <span class="n">encoded_data</span><span class="nf">.len</span><span class="p">()</span> <span class="p">{</span>
-            <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">decoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="err">-</span> <span class="n">start_length_out_buffer</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">decoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_length_out_buffer</span><span class="p">)</span>
         <span class="p">}</span>
 
         <span class="n">decoded_data_buffer</span><span class="nf">.extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">encoded_data</span><span class="p">[</span><span class="n">index</span><span class="o">+</span><span class="mi">1</span><span class="o">..</span><span class="n">next_index</span><span class="p">]);</span>
@@ -406,11 +406,11 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>We don’t use iterators any more in this code. This is not very idiomatic for Rust, since Rust can more easily eliminate bounds checks for loops over iterators. However, we do get the <code class="highlighter-rouge">extend_from_slice</code> which is hopefully more efficient. So what we do is keep the index into the data around, and look up the zero marker. If the zero marker is zero, we’re done, end of message. If the index is out of bounds, that’s an error. Otherwise we extend from the <code class="highlighter-rouge">index+1</code> up to (not including) the next index. The <code class="highlighter-rouge">+1</code> is because <code class="highlighter-rouge">index</code> always points to a zeromarker. Should the zero marker be <code class="highlighter-rouge">255</code> or the next zero marker be <code class="highlighter-rouge">0</code>, then we don’t need to add a zero after the copied data. Then we update the zero marker and index.</p>
+<p>We don’t use iterators any more in this code. This is not very idiomatic for Rust, since Rust can more easily eliminate bounds checks for loops over iterators. However, we do get the <code class="language-plaintext highlighter-rouge">extend_from_slice</code> which is hopefully more efficient. So what we do is keep the index into the data around, and look up the zero marker. If the zero marker is zero, we’re done, end of message. If the index is out of bounds, that’s an error. Otherwise we extend from the <code class="language-plaintext highlighter-rouge">index+1</code> up to (not including) the next index. The <code class="language-plaintext highlighter-rouge">+1</code> is because <code class="language-plaintext highlighter-rouge">index</code> always points to a zeromarker. Should the zero marker be <code class="language-plaintext highlighter-rouge">255</code> or the next zero marker be <code class="language-plaintext highlighter-rouge">0</code>, then we don’t need to add a zero after the copied data. Then we update the zero marker and index.</p>
 
 <p>To test this we run another benchmark, this time decoding the encoded lorem ipsum text. The results are quite promising:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       naive_decode:: ns/iter  decode:: ns/iter  diff ns/iter   diff %  speedup 
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       naive_decode:: ns/iter  decode:: ns/iter  diff ns/iter   diff %  speedup 
  decode_r1  3,962                   361                     -3,601  -90.89%  x 10.98
 </code></pre></div></div>
 
@@ -422,7 +422,7 @@
             <span class="k">let</span> <span class="k">mut</span> <span class="n">b2</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
             <span class="k">let</span> <span class="n">r1</span> <span class="o">=</span> <span class="nf">decode</span><span class="p">(</span><span class="n">data</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b1</span><span class="p">);</span>
             <span class="k">let</span> <span class="n">r2</span> <span class="o">=</span> <span class="nf">naive_decode</span><span class="p">(</span><span class="n">data</span><span class="nf">.as_slice</span><span class="p">(),</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">b2</span><span class="p">);</span>
-            <span class="k">if</span> <span class="k">let</span> <span class="p">(</span><span class="nf">Err</span><span class="p">(</span><span class="n">_</span><span class="p">),</span> <span class="nf">Err</span><span class="p">(</span><span class="n">_</span><span class="p">))</span> <span class="o">=</span> <span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">r2</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="k">let</span> <span class="p">(</span><span class="nf">Err</span><span class="p">(</span><span class="mi">_</span><span class="p">),</span> <span class="nf">Err</span><span class="p">(</span><span class="mi">_</span><span class="p">))</span> <span class="o">=</span> <span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">r2</span><span class="p">)</span> <span class="p">{</span>
                 <span class="kc">true</span>
             <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
                 <span class="n">r1</span> <span class="o">==</span> <span class="n">r2</span> <span class="o">&amp;&amp;</span> <span class="n">b1</span> <span class="o">==</span> <span class="n">b2</span>
@@ -439,11 +439,11 @@
     <span class="k">use</span> <span class="nn">itertools</span><span class="p">::</span><span class="n">Itertools</span><span class="p">;</span>
 
     <span class="k">let</span> <span class="n">start_length_out_buffer</span> <span class="o">=</span> <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">();</span>
-    <span class="k">let</span> <span class="k">mut</span> <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span><span class="n">_usize</span><span class="p">;</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">index</span> <span class="o">=</span> <span class="mi">0_u</span><span class="n">size</span><span class="p">;</span>
     <span class="k">for</span> <span class="n">z_index</span> <span class="n">in</span> <span class="n">data</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.chain</span><span class="p">(</span><span class="nn">iter</span><span class="p">::</span><span class="nf">once</span><span class="p">(</span><span class="o">&amp;</span><span class="mi">0</span><span class="p">))</span><span class="nf">.positions</span><span class="p">(|</span><span class="o">&amp;</span><span class="n">b</span><span class="p">|</span> <span class="n">b</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
         <span class="nd">debug_assert!</span><span class="p">(</span><span class="n">z_index</span> <span class="o">&gt;=</span> <span class="n">index</span><span class="p">);</span>
         <span class="c">// index is always still-unvisited, so when z_index == index, we need to write a 1</span>
-        <span class="nd">macro_rules!</span> <span class="n">offset_between_zeroes</span> <span class="p">{</span> <span class="p">()</span> <span class="k">=&gt;</span> <span class="p">{</span><span class="n">z_index</span> - <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">}}</span>
+        <span class="nd">macro_rules!</span> <span class="n">offset_between_zeroes</span> <span class="p">{</span> <span class="p">()</span> <span class="k">=&gt;</span> <span class="p">{</span><span class="n">z_index</span> <span class="o">-</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">}}</span>
         <span class="k">while</span> <span class="nd">offset_between_zeroes!</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">MAX</span> <span class="p">{</span>
             <span class="n">encoded_data_buffer</span><span class="nf">.push</span><span class="p">(</span><span class="n">MAXu8</span><span class="p">);</span>
             <span class="n">encoded_data_buffer</span><span class="nf">.extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="o">..</span><span class="n">index</span> <span class="o">+</span> <span class="n">MAX_CONSECUTIVE</span><span class="p">]);</span>
@@ -455,30 +455,30 @@
     <span class="p">}</span>
     <span class="n">encoded_data_buffer</span><span class="nf">.push</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
 
-    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="err">-</span> <span class="n">start_length_out_buffer</span>
+    <span class="n">encoded_data_buffer</span><span class="nf">.len</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_length_out_buffer</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>We use <a href="https://crates.io/crates/itertools">itertools</a> here for the <code class="highlighter-rouge">positions</code> iterator method. We go over the whole data looking for the indices of the zero bytes. We’ve encoded up to <code class="highlighter-rouge">index</code>, so if the offset between there and the zero is too far, we need to add the special zero markers and the <code class="highlighter-rouge">MAX_CONSECUTIVE</code> number of data bytes. In the end we always write the offset as zero marker, then the data up to the zero, then set the index to <em>after</em> the zero.</p>
+<p>We use <a href="https://crates.io/crates/itertools">itertools</a> here for the <code class="language-plaintext highlighter-rouge">positions</code> iterator method. We go over the whole data looking for the indices of the zero bytes. We’ve encoded up to <code class="language-plaintext highlighter-rouge">index</code>, so if the offset between there and the zero is too far, we need to add the special zero markers and the <code class="language-plaintext highlighter-rouge">MAX_CONSECUTIVE</code> number of data bytes. In the end we always write the offset as zero marker, then the data up to the zero, then set the index to <em>after</em> the zero.</p>
 
 <p>This is again a bit faster because we don’t copy each byte into a buffer only to copy the buffer again. The positions iterator method now does the look-ahead for us.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       encode_lookahead:: ns/iter  encode_itertools:: ns/iter  diff ns/iter   diff %  speedup 
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> name       encode_lookahead:: ns/iter  encode_itertools:: ns/iter  diff ns/iter   diff %  speedup 
  encode_r1  3,750                       2,756                               -994  -26.51%   x 1.36
 </code></pre></div></div>
 
 <h1 id="conclusion">Conclusion</h1>
 
-<p>So we’ve seen some Rust code today that was hopefully readable to you. Tests are easy because they’re built-in. Property based tests are just a crate import away. Benchmarks require the nightly compiler, but only those do, so you can just use <code class="highlighter-rouge">cargo +nightly bench</code> to run them. The comparison tables are generated with <a href="https://crates.io/crates/cargo-benchcmp"><code class="highlighter-rouge">cargo-benchcmp</code></a>.</p>
+<p>So we’ve seen some Rust code today that was hopefully readable to you. Tests are easy because they’re built-in. Property based tests are just a crate import away. Benchmarks require the nightly compiler, but only those do, so you can just use <code class="language-plaintext highlighter-rouge">cargo +nightly bench</code> to run them. The comparison tables are generated with <a href="https://crates.io/crates/cargo-benchcmp"><code class="language-plaintext highlighter-rouge">cargo-benchcmp</code></a>.</p>
 
-<p>I’ve shown some of my implementations for COBS in Rust, but this was only a learning exercise. I hope this inspires you to find a project of your own to get more experience with Rust. A <em>real</em> implementation of COBS in Rust can be found in the <a href="https://crates.io/crates/cobs"><code class="highlighter-rouge">cobs</code></a> crate, which allows you to use whichever sentinel value you want, can decode in-place, and doesn’t even use vectors so you can use the crate without the standard library.</p>
+<p>I’ve shown some of my implementations for COBS in Rust, but this was only a learning exercise. I hope this inspires you to find a project of your own to get more experience with Rust. A <em>real</em> implementation of COBS in Rust can be found in the <a href="https://crates.io/crates/cobs"><code class="language-plaintext highlighter-rouge">cobs</code></a> crate, which allows you to use whichever sentinel value you want, can decode in-place, and doesn’t even use vectors so you can use the crate without the standard library.</p>
 
 <h1 id="footnotes">Footnotes</h1>
 
-<div class="footnotes">
+<div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:overhead">
-      <p>If you count the zero at the end of a frame as part of the COBS algorithm, it has a minimum offset of 2. But apparently people usually count that as a separate “packetize” step, or so it says on Wikipedia. <a href="#fnref:overhead" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:overhead" role="doc-endnote">
+      <p>If you count the zero at the end of a frame as part of the COBS algorithm, it has a minimum offset of 2. But apparently people usually count that as a separate “packetize” step, or so it says on Wikipedia. <a href="#fnref:overhead" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -499,7 +499,7 @@
     <div class="footer-col-wrapper">
       <div class="footer-col  footer-col-1">
         <ul class="contact-list">
-          <li><a href="mailto:jeff.smits@gmail.com">jeff.smits@gmail.com</a></li>
+          <li><a href="mailto:mail [at] this domain">mail [at] this domain</a></li>
         </ul>
       </div>
 

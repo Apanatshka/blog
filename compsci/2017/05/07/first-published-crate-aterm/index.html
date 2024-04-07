@@ -64,7 +64,7 @@
   </header>
 
   <article class="post-content">
-    <p>I published my first crate to <a href="https://crates.io/">crates.io</a>! It’s called <a href="https://crates.io/crates/aterm"><code class="highlighter-rouge">aterm</code></a>, and it’s a library that implements the <u>A</u>nnotated <u>Term</u> format. Currently it can only parse and print the normal textual format, but I’m planning to add the other three formats too at some point. There are also a number of other improvements that I have planned. But I’m going to try to not make this post a brain-dump of meandering thoughts. So here’s what I’d like to discuss:</p>
+    <p>I published my first crate to <a href="https://crates.io/">crates.io</a>! It’s called <a href="https://crates.io/crates/aterm"><code class="language-plaintext highlighter-rouge">aterm</code></a>, and it’s a library that implements the <u>A</u>nnotated <u>Term</u> format. Currently it can only parse and print the normal textual format, but I’m planning to add the other three formats too at some point. There are also a number of other improvements that I have planned. But I’m going to try to not make this post a brain-dump of meandering thoughts. So here’s what I’d like to discuss:</p>
 
 <ul id="markdown-toc">
   <li><a href="#what-are-aterms" id="markdown-toc-what-are-aterms">What are ATerms</a></li>
@@ -78,14 +78,14 @@
 
 <h1 id="what-are-aterms">What are ATerms</h1>
 
-<p>The Annotated Term format<sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup> originates from the <a href="https://www.cwi.nl/about">Centre for Mathematics and Computer Science (CWI)</a> in Amsterdam. It describes trees and annotations on those trees. The big features are maximal sharing (subtrees that are the same are only allocated once), a compressed binary format, and a C implementation that does garbage collection. The format dates back to around 2000.</p>
+<p>The Annotated Term format<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> originates from the <a href="https://www.cwi.nl/about">Centre for Mathematics and Computer Science (CWI)</a> in Amsterdam. It describes trees and annotations on those trees. The big features are maximal sharing (subtrees that are the same are only allocated once), a compressed binary format, and a C implementation that does garbage collection. The format dates back to around 2000.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Add(Int("1"){Value(1)}, Int("2"){Value(2)}){Value(3)}
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Add(Int("1"){Value(1)}, Int("2"){Value(2)}){Value(3)}
 </code></pre></div></div>
 
 <p>(^A small tree describing addition of two numbers, with annotations on each “application” with the value)</p>
 
-<p>The ATerm format was used by a number of tools in a number of research groups as an exchange format (and they probably also used the library implementations to provide the internal representation as well). Maximal sharing was super fancy, although recently research was published that this maximal sharing can in many situations be more overhead than optimisation. <sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup> The compressed formats allowed pretty quick communication between different tools that sometimes explicitly held on to the <a href="https://en.wikipedia.org/wiki/Unix_philosophy">Unix philosophy</a>.</p>
+<p>The ATerm format was used by a number of tools in a number of research groups as an exchange format (and they probably also used the library implementations to provide the internal representation as well). Maximal sharing was super fancy, although recently research was published that this maximal sharing can in many situations be more overhead than optimisation. <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> The compressed formats allowed pretty quick communication between different tools that sometimes explicitly held on to the <a href="https://en.wikipedia.org/wiki/Unix_philosophy">Unix philosophy</a>.</p>
 
 <p>For those of you who are interested in implementations of this format in other languages, have a look at the <a href="https://github.com/cwi-swat/aterms">CWI repository</a>, which includes implementations in C, Java and C#.</p>
 
@@ -97,7 +97,7 @@
 
 <h1 id="the-implementation">The implementation</h1>
 
-<p>Ok, so here’s what you get from the <code class="highlighter-rouge">aterm</code> crate:</p>
+<p>Ok, so here’s what you get from the <code class="language-plaintext highlighter-rouge">aterm</code> crate:</p>
 
 <ol>
   <li>A parser that takes in a text format ATerm string.
@@ -108,8 +108,8 @@
   <li>A printer for the text format. Again, the other formats are todo.</li>
   <li>A factory trait for building ATerms.</li>
   <li>An ATerm trait for matching ATerms.</li>
-  <li>Some basics such as the default enum for terms (<code class="highlighter-rouge">Int(i32)</code>, <code class="highlighter-rouge">Real(f32)</code>, <code class="highlighter-rouge">Application(constructor, children)</code>, <code class="highlighter-rouge">List(children)</code>, <code class="highlighter-rouge">Placeholder(placeholder_enum)</code>).</li>
-  <li>The <a href="http://homepages.cwi.nl/~daybuild/daily-books/technology/aterm-guide/aterm-guide.html">ATerm programming guide</a> mentions a BLOB term, which I considered an extension point that could be typed in Rust. So you can add more stuff to the term enum with the variant <code class="highlighter-rouge">Blob(your_extension_here)</code>.</li>
+  <li>Some basics such as the default enum for terms (<code class="language-plaintext highlighter-rouge">Int(i32)</code>, <code class="language-plaintext highlighter-rouge">Real(f32)</code>, <code class="language-plaintext highlighter-rouge">Application(constructor, children)</code>, <code class="language-plaintext highlighter-rouge">List(children)</code>, <code class="language-plaintext highlighter-rouge">Placeholder(placeholder_enum)</code>).</li>
+  <li>The <a href="http://homepages.cwi.nl/~daybuild/daily-books/technology/aterm-guide/aterm-guide.html">ATerm programming guide</a> mentions a BLOB term, which I considered an extension point that could be typed in Rust. So you can add more stuff to the term enum with the variant <code class="language-plaintext highlighter-rouge">Blob(your_extension_here)</code>.</li>
   <li>An implementation of the ATerm trait for the above basics.</li>
   <li>A reference counting implementation with factory.</li>
   <li>A second Rc implementation where the factory guarantees maximal sharing.</li>
@@ -120,16 +120,16 @@
 <h2 id="highlights--things-i-learned">Highlights &amp; Things I learned</h2>
 
 <ol>
-  <li>Ideally I would have use higher-kinded types for this ATerm implementation. But Rust doesn’t have that. So I found a way where the <code class="highlighter-rouge">ATerm</code> trait defines an associated type <code class="highlighter-rouge">Rec: Borrow&lt;Self&gt;</code>. That still allows people to implement the <code class="highlighter-rouge">ATerm</code> trait while adding in more of their own things. The basic <code class="highlighter-rouge">rc::ATerm</code> implementation looks like this:
+  <li>Ideally I would have use higher-kinded types for this ATerm implementation. But Rust doesn’t have that. So I found a way where the <code class="language-plaintext highlighter-rouge">ATerm</code> trait defines an associated type <code class="language-plaintext highlighter-rouge">Rec: Borrow&lt;Self&gt;</code>. That still allows people to implement the <code class="language-plaintext highlighter-rouge">ATerm</code> trait while adding in more of their own things. The basic <code class="language-plaintext highlighter-rouge">rc::ATerm</code> implementation looks like this:
     <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">struct</span> <span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="nb">Rc</span><span class="o">&lt;</span><span class="n">ATerm</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">)</span>
 </code></pre></div>    </div>
-    <p>Where <code class="highlighter-rouge">ATermInner</code> is a basic implementation that contains a term and a list of annotations.</p>
+    <p>Where <code class="language-plaintext highlighter-rouge">ATermInner</code> is a basic implementation that contains a term and a list of annotations.</p>
   </li>
   <li>Using your own library is the only way to make sure it’s actually usable! I had this implementation that compiled a while back, then I started using the factory for the parser, and nothing actually worked out. Then I started to think things over, removed a bunch type parameters, generally simplified things. I’m now a bit unhappy with the allocation characteristics, but the crate isn’t 1.0 yet, I can still tinker with it a little although I don’t want to introduce big breaking changes anymore.</li>
   <li>I had an arena allocation implementation at some point. It was terribly broken, so I had to cut it out. I plan on <a href="https://gitlab.com/Apanatshka/aterm/issues/9">revisiting that idea soon</a> by using someone else’s arena allocation crate.</li>
-  <li>While simplifying and trying to get my library usable, I found out a thing I hadn’t really grasped before in the Rust type system: <em>Associated types are unique per trait implementation</em>. So for my <code class="highlighter-rouge">ATerm</code> trait I made the <code class="highlighter-rouge">Rec</code> and <code class="highlighter-rouge">Blob</code> types associative, and that made it much more usable. You see, associated types are easier on Rust’s type inference: Given a fully concrete type there is definitely only one trait implementation possible. And it’s not as limiting for the implementor as you might think. You can still use type parameters in your <code class="highlighter-rouge">impl</code>s:
+  <li>While simplifying and trying to get my library usable, I found out a thing I hadn’t really grasped before in the Rust type system: <em>Associated types are unique per trait implementation</em>. So for my <code class="language-plaintext highlighter-rouge">ATerm</code> trait I made the <code class="language-plaintext highlighter-rouge">Rec</code> and <code class="language-plaintext highlighter-rouge">Blob</code> types associative, and that made it much more usable. You see, associated types are easier on Rust’s type inference: Given a fully concrete type there is definitely only one trait implementation possible. And it’s not as limiting for the implementor as you might think. You can still use type parameters in your <code class="language-plaintext highlighter-rouge">impl</code>s:
     <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="n">ATerm</span> <span class="k">for</span> <span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span>
-    <span class="n">where</span> <span class="n">Rec</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span>
+    <span class="k">where</span> <span class="n">Rec</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;</span><span class="n">ATermInner</span><span class="o">&lt;</span><span class="n">Rec</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span>
 <span class="p">{</span>
     <span class="k">type</span> <span class="n">Rec</span> <span class="o">=</span> <span class="n">Rec</span><span class="p">;</span>
     <span class="k">type</span> <span class="n">Blob</span> <span class="o">=</span> <span class="n">B</span><span class="p">;</span>
@@ -145,26 +145,26 @@
 <span class="p">}</span>
 </code></pre></div>    </div>
     <p>The only thing I dislike about associated types is how large your where clauses get when you want to add extra constraints. While working on my Stratego interpreter, at some point I had where clauses like this:</p>
-    <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">where</span> <span class="n">F</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">+</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">ATermRef</span> <span class="o">=</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
+    <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nv">'a</span> <span class="o">+</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">ATermRef</span> <span class="o">=</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
       <span class="n">A</span><span class="p">:</span> <span class="n">Borrow</span><span class="o">&lt;&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">Clone</span><span class="p">,</span>
       <span class="o">&lt;</span><span class="n">F</span> <span class="k">as</span> <span class="n">ATermFactory</span><span class="o">&lt;</span><span class="nv">'a</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;&gt;</span><span class="p">::</span><span class="n">ATerm</span><span class="p">:</span> <span class="nb">Eq</span><span class="p">,</span>
       <span class="n">B</span><span class="p">:</span> <span class="nv">'a</span>
 </code></pre></div>    </div>
-    <p>I was already using type parameter <code class="highlighter-rouge">A</code> so I didn’t have to use <code class="highlighter-rouge">&lt;F as ATermFactory&lt;'a, B&gt;&gt;::ATermRef</code>. I found a slight improvement when I defined type aliases for <code class="highlighter-rouge">ATermRef</code> and <code class="highlighter-rouge">ATerm</code> from a factory. Later I just defined the concrete types I was using with some type aliases (for easy changing later) and went with that. Makes it slightly harder to change them later if I start to depend on concrete parts of the types, but most code was already written in a generic way, so it shouldn’t be too much of a pain. It’s kind of sad that writing generic code is so ugly and sometimes impossible, I like writing code where I only require a minimal contract on what the types need to be capable of.</p>
+    <p>I was already using type parameter <code class="language-plaintext highlighter-rouge">A</code> so I didn’t have to use <code class="language-plaintext highlighter-rouge">&lt;F as ATermFactory&lt;'a, B&gt;&gt;::ATermRef</code>. I found a slight improvement when I defined type aliases for <code class="language-plaintext highlighter-rouge">ATermRef</code> and <code class="language-plaintext highlighter-rouge">ATerm</code> from a factory. Later I just defined the concrete types I was using with some type aliases (for easy changing later) and went with that. Makes it slightly harder to change them later if I start to depend on concrete parts of the types, but most code was already written in a generic way, so it shouldn’t be too much of a pain. It’s kind of sad that writing generic code is so ugly and sometimes impossible, I like writing code where I only require a minimal contract on what the types need to be capable of.</p>
   </li>
 </ol>
 
 <h1 id="what-happened-to-automata">What happened to automata?</h1>
 
-<p>I wrote my last automata blog post in November last year. Since then I’ve been really busy. In the short amounts of spare time I had left, at first I tried to do the benchmarking for the third Finite Automata post. But I couldn’t figure out how to do it right, or maybe it was all in reading the trace output. Basically I’m not that familiar with performance measurement tools yet, and I was mostly  stumped by <em>why</em> my implementation was so much slower than the one I was comparing with (I wasn’t surprised <em>that</em> it was slower, I was comparing to <a href="https://crates.io/crates/aho-corasick">BurntSushi’s <code class="highlighter-rouge">aho-corasick</code></a>, good luck beating his stuff ^^). Since I only had an hour here or there, I couldn’t effectively work on it, so I gave up for a while. When I got a bit of time again, I needed something new and exciting, not something to bash my head against. So that’s why you got ATerms, and soon a post on my Stratego interpreter. I’ll get back to automata afterwards. I think I can also do some performance engineering on the interpreter, so maybe I’ll learn more that way and use that knowledge to finish writing about the Finite Automata. Until then, I hope you can be patient. Or just say: Eh, whatever ¯\_(ツ)_/¯</p>
+<p>I wrote my last automata blog post in November last year. Since then I’ve been really busy. In the short amounts of spare time I had left, at first I tried to do the benchmarking for the third Finite Automata post. But I couldn’t figure out how to do it right, or maybe it was all in reading the trace output. Basically I’m not that familiar with performance measurement tools yet, and I was mostly  stumped by <em>why</em> my implementation was so much slower than the one I was comparing with (I wasn’t surprised <em>that</em> it was slower, I was comparing to <a href="https://crates.io/crates/aho-corasick">BurntSushi’s <code class="language-plaintext highlighter-rouge">aho-corasick</code></a>, good luck beating his stuff ^^). Since I only had an hour here or there, I couldn’t effectively work on it, so I gave up for a while. When I got a bit of time again, I needed something new and exciting, not something to bash my head against. So that’s why you got ATerms, and soon a post on my Stratego interpreter. I’ll get back to automata afterwards. I think I can also do some performance engineering on the interpreter, so maybe I’ll learn more that way and use that knowledge to finish writing about the Finite Automata. Until then, I hope you can be patient. Or just say: Eh, whatever ¯\_(ツ)_/¯</p>
 
-<div class="footnotes">
+<div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1">
-      <p>van den Brand, M. G., De Jong, H. A., Klint, P., &amp; Olivier, P. A. (2000). Efficient annotated terms. <em>Software Practice and Experience</em>, 30(3), 259-291. <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:1" role="doc-endnote">
+      <p>van den Brand, M. G., De Jong, H. A., Klint, P., &amp; Olivier, P. A. (2000). Efficient annotated terms. <em>Software Practice and Experience</em>, 30(3), 259-291. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2">
-      <p>Steindorfer, M. J., &amp; Vinju, J. J. (2016, March). Performance Modeling of Maximal Sharing. In <em>Proceedings</em> of the 7th ACM/SPEC on <em>International Conference on Performance Engineering</em> (pp. 135-146). ACM. <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:2" role="doc-endnote">
+      <p>Steindorfer, M. J., &amp; Vinju, J. J. (2016, March). Performance Modeling of Maximal Sharing. In <em>Proceedings</em> of the 7th ACM/SPEC on <em>International Conference on Performance Engineering</em> (pp. 135-146). ACM. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -185,7 +185,7 @@
     <div class="footer-col-wrapper">
       <div class="footer-col  footer-col-1">
         <ul class="contact-list">
-          <li><a href="mailto:jeff.smits@gmail.com">jeff.smits@gmail.com</a></li>
+          <li><a href="mailto:mail [at] this domain">mail [at] this domain</a></li>
         </ul>
       </div>
 

@@ -72,11 +72,11 @@
 
 <h2 id="terminal">Terminal</h2>
 
-<p>First off, you need a good terminal emulator that can handle 256 colours. Try <code class="highlighter-rouge">echo $TERM</code>. If it returns <code class="highlighter-rouge">xterm-256color</code> you’re good. You can use a script <a href="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/2e5e8e7628ddb09bd2f9408a85e317d25ba7b282/tools/screenshotTable.sh">like this</a> to get an overview of the kinds of colours that are in your current theme.</p>
+<p>First off, you need a good terminal emulator that can handle 256 colours. Try <code class="language-plaintext highlighter-rouge">echo $TERM</code>. If it returns <code class="language-plaintext highlighter-rouge">xterm-256color</code> you’re good. You can use a script <a href="https://raw.githubusercontent.com/mbadolato/iTerm2-Color-Schemes/2e5e8e7628ddb09bd2f9408a85e317d25ba7b282/tools/screenshotTable.sh">like this</a> to get an overview of the kinds of colours that are in your current theme.</p>
 
-<h3 id="but-i-dont-get-xterm-256color">But I don’t get <code class="highlighter-rouge">xterm-256color</code></h3>
+<h3 id="but-i-dont-get-xterm-256color">But I don’t get <code class="language-plaintext highlighter-rouge">xterm-256color</code></h3>
 
-<p>OK. Well, if you’re only linux, you terminal probably supports it, so look up the best way to set it to 256 colours. It might be just in the terminal settings, or the internet may advice you to put <code class="highlighter-rouge">TERM=xterm-256color</code> in a <code class="highlighter-rouge">profile</code> or <code class="highlighter-rouge">rc</code> file.<br />
+<p>OK. Well, if you’re only linux, you terminal probably supports it, so look up the best way to set it to 256 colours. It might be just in the terminal settings, or the internet may advice you to put <code class="language-plaintext highlighter-rouge">TERM=xterm-256color</code> in a <code class="language-plaintext highlighter-rouge">profile</code> or <code class="language-plaintext highlighter-rouge">rc</code> file.<br />
 If you’re on a mac, Terminal.app is not going to help you with 256 colours. What I did was install <a href="https://iterm2.com/">iTerm2</a>, which I’m happy with.</p>
 
 <h2 id="colour-scheme">Colour scheme</h2>
@@ -91,7 +91,7 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
 
 <p>The theme is called <a href="https://github.com/bhilburn/powerlevel9k">powerlevel9k</a> and it’s based on (ideas/symbols from) a Vim plugin called powerline. I use the standard configuration of the theme, but you can completely customise the information that the theme shows you. Do note that you need a special font to show the symbols in the terminal!</p>
 
-<p>To make sure powerlevel9k doesn’t show redundant information, set <code class="highlighter-rouge">DEFAULT_USER="&lt;your-username-here&gt;"</code> in <code class="highlighter-rouge">~/.zshrc</code>. You can <code class="highlighter-rouge">echo $USER</code> to get your current username.</p>
+<p>To make sure powerlevel9k doesn’t show redundant information, set <code class="language-plaintext highlighter-rouge">DEFAULT_USER="&lt;your-username-here&gt;"</code> in <code class="language-plaintext highlighter-rouge">~/.zshrc</code>. You can <code class="language-plaintext highlighter-rouge">echo $USER</code> to get your current username.</p>
 
 <h2 id="font">Font</h2>
 
@@ -105,13 +105,13 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
   <li>
     <p>Install oh-my-zsh:</p>
 
-    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="k">$(</span>wget https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh <span class="nt">-O</span> -<span class="k">)</span><span class="s2">"</span>
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="si">$(</span>wget https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh <span class="nt">-O</span> -<span class="si">)</span><span class="s2">"</span>
 </code></pre></div>    </div>
 
-    <p>If you added you own stuff to <code class="highlighter-rouge">~/.bashrc</code> or <code class="highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="highlighter-rouge">~/.zshrc</code>.</p>
+    <p>If you added you own stuff to <code class="language-plaintext highlighter-rouge">~/.bashrc</code> or <code class="language-plaintext highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="language-plaintext highlighter-rouge">~/.zshrc</code>.</p>
   </li>
   <li>
-    <p>To set <code class="highlighter-rouge">zsh</code> as the default shell everywhere:</p>
+    <p>To set <code class="language-plaintext highlighter-rouge">zsh</code> as the default shell everywhere:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>chsh <span class="nt">-s</span> /bin/zsh
 </code></pre></div>    </div>
@@ -120,7 +120,7 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
     <p>Install font(s) using your package manager. Search/install the powerline font or patched powerline fonts. Or:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
-<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm <span class="nt">-r</span> ~/powerline-fonts
+<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> <span class="nb">rm</span> <span class="nt">-r</span> ~/powerline-fonts
 </code></pre></div>    </div>
 
     <p>Set the font in your terminal settings. I use Source Code Pro for Powerline.</p>
@@ -129,11 +129,11 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
     <p>Powerlevel9k theme:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
-sed <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
+<span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
 </code></pre></div>    </div>
   </li>
   <li>
-    <p>Set <code class="highlighter-rouge">xterm-256color</code> and default user (so powerlevel9k doesn’t show redundant info):</p>
+    <p>Set <code class="language-plaintext highlighter-rouge">xterm-256color</code> and default user (so powerlevel9k doesn’t show redundant info):</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"# First thing to change is the TERM variable
 if [[ -e /usr/share/terminfo/x/xterm-256color ]]; then
@@ -141,13 +141,13 @@ if [[ -e /usr/share/terminfo/x/xterm-256color ]]; then
 fi
    
 DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
-"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
+"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> <span class="nb">mv</span> /tmp/out ~/.zshrc
 </code></pre></div>    </div>
   </li>
   <li>
     <p>Gogh aci colours:</p>
 
-    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>wget <span class="nt">-O</span> xt  http://git.io/v3Dlm <span class="o">&amp;&amp;</span> chmod +x xt <span class="o">&amp;&amp;</span> ./xt <span class="o">&amp;&amp;</span> rm xt
+    <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>wget <span class="nt">-O</span> xt  http://git.io/v3Dlm <span class="o">&amp;&amp;</span> <span class="nb">chmod</span> +x xt <span class="o">&amp;&amp;</span> ./xt <span class="o">&amp;&amp;</span> <span class="nb">rm </span>xt
 </code></pre></div>    </div>
   </li>
 </ol>
@@ -158,22 +158,22 @@ DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
   <li>
     <p>Install <a href="https://iterm2.com/">iTerm2</a>:</p>
 
-    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew cask install iterm2
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew cask <span class="nb">install </span>iterm2
 open iterm2
 </code></pre></div>    </div>
 
-    <p>If iterm2 wants to update, do that, currently <code class="highlighter-rouge">brew</code> has version 2.3 whereas version 3 is already out.</p>
+    <p>If iterm2 wants to update, do that, currently <code class="language-plaintext highlighter-rouge">brew</code> has version 2.3 whereas version 3 is already out.</p>
 
     <p>(or just do the graphical download/install)</p>
   </li>
   <li>
-    <p><a href="/other/compsci/2016/07/23/pretty-terminal/gogh-aci.itermcolors">Download this</a>, type <kbd>command</kbd>+<kbd>i</kbd> (<kbd>⌘</kbd>+<kbd>i</kbd>), navigate to Colors tab, click on Load Presets, click on Import, select the downloaded file. Now click Load Presets again and select <code class="highlighter-rouge">gogh-aci</code>.</p>
+    <p><a href="/other/compsci/2016/07/23/pretty-terminal/gogh-aci.itermcolors">Download this</a>, type <kbd>command</kbd>+<kbd>i</kbd> (<kbd>⌘</kbd>+<kbd>i</kbd>), navigate to Colors tab, click on Load Presets, click on Import, select the downloaded file. Now click Load Presets again and select <code class="language-plaintext highlighter-rouge">gogh-aci</code>.</p>
   </li>
   <li>
     <p>Install fonts:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/powerline/fonts.git ~/powerline-fonts
-<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> rm <span class="nt">-r</span> ~/powerline-fonts
+<span class="nb">cd</span> ~/powerline-fonts <span class="o">&amp;&amp;</span> ./install.sh <span class="o">&amp;&amp;</span> <span class="nb">cd</span> - <span class="o">&amp;&amp;</span> <span class="nb">rm</span> <span class="nt">-r</span> ~/powerline-fonts
 </code></pre></div>    </div>
 
     <p>Set the font in your terminal with <kbd>command</kbd>+<kbd>i</kbd> (<kbd>⌘</kbd>+<kbd>i</kbd>), select font, pick a font that ends with “for Powerline”. I use Source Code Pro for Powerline.</p>
@@ -181,23 +181,23 @@ open iterm2
   <li>
     <p>Install oh-my-zsh:</p>
 
-    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="k">$(</span>curl <span class="nt">-fsSL</span> https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh<span class="k">)</span><span class="s2">"</span>
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sh <span class="nt">-c</span> <span class="s2">"</span><span class="si">$(</span>curl <span class="nt">-fsSL</span> https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh<span class="si">)</span><span class="s2">"</span>
 </code></pre></div>    </div>
 
-    <p>If you added you own stuff to <code class="highlighter-rouge">~/.bashrc</code> or <code class="highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="highlighter-rouge">~/.zshrc</code>.</p>
+    <p>If you added you own stuff to <code class="language-plaintext highlighter-rouge">~/.bashrc</code> or <code class="language-plaintext highlighter-rouge">~/.bash_profile</code> now is the time to copy that to <code class="language-plaintext highlighter-rouge">~/.zshrc</code>.</p>
   </li>
   <li>
     <p>Powerlevel9k theme:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/bhilburn/powerlevel9k.git ~/.oh-my-zsh/custom/themes/powerlevel9k
-sed <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
+<span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_THEME="powerlevel9k/powerlevel9k":'</span> ~/.zshrc
 </code></pre></div>    </div>
   </li>
   <li>
     <p>Set default user so powerlevel9k doesn’t show redundant info:</p>
 
     <div class="language-zsh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"DEFAULT_USER='</span><span class="nv">$USER</span><span class="s2">'
-"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> mv /tmp/out ~/.zshrc
+"</span> | <span class="nb">cat</span> - ~/.zshrc <span class="o">&gt;</span> /tmp/out <span class="o">&amp;&amp;</span> <span class="nb">mv</span> /tmp/out ~/.zshrc
 </code></pre></div>    </div>
   </li>
 </ol>
@@ -222,7 +222,7 @@ sed <span class="nt">-i</span> <span class="s1">'s:ZSH_THEME="robbyrussell":ZSH_
     <div class="footer-col-wrapper">
       <div class="footer-col  footer-col-1">
         <ul class="contact-list">
-          <li><a href="mailto:jeff.smits@gmail.com">jeff.smits@gmail.com</a></li>
+          <li><a href="mailto:mail [at] this domain">mail [at] this domain</a></li>
         </ul>
       </div>
 
