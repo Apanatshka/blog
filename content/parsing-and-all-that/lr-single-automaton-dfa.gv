@@ -1,0 +1,33 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    S₁;
+    S₂ [style=filled, fillcolor="#555"];
+    A₃ [style=filled, fillcolor="#777"];
+    Box0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td>S₁₀</td></tr><tr><td bgcolor="#555">S₂₀</td></tr><tr><td bgcolor="#777">A₃₀</td></tr><tr><td bgcolor="#aaa"><font color="#333">A₄</font></td></tr></table>>];
+    Box1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td>S₁₀</td></tr><tr><td>S₁₁</td></tr><tr><td bgcolor="#555">S₂₀</td></tr><tr><td bgcolor="#777">A₃₀</td></tr><tr><td bgcolor="#777">A₃₁</td></tr><tr><td bgcolor="#aaa"><font color="#333">A₄</font></td></tr></table>>];
+    Box2 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td bgcolor="#555">S₂</td></tr><tr><td bgcolor="#777">A₃₂</td></tr></table>>];
+    start1 -> Box0:t;
+    Box0:t -> Box1:t [label="a", weight=2];
+    Box0:t -> S₂ [label="A"];
+    Box1:t:n -> Box1:t:n [label="a"];
+    Box1:t -> Box2:t [label="A", weight=2];
+    Box1:t -> S₁ [label="S"];
+    Box2:t -> A₃ [label="b"];
+
+    subgraph {
+    rank=same;
+    edge [style=invis];
+    Box2:t -> S₁ [minlen=0];
+    }
+    subgraph {
+    rank=same;
+    edge [style=invis];
+    Box1:t -> S₂ [minlen=0];
+    }
+}

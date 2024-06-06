@@ -1,0 +1,66 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    start1 [shape=none, label="", width=0];
+    start2 [shape=box, label="", width=0, color="#00000000"];
+    start3 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    subgraph {
+    node [style=filled, fillcolor="#aaa", fontcolor="#333"];
+    A₄;
+    }
+    subgraph {
+    node [style=filled, fillcolor="#777"];
+    A₃;
+    start3 -> A₃₀ [style=invis, weight=3];
+    A₃₀ -> A₃₁ [label="a", weight=10];
+    A₃₁ -> A₃₂ [label="A", weight=3];
+    A₃₂ -> A₃ [label="b", weight=3];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#555"];
+    S₂;
+    start1 -> start2:w [arrowhead=none];
+    start2:e -> S₂₀ [weight=3];
+    S₂₀ -> S₂ [label="A", weight=3];
+    }
+    subgraph {
+    S₁;
+    start1 -> S₁₀ [weight=3];
+    S₁₀ -> S₁₁ [label="a", weight=3];
+    S₁₁ -> S₁ [label="S", weight=3];
+    }
+    subgraph{
+    rank=same;
+    edge [style=invis];
+    start1 -> start3 [minlen=3, weight=3];
+    }
+    subgraph{
+    rank=same;
+    edge [style=invis];
+    S₁₀ -> start2 [weight=3];
+    start2 -> A₃₀ [weight=3, minlen=2];
+    }
+    subgraph{
+    rank=same;
+    edge [style=invis];
+    S₁₁ -> S₂₀ [weight=3];
+    S₂₀ -> A₃₁ [weight=3, minlen=2];
+    A₃₁ -> A₄ [weight=3];
+    }
+    subgraph{
+    rank=same;
+    edge [style=invis];
+    S₁ -> S₂ [weight=3];
+    S₂ -> A₃₂ [weight=3, minlen=2];
+    }
+    S₁₁ -> S₂₀ [label="ε"];
+    S₁₁ -> S₁₀ [label="ε"];
+    S₂₀ -> A₃₀ [label="ε"];
+    A₃₁ -> A₄ [label="ε"];
+    A₃₁ -> A₃₀:se [label="ε"];
+    S₂₀ -> start3:n [arrowhead="none"];
+    start3:s -> A₄ [label="ε"];
+}

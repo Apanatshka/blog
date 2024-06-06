@@ -1,0 +1,69 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+
+    subgraph {
+    rank=same;
+    Box0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box0</td></tr>
+        <tr><td>S₁₀ ($)</td></tr>
+        <tr><td bgcolor="#555">S₂₀ ($)</td></tr>
+        <tr><td>S₃₀ ($)</td></tr>
+        <tr><td bgcolor="#555">S₆₀ ($)</td></tr>
+    </table>>];
+    fin [shape=doublecircle, width=0.4, label=""];
+    Box0:t:s -> fin:n [xlabel="S  "];
+    }
+
+    fin [shape=doublecircle, width=0.4, label=""];
+    S₁₂;
+    S₁;
+    S₂₂ [style=filled, fillcolor="#555"];
+    S₂ [style=filled, fillcolor="#555"];
+    Box1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box1</td></tr>
+        <tr><td>S₁₁ ($)</td></tr>
+        <tr><td bgcolor="#555">S₂₁ ($)</td></tr>
+        <tr><td bgcolor="#777">E₄₀ (c)</td></tr>
+        <tr><td bgcolor="#aaa"><font color="#333">F₅₀ (d)</font></td></tr>
+    </table>>];
+    Box2 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box2</td></tr>
+        <tr><td>S₃₁ ($)</td></tr>
+        <tr><td bgcolor="#555">S₆₁ ($)</td></tr>
+        <tr><td bgcolor="#777">E₄₀ (d)</td></tr>
+        <tr><td bgcolor="#aaa"><font color="#333">F₅₀ (c)</font></td></tr>
+    </table>>];
+    Box3 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box3</td></tr>
+        <tr><td bgcolor="#777">E₄₁ (c)</td></tr>
+        <tr><td bgcolor="#aaa"><font color="#333">F₅₁ (d)</font></td></tr>
+    </table>>];
+    Box4 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box4</td></tr>
+        <tr><td bgcolor="#777">E₄₁ (d)</td></tr>
+        <tr><td bgcolor="#aaa"><font color="#333">F₅₁ (c)</font></td></tr>
+    </table>>];
+    S₃₂;
+    S₃;
+    S₆₂ [style=filled, fillcolor="#555"];
+    S₆ [style=filled, fillcolor="#555"];
+    start1 -> Box0:t;
+    Box0:t -> Box1:t [label="a"];
+    Box0:t -> Box2:t [label="b"];
+    Box1:t -> Box3:t [label="e"];
+    Box1:t -> S₁₂ [label="E"];
+    Box1:t -> S₂₂ [label="F"];
+    S₁₂ -> S₁ [label="c"];
+    S₂₂ -> S₂ [label="d"];
+    Box2:t -> Box4:t [label="e"];
+    Box2:t -> S₃₂ [label="F"];
+    S₃₂ -> S₃ [label="c"];
+    Box2:t -> S₆₂ [label="E"];
+    S₆₂ -> S₆ [label="d"];
+}

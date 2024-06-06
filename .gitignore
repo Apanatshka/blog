@@ -1,7 +1,2 @@
-_site/
-_bin/
-_build/
-.sass-cache
-.bundle/
-.jekyll-metadata
-Gemfile.lock
+/public/
+/static/graphviz/

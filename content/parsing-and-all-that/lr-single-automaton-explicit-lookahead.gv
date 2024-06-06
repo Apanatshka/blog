@@ -1,0 +1,41 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    fin [shape=doublecircle, width=0.4, label=""];
+    S₁;
+    S₂ [style=filled, fillcolor="#555"];
+    A₃ [style=filled, fillcolor="#777"];
+    Box0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td>S₁₀</td></tr><tr><td bgcolor="#555">S₂₀</td></tr><tr><td bgcolor="#777">A₃₀</td></tr><tr><td bgcolor="#aaa"><font color="#333">A₄</font></td></tr></table>>];
+    Box1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td>S₁₀</td></tr><tr><td>S₁₁</td></tr><tr><td bgcolor="#555">S₂₀</td></tr><tr><td bgcolor="#777">A₃₀</td></tr><tr><td bgcolor="#777">A₃₁</td></tr><tr><td bgcolor="#aaa"><font color="#333">A₄</font></td></tr></table>>];
+    Box2 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333"><tr><td bgcolor="#555">S₂</td></tr><tr><td bgcolor="#777">A₃₂</td></tr></table>>];
+    start1 -> Box0:t;
+    Box0:t -> Box1:t [label="a,↓[a,0]", weight=3];
+    Box0:t -> S₂ [headlabel="($), ↓[A,0]", labelangle=30, labeldistance=5];
+    Box1:t:n -> Box1:t:n [label="a,↓[a,1]"];
+    Box1:t -> Box2:t [label="(b,$), ↓[A,1]", weight=3];
+    Box2:t -> A₃ [label="b,↓[b,2]", weight=3];
+
+    S₁:e -> S₁:e [taillabel=" ↑[S,1] [a,1] ↓[S,1]", labeldistance=5, labelangle=-15];
+    S₁ -> fin [headlabel="↑[S,1] [a,0]", labeldistance=4.5, labelangle=-30];
+    S₂ -> fin [label="↑[A,0]     "]
+    Box2:t:s -> S₁:n [xlabel="\n\n($), ↑[A,1] ↓[S,1]  "];
+    A₃ -> Box2:t [xlabel="↑[b,2] [A,1] [a,1] ↓[A,1]"];
+    A₃ -> S₂ [taillabel="↑[b,2] [A,1] [a,0] ↓[A,0]", labeldistance=5, labelangle=40];
+
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box2:t:e -> S₁ [minlen=4];
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box1:t -> S₂ [minlen=0];
+        S₂ -> fin [minlen=1];
+    }
+}

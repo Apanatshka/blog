@@ -1,0 +1,47 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    S₁ [shape=doublecircle, width=0.4];
+    subgraph {
+    rank=same;
+    edge [style=invis];
+    A₂₀ [style=filled, fillcolor="#555"];
+    S₁₀ -> A₂₀;
+    }
+    subgraph {
+    rank=same;
+    edge [style=invis];
+    A₂ [style=filled, fillcolor="#555"];
+    A₃ [style=filled, fillcolor="#777"];
+    A₃ -> S₁₁;
+    S₁₁ -> A₂;
+    }
+    subgraph {
+    start1 -> S₁₀;
+    S₁₀ -> S₁₁ [label="A", fontcolor="#dddddd40", color="#dddddd40"];
+    S₁₁ -> S₁₂ [label="a"];
+    S₁₂ -> S₁₃ [label="b"];
+    S₁₃ -> S₁₄ [label="A", fontcolor="#dddddd40", color="#dddddd40"];
+    S₁₄ -> S₁₅ [label="b"];
+    S₁₅ -> S₁ [label="a"];
+    }
+
+    subgraph {
+    A₂₀ -> A₂ [label="a"];
+    }
+
+    S₁₀ -> A₂₀ [taillabel="↓S₁₁", labelangle=70, labeldistance=1.5, constraint=false];
+    A₂ -> S₁₁ [taillabel="↑S₁₁", labelangle=-60, labeldistance=2, constraint=false];
+    S₁₀ -> A₃ [taillabel="↓S₁₁", labelangle=60, labeldistance=1.75, constraint=false];
+    A₃ -> S₁₁ [taillabel="↑S₁₁", labelangle=60, labeldistance=2, constraint=false];
+
+    S₁₃ -> A₂₀ [taillabel="↓S₁₄", labelangle=-35, labeldistance=3, constraint=false];
+    A₂ -> S₁₄ [taillabel="↑S₁₄", labelangle=40, labeldistance=2, constraint=false];
+    S₁₃ -> A₃ [taillabel="↓S₁₄", labelangle=-50, labeldistance=2, constraint=false];
+    A₃ -> S₁₄ [taillabel="↑ S₁₄", labelangle=40, labeldistance=2, constraint=false];
+}

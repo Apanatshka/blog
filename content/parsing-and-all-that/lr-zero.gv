@@ -1,0 +1,36 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+
+    subgraph {
+    rank=same;
+    Box0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box0</td></tr>
+        <tr><td>S₁₀</td></tr>
+        <tr><td bgcolor="#555">E₂₀</td></tr>
+        <tr><td bgcolor="#777">E₃₀</td></tr>
+    </table>>];
+    fin [shape=doublecircle, width=0.4, label=""];
+    Box0:t:s -> fin:n [xlabel="S  "];
+    }
+
+    fin [shape=doublecircle, width=0.4, label=""];
+    S₁;
+    E₂ [style=filled, fillcolor="#555"];
+    E₃ [style=filled, fillcolor="#777"];
+    Box1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+    <tr><td>Box1</td></tr>
+    <tr><td>S₁₁</td></tr>
+    <tr><td bgcolor="#555">E₂₁</td></tr>
+    </table>>];
+    start1 -> Box0:t;
+    Box0:t -> Box1:t [label="E", weight=2, minlen=2];
+    Box0:t -> E₃ [label="1"];
+    Box1:t -> S₁ [label="2"];
+    Box1:t -> E₂ [label="1"];
+}

@@ -1,0 +1,36 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    subgraph {
+    node [style=filled, fillcolor="#aaa", fontcolor="#333"];
+    start4 [style="", shape=none, label="", width=0];
+    A₄ [shape=doublecircle, width=0.4];
+    start4 -> A₄;
+    }
+    subgraph {
+    node [style=filled, fillcolor="#777"];
+    start3 [style="", shape=none, label="", width=0];
+    A₃ [shape=doublecircle, width=0.4];
+    start3 -> A₃₀;
+    A₃₀ -> A₃₁ [label="a"];
+    A₃₁ -> A₃₂ [label="A"];
+    A₃₂ -> A₃ [label="b"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#555"];
+    start2 [style="", shape=none, label="", width=0];
+    S₂ [shape=doublecircle, width=0.4];
+    start2 -> S₂₀;
+    S₂₀ -> S₂ [label="A"];
+    }
+    subgraph {
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    S₁ [shape=doublecircle, width=0.4];
+    start1 -> S₁₀;
+    S₁₀ -> S₁₁ [label="s"];
+    S₁₁ -> S₁ [label="A"];
+    }
+}

@@ -1,0 +1,23 @@
+graph {
+    bgcolor="transparent";
+    ranksep=0.2;
+    nodesep=0.01;
+    node [shape=none, height=0.3, label=Expr, color="#dddddd", fontcolor="#dddddd"];
+    edge [color="#dddddd", fontcolor="#dddddd"];
+    Add; Mul; Zero1; Zero2; One1;
+    {
+      rank="same";
+      Node [label=0, width=0.3];
+      Z1; Z2;
+      O1 [label=1];
+      Plus [label="+"];
+      Star [label="*"];
+    }
+    Add -- Zero1; Add -- Plus [weight=10]; Add -- Zero2;
+    Zero1 -- Z1 [weight=10];
+    Zero2 -- Z2 [weight=10];
+    Mul -- Add; Mul -- Star [weight=10]; Mul -- One1;
+    One1 -- O1 [weight=10];
+    edge [style=invis, len=0.02];
+    Z1 -- Plus -- Z2 -- Star -- O1;
+}

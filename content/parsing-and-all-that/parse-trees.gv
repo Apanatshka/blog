@@ -1,0 +1,40 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#dddddd", color="#dddddd", label=S];
+    edge [fontcolor="#dddddd", color="#dddddd"];
+    rankdir=TB;
+    subgraph {
+    Lfirst1 [label=1];
+    Lplus [label="+"];
+    Lhidden [shape=none, label="", width=0.5];
+    Ladd;
+    Lsecond1 [label=1];
+    Lstar [label="*"];
+    Lthird1 [label=1];
+    Lmul;
+    Ladd -> Lfirst1;
+    Ladd -> Lplus;
+    Ladd -> Lhidden [style="invis"];
+    Ladd -> Lmul;
+    Lmul -> Lsecond1;
+    Lmul -> Lstar;
+    Lmul -> Lthird1;
+    }
+    subgraph {
+    Rfirst1 [label=1];
+    Rplus [label="+"];
+    Rsecond1 [label=1];
+    Radd;
+    Rhidden [shape=none, label="", width=0.5];
+    Rstar [label="*"];
+    Rthird1 [label=1];
+    Rmul;
+    Rmul -> Radd;
+    Rmul -> Rhidden [style="invis"];
+    Rmul -> Rstar;
+    Rmul -> Rthird1;
+    Radd -> Rfirst1;
+    Radd -> Rplus;
+    Radd -> Rsecond1;
+    }
+}
