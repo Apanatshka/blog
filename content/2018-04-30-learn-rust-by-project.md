@@ -1,7 +1,7 @@
 +++
 title = "Learn Rust by project"
 date = "2018-04-30"
-tags = ["rust"]
+taxonomies.tags = ["rust"]
 +++
 
 More than a year ago a friend of mine wanted to learn a bit more about Rust by trying out a project. He had a nice project in mind which suits Rust quite well I think. For fun I joined his effort and created [an implementation](https://gitlab.com/Apanatshka/cobs) at the same time as he did, discussing and comparing along the way. In this post I'll tell you about the project specifics, but the point of the post is more an encouragement. If you've read about Rust before but haven't tried it yet, find a small project like the one below, and learn Rust in a fun and hands-on way yourself. It's a great programming language, I highly recommend it. 

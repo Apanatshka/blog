@@ -2,7 +2,7 @@
 title = "Finite Automata"
 date = "2016-04-10"
 updated = "2016-04-17"
-tags = ["theory of computation", "automata", "nfa", "dfa", "regular expression", "rust"]
+taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "regular expression", "rust"]
 +++
 
 What do Turing machines and regular expressions have in common? One is a theoretical model of a computer, and can be used to prove that some things cannot be computed. The other is a practical tool for matching strings. And yet they are both based on a simple *computational model*: a (very constrained) finite state machine (FSM). 

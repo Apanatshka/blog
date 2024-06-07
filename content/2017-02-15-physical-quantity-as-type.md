@@ -2,7 +2,7 @@
 title = "Types, units and quantities"
 date = "2017-02-15"
 updated = "2017-02-16"
-tags = ["rust", "programming patterns", "types"]
+taxonomies.tags = ["rust", "programming patterns", "types"]
 +++
 
 In this post I'd like to shortly discuss an idea I've had a long time ago about type systems and 

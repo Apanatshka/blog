@@ -1,7 +1,7 @@
 +++
 title = "A Stratego interpreter in Rust"
 date = "2017-08-06"
-tags = ["rust", "stratego"]
+taxonomies.tags = ["rust", "stratego"]
 +++
 
 At the end of my last post, three months ago by now, I promised a blog post about [the Stratego interpreter that I am writing](https://gitlab.com/Apanatshka/strs). In fact I promised it soon, which sadly became "soon". Life happened, deadlines on top of deadlines with major stress. I made it through in one piece though, so here's the long promised blog post.

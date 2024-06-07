@@ -1,7 +1,7 @@
 +++
 title = "New domain name"
 date = "2017-02-11"
-tags=     ["meta"]
+taxonomies.tags = ["meta"]
 +++
 
 I've purchased a domain name: [jeffsmits.net](https://www.jeffsmits.net/). This weblog is now on [blog.jeffsmits.net](https://blog.jeffsmits.net). I've 

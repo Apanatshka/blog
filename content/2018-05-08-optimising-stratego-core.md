@@ -1,10 +1,8 @@
----
-layout:   post
-title:    "Optimising CTree and strs"
-date:     2018-05-08
-category: CompSci
-tags:     [Rust, Stratego, interpreter, optimisation]
----
++++
+title = "Optimising CTree and strs"
+date = "2018-05-08"
+taxonomies.tags = ["rust", "stratego", "interpreter", "optimisation", "tool"]
++++
 
 Once upon a time, I wrote an [interpreter for Stratego Core](@/2017-08-06-a-stratego-interpreter-in-rust.md) in Rust, which I named `strs`. Stratego Core is the core language that Stratego is compiled to before the compiler goes further (to Java, or previously to C). A core language is an intermediate representation that is a subset of the surface language. 
 

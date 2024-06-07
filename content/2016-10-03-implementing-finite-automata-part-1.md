@@ -1,7 +1,7 @@
 +++
 title = "Implementing Finite Automata (Part 1)"
 date = "2016-10-03"
-tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
+taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
 +++
 
 This is post number three in a [series](@/2016-03-28-theory-of-computation.md) on Automata (in the formal languages / regex / parsing sense). This is the promised "implementation-heavy" post, where we go into implementing automata for real and useful things. 

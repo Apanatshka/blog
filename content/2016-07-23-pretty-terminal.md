@@ -1,10 +1,8 @@
----
-layout:   post
-title:    "Pretty Terminal"
-date:     2016-07-23
-category: CompSci
-tags:     [terminal, shell, colour]
----
++++
+title = "Pretty Terminal"
+date = "2016-07-23"
+taxonomies.tags = ["terminal", "shell"]
++++
 
 This is just a short post about my new terminal setup. I think it's both pretty and useful. For example, it gives me the current time and info about version control when I'm in a directory with vcs:
 

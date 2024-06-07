@@ -1,7 +1,7 @@
 +++
 title = "Pushy Automata"
 date = "2016-05-15"
-tags = ["theory of computation", "automata", "pda", "context-free language", "context-free grammar"]
+taxonomies.tags = ["theory of computation", "automata", "pda", "context-free language", "context-free grammar"]
 +++
 
 Welcome back! This is my second post in a [series](@/2016-03-28-theory-of-computation.md) on Automata. I decided to do another theory post first on context-free languages, and only afterwards start on a more implementation-heavy post about implementing this kind of theory in Rust for practically useful stuff. There is of course still code in this post as well :)

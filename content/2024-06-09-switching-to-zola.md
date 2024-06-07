@@ -1,7 +1,7 @@
 +++
 title = "Switching to Zola"
 date = "2024-06-09"
-tags = ["meta", "rust"]
+taxonomies.tags = ["meta", "rust"]
 +++
 
 Sorry if I broke your RSS reader. I figured I'd start straight out of the gate with that apology for probably the most annoying change. I've switched away from Jekyll to [Zola](https://www.getzola.org/) for generating this blog. And I preserved only the blog post links (through HTML based redirects), and didn't preserve the exact format of the RSS feed file, or really any of the design of the blog as you can see. I just picked a theme from among the ones on Zola's list on the site, one that looked simple and didn't contain any JavaScript. Then I forked Zola, because it has no plugin system and I needed some extra features like rendering LaTeX formulae at generation time (remember, no JavaScript), and calls to GraphViz for rendering some graphics. I'm currently seeing if/how I can contribute my changes back to Zola. I'm less secure about the formula rendering now than when I proposed on their forum to contribute it back, the [`latex2mathml`](https://crates.io/crates/latex2mathml) crate I'm using turned out to be pretty limited. It works ok for my purposes, but probably not for others... I'll need to poll the Zola project about GraphViz support too, I'm just shelling out to it, hoping it's installed and in on the `PATH`. But hey, at least my static site generator can be installed again because it's not some ancient version of Jekyll. Now I no longer need to have Ruby installed anymore. And Zola is actually snappy at generating the blog, that's neat.

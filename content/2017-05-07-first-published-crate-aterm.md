@@ -1,7 +1,7 @@
 +++
 title = "My first published crate: aterm"
 date = "2017-05-07"
-tags = ["rust", "annotated term"]
+taxonomies.tags = ["rust", "annotated term"]
 +++
 
 I published my first crate to [crates.io](https://crates.io/)! It's called [`aterm`](https://crates.io/crates/aterm), and it's a library that implements the <u>A</u>nnotated <u>Term</u> format. Currently it can only parse and print the normal textual format, but I'm planning to add the other three formats too at some point. There are also a number of other improvements that I have planned. But I'm going to try to not make this post a brain-dump of meandering thoughts...

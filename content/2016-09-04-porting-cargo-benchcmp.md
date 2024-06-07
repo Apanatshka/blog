@@ -1,7 +1,7 @@
 +++
 title = "Porting cargo benchcmp"
 date = "2016-09-04"
-tags = ["rust", "tool", "benchmark"]
+taxonomies.tags = ["rust", "tool", "benchmark"]
 +++
 
 **TL;DR:** I've ported the tool [`cargo-benchcmp`](https://crates.io/crates/cargo-benchcmp) from [Python](https://github.com/BurntSushi/cargo-benchcmp/blob/1d23dec5dd3abe3939cfea030162a7dc6461e544/cargo-benchcmp) to [Rust](https://github.com/BurntSushi/cargo-benchcmp) and added some functionality. There is more to come which is mostly waiting for review in [pull requests](https://github.com/BurntSushi/cargo-benchcmp/pulls).

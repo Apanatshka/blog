@@ -1,7 +1,7 @@
 +++
 title = "LL Parsing and Recursive Descent"
 date = "2024-06-07"
-tags = ["theory of computation", "automata", "pda", "parsing"]
+taxonomies.tags = ["theory of computation", "automata", "context-free grammar", "pda", "parsing"]
 +++
 
 Hello again! I'm picking up my [series on Automata](@/2016-03-28-theory-of-computation.md), with this post that goes into what I had always meant to get to: parsers. We'll check out the old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. Originally this was one big post, but given the feedback I've gotten from friends, I've now split it up into two. In this first post we'll check out LL, parse tables, and recursive descent. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations but explaining things from an automata point of view instead of by rote algorithm. I'll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser. The [second post](@/2024-06-09-lr-parsing-recursive-ascent.md) is on LR parsing. Enjoy!
