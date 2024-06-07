@@ -425,6 +425,5 @@ So we've seen some Rust code today that was hopefully readable to you. Tests are
 
 I've shown some of my implementations for COBS in Rust, but this was only a learning exercise. I hope this inspires you to find a project of your own to get more experience with Rust. A _real_ implementation of COBS in Rust can be found in the [`cobs`](https://crates.io/crates/cobs) crate, which allows you to use whichever sentinel value you want, can decode in-place, and doesn't even use vectors so you can use the crate without the standard library. 
 
-# Footnotes
 
 [^overhead]: If you count the zero at the end of a frame as part of the COBS algorithm, it has a minimum offset of 2. But apparently people usually count that as a separate "packetize" step, or so it says on Wikipedia. 

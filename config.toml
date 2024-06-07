@@ -47,7 +47,9 @@ highlight_theme = "ayu-dark"
 smart_punctuation = true
 # Whether text between $$ should be interpreted as LaTeX and rendered to mathml with
 # `latex2mathml`.
-mathml = true
+math = true
+# Whether footnotes are rendered at the bottom in the style of GitHub
+bottom_footnotes = true
 
 # Various slugification strategies
 [slugify]

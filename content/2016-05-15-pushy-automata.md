@@ -217,6 +217,5 @@ The pumping lemma for context-free languages is similar to that of regular langu
 
 If you want to look into this further you can look up the [wikipedia page](https://en.wikipedia.org/wiki/Pumping_lemma_for_context-free_languages), or another online resource I don't know of, or a CS book on this topic. I used "Introduction to the Theory of Computation" by Michael Sipser, which goes into detail about how to write proofs with the pumping lemma (and many other interesting things). 
 
-# Footnotes
 
 [^optimality]: Though I can't guarantee that stuff will be optimal in general with this approach. I guess the approach is pretty vaguely defined anyway. Ehhh.. whatever ¯\\\_(ツ)\_/¯

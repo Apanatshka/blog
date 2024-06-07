@@ -338,7 +338,6 @@ I already mentioned tests. I guess it was also obvious in the post that I ran th
 
 I also mentioned callgrind for profiling. I used kcachegrind as the tool to explore the results. I don't understand all of the options, but enough to explore what the biggest costs were. 
 
-# Footnotes
 
 [^list-resentment]: Actually if I [look back at my commit message](https://gitlab.com/Apanatshka/strs/commit/dd224f4a35bb5905b5019cdf2cd9787ce1601cb7), I truly didn't resent the change. I was already running into the issues of converting between ATerm list and cons-nil list, so according to the commit message everything became easier actually. 
 
