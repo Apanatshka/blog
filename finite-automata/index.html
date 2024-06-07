@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finite Automata | Whatever</title>
+  <meta name="title" content="Finite Automata">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Finite Automata</h1>
+      <p>
+        <i>
+          <time datetime='2016-04-10T00:00:00+00:00' pubdate>10 Apr, 2016</time>
+        </i>
+        <br>
+        Last update:
+        <i>
+          <time datetime='2016-04-17T00:00:00+00:00' pubdate>
+            17 Apr, 2016</time>
+        </i>
+      </p>
+  <main>
+    <p>What do Turing machines and regular expressions have in common? One is a theoretical model of a computer, and can be used to prove that some things cannot be computed. The other is a practical tool for matching strings. And yet they are both based on a simple <em>computational model</em>: a (very constrained) finite state machine (FSM).</p>
+<p>In this blog post we’ll go over the basics of this type of FSM and instead of going over proofs, we’ll go over examples and little implementations in Rust. For more information about this blog post series, see <a href="https://blog.jeffsmits.net/theory-of-computation/">this announcement post</a>.</p>
+<h1 id="an-exercise-in-minimalism">An exercise in minimalism</h1>
+<p>We’ll start with the simplest, most restricted version of our FSMs. These are great for proofs because everything explicitly defined and super simple. But they are not so great to construct by hand, so we’ll discuss a nicer version afterwards and relate <em>that one</em> to regular expressions. Turing machine will not be part of this post.</p>
+<h2 id="deterministic-finite-automaton-dfa">Deterministic Finite Automaton (DFA)</h2>
+<p>DFAs are FSMs (<em>automata</em>) that work on a <em>finite</em> input and give a boolean output. <em>True</em> means the input was recognised as part of the ‘language’ that the DFA encodes, <em>false</em> means it is not part of the language. <em>Deterministic</em> automata define all their (<em>finite</em> amount of) states and <em>exactly one</em> transition for every possible pair of state and input.<br />
+The way you formally describe a DFA is by defining:</p>
+<ol>
+<li>the allowable input symbols (or <em>alphabet</em> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi mathvariant="normal">Σ</mi></math>),</li>
+<li>the <em>states</em> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>Q</mi></math>,</li>
+<li>the <em>state transitions</em> (as a finite mapping <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>δ</mi></math>),</li>
+<li>the <em>start state</em> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>0</mn></msub></math> and</li>
+<li>the <em>final</em> or <em>accept states</em> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi></math>.</li>
+</ol>
+<h3 id="example-binary-string">Example: Binary string</h3>
+<p>Let’s construct a DFA that can recognise inputs that start with a one, has at least two zeroes after that, and then at least one more one, after which the ‘word’ ends.</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa.e3428977631cdb51.svg" alt="Binary string DFA">
+<p>Note that I’ve already started cheating with the construction of this DFA. Not every state handles all symbols in the alphabet (0 and 1). This partially defined DFA is usually easier to write and read. The usual way to make it fully defined is to add an explicit <em>stuck state</em>. All the unhandled symbols go to that state, and with any next input the DFA will stay in that state.</p>
+<h3 id="code-code-code">Code code code</h3>
+<p>In Rust we can do the partial definition of the DFA with an <code>Option</code> type:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">State </span><span style="color:#f29668;">= </span><span style="color:#ff7733;">u8</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Input </span><span style="color:#f29668;">= </span><span style="color:#ff7733;">bool</span><span style="color:#bfbab0cc;">;
+</span><span style="color:#ff7733;">const </span><span style="color:#f29718;">ZERO</span><span style="color:#bfbab0cc;">:</span><span> Input </span><span style="color:#f29668;">= </span><span style="color:#f29718;">false</span><span style="color:#bfbab0cc;">;
+</span><span style="color:#ff7733;">const </span><span style="color:#f29718;">ONE</span><span style="color:#bfbab0cc;">:</span><span> Input  </span><span style="color:#f29668;">= </span><span style="color:#f29718;">true</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">transition</span><span>(</span><span style="color:#f29718;">state</span><span style="color:#bfbab0cc;">:</span><span> State, </span><span style="color:#f29718;">symbol</span><span style="color:#bfbab0cc;">:</span><span> Input) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span>&lt;State&gt; {
+</span><span>  </span><span style="color:#ff7733;">match </span><span>(state</span><span style="color:#bfbab0cc;">,</span><span> symbol) {
+</span><span>    (</span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ONE</span><span>)  </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">1</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    (</span><span style="color:#f29718;">1</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">2</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    (</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">3</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    (</span><span style="color:#f29718;">3</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">3</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    (</span><span style="color:#f29718;">3</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ONE</span><span>)  </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">4</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    (</span><span style="color:#f29718;">4</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ONE</span><span>)  </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">4</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>    </span><span style="color:#f29668;">_ =&gt; </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>None</span><span style="color:#bfbab0cc;">,
+</span><span>  }
+</span><span>}
+</span><span>
+</span><span style="color:#ff7733;">const </span><span style="color:#f29718;">START</span><span style="color:#bfbab0cc;">:</span><span> State </span><span style="color:#f29668;">= </span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">const </span><span style="color:#f29718;">FINALS</span><span style="color:#bfbab0cc;">: </span><span>[State</span><span style="color:#bfbab0cc;">; </span><span style="color:#f29718;">1</span><span>] </span><span style="color:#f29668;">= </span><span>[</span><span style="color:#f29718;">4</span><span>]</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>
+</span><span style="color:#ff7733;">const </span><span style="color:#f29718;">INPUTS</span><span style="color:#bfbab0cc;">: </span><span>[Input</span><span style="color:#bfbab0cc;">; </span><span style="color:#f29718;">7</span><span>] </span><span style="color:#f29668;">= </span><span>[</span><span style="color:#f29718;">ONE</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ZERO</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ONE</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">ONE</span><span>]</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">main</span><span>() {
+</span><span>  </span><span style="color:#ff7733;">let mut</span><span> state </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">Option</span><span style="color:#f29668;">::</span><span>Some(</span><span style="color:#f29718;">START</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>  </span><span style="color:#ff7733;">for</span><span> input </span><span style="color:#f29668;">in </span><span style="color:#f29718;">INPUTS</span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>() {
+</span><span>    state </span><span style="color:#f29668;">=</span><span> state</span><span style="color:#f29668;">.</span><span style="color:#f07178;">and_then</span><span>(|</span><span style="color:#f29718;">st</span><span>| </span><span style="color:#f07178;">transition</span><span>(st</span><span style="color:#bfbab0cc;">,</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>()))</span><span style="color:#bfbab0cc;">;
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">if</span><span> state</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map_or</span><span>(</span><span style="color:#f29718;">false</span><span style="color:#bfbab0cc;">, </span><span>|</span><span style="color:#f29718;">st</span><span>| </span><span style="color:#f29718;">FINALS</span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">any</span><span>(|</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">x</span><span>| x </span><span style="color:#f29668;">==</span><span> st)) {
+</span><span>    </span><span style="color:#f07178;">println!</span><span>(</span><span style="color:#c2d94c;">&quot;The input is accepted&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>  } </span><span style="color:#ff7733;">else </span><span>{
+</span><span>    </span><span style="color:#f07178;">println!</span><span>(</span><span style="color:#c2d94c;">&quot;The input is not accepted&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>  }
+</span><span>}
+</span><span>
+</span></code></pre>
+<p>(The crate is in this <a href="https://github.com/Apanatshka/blog/tree/zola/contents/finite-automata/binary_string/">blog’s repository</a>)<br />
+So <code>None</code> is the stuck state and the ‘real’ states are wrapped in a <code>Some</code>. In this code the transitions are given as a function, not a mapping. When you generalise this into an automaton library (there <a href="https://crates.io/search?q=automaton">are</a> <a href="https://crates.io/search?q=automata">several</a> on <a href="https://crates.io/">crates.io</a>), you’re more likely to end up with a map.</p>
+<h3 id="memory">Memory</h3>
+<p>Note that DFAs are so restricted that they don’t really have mutable memory. Any kind of memory of what you’ve already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-memory.a32126a3cc4bc109.svg" alt="Binary string DFA encoding memory">
+<p>We remember the last three input symbols in our states. That gives us <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msup><mn>2</mn><mn>3</mn></msup></math> states, an exponential relation. So with these kinds of problems, you really don’t want to design these DFAs by hand.</p>
+<h2 id="non-deterministic-finite-automaton-nfa">Non-deterministic Finite Automaton (NFA)</h2>
+<p>Non-determinism allows states to have multiple transitions per symbol. That means that when you simulate an NFA, you can be in multiple states at once. This allows us to avoid the exponential blowup of the last example:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-nfa.eaa5e116dbae9837.svg" alt="Binary string NFA">
+<p>Although this NFA is easier to describe, it’s still always translatable to a DFA. This translation algorithm is called powerset construction or subset construction. The powerset of a set is the set of all combinations: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi mathvariant="double-struck">P</mi><mo>(</mo><mo>{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>}</mo><mo>)</mo><mo>=</mo><mo>{</mo><mi mathvariant="normal">∅</mi><mo>,</mo><mo>{</mo><mn>0</mn><mo>}</mo><mo>,</mo><mo>{</mo><mn>1</mn><mo>}</mo><mo>,</mo><mo>{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>}</mo><mo>}</mo></math></p>
+<h3 id="powerset-construction">Powerset construction</h3>
+<ol>
+<li>The <em>alphabet</em> stays the same.</li>
+<li>We use the powerset of the states of the NFA to create the states for the DFA. (That’s where the exponential blowup comes from, <strong>if</strong> all those states are used.) The state with the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi mathvariant="normal">∅</mi></math> is the <em>stuck state</em> that we already saw earlier.</li>
+<li>The transitions are based on the simulation of the NFA. So if you are in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>{</mo><msub><mi>q</mi><mn>0</mn></msub><mo>,</mo><msub><mi>q</mi><mn>1</mn></msub><mo>,</mo><msub><mi>q</mi><mn>3</mn></msub><mo>}</mo></math> then the transition with symbol <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>σ</mi><mn>2</mn></msub></math> takes you to the state in the DFA that is labelled with states of the NFA that are reachable with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>σ</mi><mn>2</mn></msub></math> from the states <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>0</mn></msub></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>1</mn></msub></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>3</mn></msub></math>.</li>
+<li>The start state is still the same although now called <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>{</mo><msub><mi>q</mi><mi>o</mi></msub><mo>}</mo></math> instead of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mi>o</mi></msub></math>.</li>
+<li>The final states are every state that has an NFA final state in its set.</li>
+</ol>
+<h3 id="epsilon-moves">Epsilon moves</h3>
+<p>The empty string is referred to with the greek letter <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>. If you allow transitions in an NFA to be labelled with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>, you get the NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> type of automata. This changes the powerset construction slightly, because an <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> move from the start state in the NFA <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>0</mn></msub></math> means that the start state of the DFA will be one of the compound states <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>{</mo><msub><mi>q</mi><mn>0</mn></msub><mo>,</mo><mo>.</mo><mo>.</mo><mo>.</mo><mo>}</mo></math>. This class of automata is still not more powerful than the NFA or DFA. But it <em>is</em> useful for the definition of the basic regular expression operators.</p>
+<h3 id="regular-expressions">Regular expressions</h3>
+<p>Now just to warn you: regular expressions in programming were once based on this automata theory, but have since been made much more powerful. Regex can describe much more than just <em>regular</em> languages.</p>
+<p><strong>The basics</strong> Ok, say you have an empty regular expression. That’s an NFA with one state, the start state, which is also a final state. It only recognises <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>.<br />
+A regular expression that matches exactly <code>1</code> is the same as an NFA with two states, the start state, and a separate final state with a transition in between labelled with <code>1</code>.</p>
+<p><strong>Option</strong> Let’s take two regular expressions put an ‘or’ (<code>|</code>) in between. If either one matches, the whole regex matches. If we have two NFA equivalents, we can make a new start state and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>-transitions to the two old start states.</p>
+<p><strong>Concatenation</strong> Let’s take two regular expressions and stick them together, one after the other. In NFA-land that means that the final states of the first NFA become normal states with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>-transitions to the start state of the second NFA.</p>
+<p><strong>Kleene Star</strong> This is the <code>*</code> in a regular expression, a zero-or-more. With this and the option, you can make a one-or-more (<code>+</code>). The way this works in NFA-land is as follows: Create a new start state, which is a final state, and give it an <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>-transition to the old start state (the zero part). Give the old final states <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math>-transitions to the old start state (the more part).</p>
+<h2 id="limitations-and-non-regular-languages">Limitations and Non-regular languages</h2>
+<p>Say you want to recognise binary strings that starts with any number of zeroes, but then is followed by an equal number of ones. Because the number of zeroes is unbounded, we cannot use a finite number of states to count how many zeroes we’ve seen so far, to match with the amount of ones to come. Basically, it’s impossible to use DFAs or NFAs to recognise ‘words’ of this language.</p>
+<p>More generally you can prove languages non-regular with the <a href="https://en.wikipedia.org/wiki/Pumping_lemma_for_regular_languages">pumping lemma for regular languages</a>. I don’t have a super-intuitive way of explaining the pumping lemma, so if you want to know more, try reading the theory on it. <em>(Or do I? See the <a href="https://blog.jeffsmits.net/finite-automata/#addendum">Addendum</a>!)</em></p>
+<h1 id="p-s">P.S.</h1>
+<p>Next blog post we’ll look at context-free languages, which is a superset of the regular languages. They can be described with context-free grammars (which you may know from the definitions of programming language syntax) and which you can recognise with an automaton that has a single stack for memory.</p>
+<p>I was going to write some more Rust code for you to look at, like a generally usable automaton library and the powerset construction. But this post has taken so long, it is already long, and there are Rust crates available with that kind of stuff… So, whatever ¯\_(ツ)_/¯</p>
+<hr/>
+<h1 id="addendum">Addendum</h1>
+<h2 id="non-regularity-and-the-pumping-lemma">Non-regularity and the pumping lemma</h2>
+<p>Most of the examples I’ve seen of non-regular languages have some form of unbounded counting in them. But if you have a different language that doesn’t seem to fit, you can try to prove it non-regular too. The usual way to prove that a language is not regular, is to show that the <a href="https://en.wikipedia.org/wiki/Pumping_lemma_for_regular_languages">pumping lemma for regular languages</a> doesn’t hold for the language. The pumping lemma is a property that all regular languages have (though there are some non-regular languages which are have this property). The basic idea is this:</p>
+<ol>
+<li>Your language either consists of a finite set of words, and is therefore regular, or it consists of an infinite set. (The finite set means you can just union the DFAs for every separate word. )</li>
+<li>With an infinite set of words, and a finite alphabet, you’ll have words that have more symbols in them than your language’s DFA has states. That means the DFA has to loop somewhere.</li>
+<li>Every word in your language that is longer and uses a loop has three parts: the part before the loop, the part in the loop and the part after the loop. Such a word is part of an infinite class of words where you can repeat the middle part however many times you like.</li>
+</ol>
+<p>To prove that a language doesn’t have this <em>pumping length</em> from the lemma, you need to be pretty abstract and use a cleverly chosen word. So if you want to write such a proof and haven’t done it before, I advise you to look up some examples!</p>
+<p><em>Thanks to <a href="https://www.reddit.com/user/so_you_like_donuts">/u/so_you_like_donuts</a> for giving an <a href="https://www.reddit.com/r/rust/comments/4eq01l/my_first_blog_post_finite_automata_with_a_bit_of/d22bw6q?context=3">intuitive description of the pumping lemma</a> which drove me to write this addendum.</em></p>
+<h2 id="next-post">Next post</h2>
+<p>I had another week to read other blog posts, including an excellent one about <a href="http://blog.burntsushi.net/transducers/">automata in rust for string indexes</a> and now I feel bad for not giving you the Rust code for every algorithm I explained. So, I might just postpone the blog post about context-free languages and dive into regex first. I doubt I’ll do better than the existing <a href="https://crates.io/crates/regex">regex crate</a>, but, you know, whatever ¯\_(ツ)_/¯</p>
+
+  </main>
+  <p>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>

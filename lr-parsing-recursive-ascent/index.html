@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LR Parsing and Recursive Ascent | Whatever</title>
+  <meta name="title" content="LR Parsing and Recursive Ascent">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>LR Parsing and Recursive Ascent</h1>
+      <p>
+        <i>
+          <time datetime='2024-06-08T00:00:00+00:00' pubdate>08 Jun, 2024</time>
+        </i>
+      </p>
+  <main>
+    <p>This is part 2 of old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. In <a href="https://blog.jeffsmits.net/ll-parsing-recursive-descent/">part 1</a> we learned about LL parsing, how to construct the parse tables for it, and how those relate to direct execution of the parser with recursive descent. Since part 1 and part 2 were originally one blog post that simply cut in half after feedback that it was too long, this post assumes you’ve read part 1. It’s probably still pretty readable without read all of part 1 though. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations but explaining things from an automata point of view instead of by rote algorithm. We’ll check out LR parsing, its parse tables, and recursive <em>ascent</em>. I’m hoping that last one is something you didn’t know about yet, it’s pretty cool! I’ll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser.</p>
+<h1 id="bottomup-lr-parsing">Bottomup, LR parsing</h1>
+<p>LR stands for left-to-right, rightmost derivation <em>in reverse</em>. If you think about it, left-to-right and rightmost derivation are incompatible: The rightmost derivation chooses the rule for the rightmost sort first every time, but that means skipping over some unknown amount of input if you read left-to-right to even get to that point. However, the <em>reverse</em> of the rightmost derivation is a left-to-right form of parsing. This reverse derivation describes going bottomup, left-to-right through the parse tree.</p>
+<h2 id="expressive-power-and-relation-to-ll">Expressive power and relation to LL</h2>
+<p>One of the biggest upsides of LR(k) parsing is its <strong>expressivity</strong>. The set of all LL(k) languages of any <em>k</em> is a strict subset of all LR(1) languages. Note that this is speaking of languages, not grammars. For grammars it holds that any LL(k) grammar for a specific <em>k</em> is also an LR(k) grammar, and not necessarily the other way around.</p>
+<p>An LR(k) grammar of any k greater than 1 can be automatically transformed into an LR(1) grammar that is not necessarily structurally equivalent. This is highlights the difference between grammar and language level equivalence. We can basically capture any LR language in an LR(1) grammar, but LR with larger <em>k</em> may be able to describe the language in a nicer way (smaller grammar).</p>
+<p>A good overview of how LL and LR relate to each other on the grammar and language level is <a href="https://cs.stackexchange.com/a/48">summarised on the Computer Science Stack Exchange</a>. In the comments someone suggests making a list of examples for each of these relationships, which seems like a great idea, but not something I have the patience for right now. This blog post has enough scope creep already.</p>
+<h2 id="how-lr-works">How LR works</h2>
+<p>In order to give a reverse rightmost derivation, we need to figure what sorts can be at the leftmost leaf of the parse tree for our LR grammar. Then we try to apply the rules for those sorts all simultaneously. And to do so we can’t just use the automaton build we’ve used for LL.</p>
+<p>Remember that the automata we’ve used previously mapped well on recursive descent, and showed us where to use an LL parse table with look-ahead to resolve ambiguity. Crucially, those automata observe every rule we go into. But for LR we need to explore down all the rules simultaneously. Let’s see if we can’t get somewhere with that idea and the example grammar of the language that wasn’t LL:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>S</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>A</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>A</mi><mo>=</mo><mi>a</mi><mi>A</mi><mi>b</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>A</mi><mo>=</mo><mi>ε</mi></math></td><td style="text-align: left">(4)</td></tr>
+</tbody></table>
+<p>We start again with the separate automata for each rule:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-rule-automata.f04db4ae501d9ff2.svg" alt="Simple automata for each grammar rule from the example">
+<p>Now in order to explore to the bottom-left of the parse tree, we need to be free to go into any rule. So we will connect the rules again to the nodes that expect a certain sort, but with epsilon transitions so we don’t observe how far down we are or with what rule in particular we got there. We’ll need that later, but let’s not worry about that until we have the downward exploration.</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-epsilon.ff3ef073d150d485.svg" alt="Partially constructed automaton using the automata from the grammar rules, using epsilon transitions">
+<p>Obviously this is not a full automaton model of a parser yet, but it allows us to always go down to the next leaf of the parse tree without using the stack. Let’s clean up the automaton with an NFA-to-DFA conversion:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-dfa.efccfa9e2e0f6245.svg" alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion">
+<p>This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the “LR item“s <code>S = . a S</code> and <code>S = a . S</code>. But otherwise it would be pretty much this. This is considered a PDA, though what’s happening on the stack is left implicit. That’s because what’s actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I’ll demonstrate it once:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit.63cea2eed826dc75.svg" alt="A fully explicit PDA that does LR parsing">
+<p>This should look quite familiar. We’re pushing inputs on the stack as we consume them, paired with the state we’re in at that point. And then we’re popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a <em>shift</em> action, the second is called a <em>reduce</em> action. We’ve seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher. But this time we get an automaton with more states.</p>
+<p>Notice that <em>where</em> a reduce action goes depends on originating state of the last thing that’s popped. That’s why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the <code>a</code> came from box 1 or box 0, we go to different places. This is easier to see in our proper LR(0) automaton, where box 1 points to state S₁ with a transition labeled <code>A</code>. This is a <em>goto</em> action. In an LR parse table interpreter, the <em>goto</em> is a separate action that immediately follows a <em>reduce</em> action, which merely returns to the last popped state. When a reduce just returns that’s also more like a function call and return, so that’s nice. Anyway, that’s also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.</p>
+<p>Something worth repeating now that we’re looking at the details: LL decides what rule to take <em>before</em> consuming the input for that rule, whereas LR decides what rule to take <em>after</em> consuming all the input for that rule. In other words, we only reduce by a rule when we’ve seen the entire body of the rule, that why there’s less trouble with look-ahead.</p>
+<p>Speaking of look-ahead: we have some shift-reduce problems in our automaton. And by that I mean: how do we choose when to shift and when to reduce when both are an option? This is a determinism issue in our current automaton, and just like in our LL automaton, we solve it with look-ahead (and yes, that can and will later be summarised in a parse table). Our latest automaton gives a clear view of what we will be able to do if we reduce, so the look-ahead follows from what input can be consumed next after each reduce:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit-lookahead.958e71e94e30f5b4.svg" alt="A fully explicit PDA that does LR parsing, with look-ahead">
+<p>As you can see, we need at most 1 look-ahead to deterministically parse this grammar. We’re sometimes looking ahead to the end-of-input represented with <code>$</code>. The look-ahead makes this an LALR(1) grammar; what that is and why it’s different from normal LR(1) is what we’ll see in the next section.</p>
+<h2 id="lr-parsetable-construction-and-expressivity">LR parsetable construction and expressivity</h2>
+<p>Let’s look at some example grammars, how to construct their tables, and when you need a better parsetable construction method.</p>
+<h3 id="lr-0">LR(0)</h3>
+<p>LR(0) does not look ahead but just reduces whenever possible. If there are multiple options, you have a shift-reduce or a reduce-reduce conflict. Shift-shift conflicts don’t exist in LR since the NFA-to-DFA process would have merged the two states such conflicting transitions would point to.
+Let’s look at an LR(0) grammar:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>E</mi><mn>2</mn></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>E</mi><mn>1</mn></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mn>1</mn></math></td><td style="text-align: left">(3)</td></tr>
+</tbody></table>
+<p>The LR automaton for this grammar is:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-zero.ebd33936c2d16874.svg" alt="An LR(0) automaton for the above grammar">
+<p>The corresponding parse table follows this automaton:</p>
+<div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>1</code></th><th style="text-align: center"><code>2</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s E₃</td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center">Box1</td></tr>
+<tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center">s E₂</td><td style="text-align: center">s S₁</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>E₃</strong></td><td style="text-align: center">r 3</td><td style="text-align: center">r 3</td><td style="text-align: center">r 3</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>E₂</strong></td><td style="text-align: center">r 2</td><td style="text-align: center">r 2</td><td style="text-align: center">r 2</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₁</strong></td><td style="text-align: center">r 1</td><td style="text-align: center">r 1</td><td style="text-align: center">r 1</td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<p>The transition from box 0 to E₃ that shifts <code>1</code> becomes a shift action to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>E</mi><mn>3</mn></msub></math> in the row of box 0 and the column of <code>1</code>. The transition from box 0 to box 1 with <code>E</code> becomes a goto to box 1 in the row of box 0 and column of <code>E</code>. Finally a state that’s at the end of a rule will get all reduce actions by that rule (indicated by its number) in the column for input. Accepting the input is typically based on look-ahead of the end-of-input.</p>
+<h3 id="simple-lr-slr">Simple LR (SLR)</h3>
+<p>The smallest motivating example for Simple LR is the following grammar that parses the same language as before:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>E</mi><mn>2</mn></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mn>1</mn><mi>E</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mn>1</mn></math></td><td style="text-align: left">(3)</td></tr>
+</tbody></table>
+<p>Notice how rule 2 is now right-recursive instead of left-recursive. It’s a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules <em>could</em> give you trouble in LR<sup class="footnote-reference" id="fr-indirect-recursion-1"><a href="#fn-indirect-recursion">[1]</a></sup>.</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/simple-lr.b65515fd9fccdc3f.svg" alt="An LR(0) automaton for the above grammar"><div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>1</code></th><th style="text-align: center"><code>2</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center">S₁₁</td></tr>
+<tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center">s Box1 / r 3</td><td style="text-align: center">r 3</td><td style="text-align: center">r 3</td><td style="text-align: center">E₂</td></tr>
+<tr><td style="text-align: left"><strong>S₁₁</strong></td><td style="text-align: center"></td><td style="text-align: center">s S₁</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₁</strong></td><td style="text-align: center">r 1</td><td style="text-align: center">r 1</td><td style="text-align: center">r 1</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>E₂</strong></td><td style="text-align: center">r 2</td><td style="text-align: center">r 2</td><td style="text-align: center">r 2</td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<p>Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting a reduce in the entire row of a state that could reduce. If we check the <em>Follow</em> set of the sort we’re reducing to (we defined that when we built LL parse tables, remember?), we can put the reduce action in only the column of the terminals that are in that follow set. If we look at the grammar, we can see that only <code>2</code> can follow <code>E</code>. So the SLR table for this grammar is:</p>
+<div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>1</code></th><th style="text-align: center"><code>2</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center">S₁₁</td></tr>
+<tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center">r 3</td><td style="text-align: center"></td><td style="text-align: center">E₂</td></tr>
+<tr><td style="text-align: left"><strong>S₁₁</strong></td><td style="text-align: center"></td><td style="text-align: center">s S₁</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₁</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 1</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>E₂</strong></td><td style="text-align: center"></td><td style="text-align: center">r 2</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<h3 id="look-ahead-lr-lalr">Look-Ahead LR (LALR)</h3>
+<p>From now on we’ll be looking at reduce-reduce conflicts only. While you can get shift-reduce conflicts with the following algorithms through grammars that don’t fit (due to ambiguity or requiring more look-ahead than you’re taking into account), when you give an LALR(k) grammar to an SLR(k) algorithm you can only get reduce-reduce conflicts. Same with an LR(k) grammar put through the LALR(k) algorithm.</p>
+<p>Here our example grammar that just barely doesn’t work with SLR:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>E</mi><mi>c</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>F</mi><mi>d</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>F</mi><mi>c</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>e</mi></math></td><td style="text-align: left">(4)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>e</mi></math></td><td style="text-align: left">(5)</td></tr>
+</tbody></table>
+<p>See how rules 4 and 5 are the same except they have different sort names? Yeah, that’s going to be “fun” if they’re used with the same prefix like in rules 1 and 2. Let’s have a look at the automaton and SLR parse table.</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/look-ahead-lr.cc712fdaaf5db521.svg" alt="An LR(0) automaton for the above grammar"><div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>a</code></th><th style="text-align: center"><code>b</code></th><th style="text-align: center"><code>c</code></th><th style="text-align: center"><code>d</code></th><th style="text-align: center"><code>e</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th><th style="text-align: center"><code>F</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center">s Box2</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s Box3</td><td style="text-align: center"></td><td style="text-align: center">S₁₂</td><td style="text-align: center">S₂₂</td></tr>
+<tr><td style="text-align: left"><strong>Box2</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s F₅</td><td style="text-align: center"></td><td style="text-align: center">S₃₂</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>Box3</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 4 / r 5</td><td style="text-align: center">r 5</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₁₂</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S₁</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₁</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 1</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₂₂</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S₂</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₂</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 2</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₃₂</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S₃</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S₃</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 3</td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>F₅</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 5</td><td style="text-align: center">r 5</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<p>The reduce-reduce conflict, as promised. It’s in box 3, where we can reduce by E₄ or F₅, when the look-ahead is <code>c</code>. This is because the look-ahead sets of both <code>E</code> and <code>F</code> contain <code>c</code> due to rules 1 and 3. If we look at the automaton though, we can clearly see that if we reduce and we have a <code>c</code> next, we should reduce by <code>E</code>.</p>
+<p>Look-Ahead LR parsing uses basically this method, analysing what shifts can happen after certain reduces. Putting it is algorithmic terms, LALR doesn’t use LL <em>Follow</em> sets, but defines more accurate <em>Follow</em> sets based on the automaton. Each instance of the start of a rule in the automaton (F₅₀ in boxes 1 and 2) gets a separate <em>Follow</em> set computed. That’s how we resolve the conflict with LALR:</p>
+<div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>a</code></th><th style="text-align: center"><code>b</code></th><th style="text-align: center"><code>c</code></th><th style="text-align: center"><code>d</code></th><th style="text-align: center"><code>e</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th><th style="text-align: center"><code>F</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>Box3</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">r 4</td><td style="text-align: center">r 5</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<p>Note that since the LALR <em>Follow</em> sets follow directly from the automaton, this is basically the same as the intuition given at the end of the <a href="https://blog.jeffsmits.net/lr-parsing-recursive-ascent/#how-lr-works">previous section</a>.</p>
+<h3 id="lr-1">LR(1)</h3>
+<p>I like this LALR parsing story. It’s so intuitive with the NFA-to-DFA conversion, just looking at the automaton to see the follow sets. But, it’s doesn’t give you the complete power of deterministic push-down automata. I present to you the previous example grammar with one more rule:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>E</mi><mi>c</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>F</mi><mi>d</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>F</mi><mi>c</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>e</mi></math></td><td style="text-align: left">(4)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>e</mi></math></td><td style="text-align: left">(5)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>E</mi><mi>d</mi></math></td><td style="text-align: left">(6)</td></tr>
+</tbody></table>
+<p>This results in an automaton that’s almost the same as before:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-one-zero.0e90a277fb481378.svg" alt="An LR(0) automaton for the above grammar">
+<p>We now have a reduce-reduce conflict in box 3 again. With look-ahead <code>a</code> you can reduce to both <code>E</code> and <code>F</code>. Same for look-ahead <code>b</code> by the way. It <em>is</em> deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.</p>
+<p>With LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That’s keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above: the left context. I know the information is technically on the stack, but our parsing process decides on the rule to reduce by based on the state and look-ahead only.</p>
+<p>LR(k) automata/parsers keep the same parsing process still, they just have larger automata in which their states summarise the left context. We’re basically going to distinguish almost every occurrence of a sort in the grammar, similar to when we made our LL(2) grammar strong:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/lr-one.f367f0ba85665481.svg" alt="An LR(1) automaton for the above grammar">
+<p>How do we do this? We duplicate each rule for each terminal in the LL follow set of the sort of that rule. We annotate each of those rules with that terminal. Now we do our usual thing: rule to automaton, epsilons, NFA-to-DFA. But when wiring the epsilons, extra terminal annotations should now match up with the <em>LALR</em> follow set of the occurrence of the sort.</p>
+<p>With this particular example, the automaton looks almost the same. There’s a bit more fluff with the annotations, but they basically propagate the look-ahead for each rule. Which means we can distinguish the context in which <code>E</code> and <code>F</code> are used differently! In general though, duplicating each rule for each terminal in the LL follow set leads to a very large amount of rules, and plenty of the time this isn’t necessary… LR(1) automata have lots of redundant states that do basically the same thing and would have been merged in LALR without any reduce-reduce conflicts.</p>
+<h3 id="parse-table-construction-algorithm">Parse table construction algorithm</h3>
+<p>You’ve already seen parse table construction by automaton for both LL and the many flavours of LR now. And you’ve seen parse table construction by <em>First</em> and <em>Follow</em> set for LL. Parse table construction for LR will of course also require <em>First</em> and <em>Follow</em> sets, sometimes including more accurate <em>Follow</em> sets for particular occurrences of sorts. It’s mostly an iterative build-up of the NFA-to-DFA (powerset construction) though. I’m not going to detail that in this post.</p>
+<p>While researching the material, I found some claims for <em>minimal</em> LR(1) algorithms, which create LALR(1) tables when possible, and slightly larger tables when necessary. They look interesting, but quite something to figure out, and I haven’t gotten to what I wanted to write about most yet, so that will have to wait until some other time. Perhaps I’ll include the normal LR parse table construction algorithm there too as a start.</p>
+<h2 id="recursive-ascent">Recursive Ascent</h2>
+<p>We finally get to the original impetus for this blog post: recursive ascent parsing. As you might be able to guess, this is the LR analogue to recursive <em>descent</em> for LL. So we’re going to write code that directly executes the LR automaton instead of simulating it by parse table interpretation.</p>
+<p>Before, in recursive descent parsing, we saw that rules and sorts become functions. Rules call sort functions to parse a sort, and sorts check the look-ahead to choose a rule by which to parse the alternative of the sort. Basically grammar rules became functions, and the parse table was split into functions for each sort.</p>
+<p>In recursive <em>ascent</em> parsing we will turn states of the LR automaton into functions. Each function will shift or reduce based on the input and call the corresponding state for that edge. Let’s expand our LR(1) example a little bit, and then take a look at the recursive ascent parsing:</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>E</mi><mi>c</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>a</mi><mi>F</mi><mi>d</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>F</mi><mi>c</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>e</mi><mi>e</mi></math></td><td style="text-align: left">(4)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>e</mi><mi>e</mi></math></td><td style="text-align: left">(5)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>E</mi><mi>d</mi></math></td><td style="text-align: left">(6)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>b</mi><mi>e</mi><mi>e</mi><mi>a</mi></math></td><td style="text-align: left">(7)</td></tr>
+</tbody></table>
+<p>The reason for the extra <code>e</code>s in rules 3 and 4 is to show how that increases the LR(1) automaton size. We’ll now have 4 states instead of 2 + an LALR reduce-reduce conflict. The reason for adding rule 7 is so we have a state where we might shift or reduce depending on the look-ahead, which influences the code we generate. Let’s check out the automaton first:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/recursive-ascent.8b8bb3333fd51c96.svg" alt="An LR(1) automaton for the above grammar">
+<p>Perhaps making both changes at the same time makes this a bad example to show off LR(1) automaton size… If you imagine the automaton without rule 7 you’ll see that boxes 3 and 4 are the same except for their ingoing and outgoing edges. This is what happens with longer rules and having to distinguish the final state of the rules for a different look-ahead (boxes 5 and 6 here).</p>
+<p>The other notable difference is that we now have a box 6 that can both shift and reduce. This will make the code for the recursive ascent more interesting. Let’s start with the basics:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">use </span><span>std</span><span style="color:#f29668;">::</span><span>env</span><span style="color:#bfbab0cc;">;
+</span><span style="color:#ff7733;">use </span><span>std</span><span style="color:#f29668;">::</span><span>iter</span><span style="color:#f29668;">::</span><span>Peekable</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Iter</span><span style="color:#f29668;">&lt;</span><span style="color:#ff7733;">&#39;a</span><span style="color:#f29668;">&gt; = </span><span>Peekable&lt;std</span><span style="color:#f29668;">::</span><span>slice</span><span style="color:#f29668;">::</span><span>Iter&lt;</span><span style="color:#ff7733;">&#39;a</span><span>, Terminal&gt;&gt;</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Terminal </span><span style="color:#f29668;">= </span><span style="color:#ff7733;">char</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy</span><span style="color:#bfbab0cc;">,</span><span> Debug</span><span style="color:#bfbab0cc;">,</span><span> Eq</span><span style="color:#bfbab0cc;">,</span><span> Hash</span><span style="color:#bfbab0cc;">,</span><span> PartialEq)]
+</span><span style="color:#ff7733;">enum </span><span style="color:#59c2ff;">Sort </span><span>{
+</span><span>    S</span><span style="color:#bfbab0cc;">,
+</span><span>    E</span><span style="color:#bfbab0cc;">,
+</span><span>    F</span><span style="color:#bfbab0cc;">,
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// Box0, the starting state of our automaton.
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = . a E c
+</span><span style="font-style:italic;color:#5c6773;">/// S = . a F d
+</span><span style="font-style:italic;color:#5c6773;">/// S = . b F c
+</span><span style="font-style:italic;color:#5c6773;">/// S = . b E d
+</span><span style="font-style:italic;color:#5c6773;">/// S = . b e e a
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box0</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(</span><span style="color:#c2d94c;">&quot;Unexpected end of input: S = .&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match </span><span style="color:#f07178;">box1</span><span>(input)</span><span style="color:#f29668;">? </span><span>{
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>S </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(())</span><span style="color:#bfbab0cc;">,
+</span><span>            s </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">unreachable!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected sort: S = a {s:?}&quot;</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>        }</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;b&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match </span><span style="color:#f07178;">box2</span><span>(input)</span><span style="color:#f29668;">? </span><span>{
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>S </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(())</span><span style="color:#bfbab0cc;">,
+</span><span>            s </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">unreachable!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected sort: S = b {s:?}&quot;</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>        }</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>This should look familiar from the recursive descent parser code. The notable difference is that we now have a function name less connected to the grammar, and more to the LR automaton. This makes it harder to understand the code, stack traces, etc.</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// Box1
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = a . E c
+</span><span style="font-style:italic;color:#5c6773;">/// S = a . F d
+</span><span style="font-style:italic;color:#5c6773;">/// E = . e
+</span><span style="font-style:italic;color:#5c6773;">/// F = . e
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box1</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing S = a . E; S = a . F&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;e&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match </span><span style="color:#f07178;">box3</span><span>(input)</span><span style="color:#f29668;">? </span><span>{
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>E </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s12</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>F </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s22</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>            s </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">unreachable!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected sort: S = a {s:?}&quot;</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>        }</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = a E . c
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s12</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing S = a E . c&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;c&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s1</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a E . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = a E c .
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s1</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a E c . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = a F . d
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s22</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing S = a F . d&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;d&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s2</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a F . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = a F d .
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s2</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a F d . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// Box3
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// E = e . e (c)
+</span><span style="font-style:italic;color:#5c6773;">/// F = e . e (d)
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box3</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;e&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">box5</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: E = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;"> ; F = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// Box5
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// E = e e . (c)
+</span><span style="font-style:italic;color:#5c6773;">/// F = e e . (d)
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box5</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;c&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>E)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;d&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>F)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: E = e e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;"> ; F = e e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>This bit of code should give you an idea of the code pattern in the “easy case”. Each state either shifts in one-or-more rules it’s in (e.g. <code>s12</code>, <code>box3</code>), shifts into a new rule expecting a sort back to use for the goto (e.g. <code>box1</code>), or reduces (e.g. <code>s1</code>, <code>box5</code>).</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// Box2
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = b . F c
+</span><span style="font-style:italic;color:#5c6773;">/// S = b . E d
+</span><span style="font-style:italic;color:#5c6773;">/// S = b . e e a
+</span><span style="font-style:italic;color:#5c6773;">/// E = . e
+</span><span style="font-style:italic;color:#5c6773;">/// F = . e
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box2</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;e&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match </span><span style="color:#f07178;">box4</span><span>(input)</span><span style="color:#f29668;">? </span><span>{
+</span><span>            (</span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>F) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s32</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>            (</span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>E) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s62</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>            (</span><span style="color:#f29718;">1</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>S) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)</span><span style="color:#bfbab0cc;">,
+</span><span>            s </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">unreachable!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected return/sort: S = b {s:?}&quot;</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>        }</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = b . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>This is the point where things start looking different. In box 2 we might shift <code>e</code> because we’ve entered rules 4 or 5 which will reduce to <code>E</code> or <code>F</code>. But we could also be in rule 7. If the result from box 4 is that we were in rule 7, we need to go back to the previous caller. So function <code>box4</code> returns a pair of the number of returns left to go and the sort we’re reducing to. This way we can distinguish the two cases and take the appropriate action.</p>
+<p>If you want to keep a recursive ascent code generator simpler you can of course always return a pair. You could also generate the code in <a href="https://en.wikipedia.org/wiki/Continuation-passing_style"><em>continuation passing style</em></a>, where you pass a function that takes the sort and does the goto action instead of accepting a pair as a result. But because the Rust compiler is not very good at tail call optimisation, so I’m not doing that pattern here.</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// S = b F . c
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s32</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing S = b F . c&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;c&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s3</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = b F . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = b F c .
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s3</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = b F c . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = b E . d
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s62</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing S = b E . d&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;d&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">s6</span><span>(input)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = b E . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// S = b E d .
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s6</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = b E d . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// Box4
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = b e . e a
+</span><span style="font-style:italic;color:#5c6773;">/// E = e . e (d)
+</span><span style="font-style:italic;color:#5c6773;">/// F = e . e (c)
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box4</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(</span><span style="color:#ff7733;">usize</span><span>, Sort), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;e&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">box6</span><span>(input)</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected input: S = b e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">; E = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;"> ; F = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// helper
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">decr</span><span>((</span><span style="color:#f29718;">c</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">s</span><span>)</span><span style="color:#bfbab0cc;">: </span><span>(</span><span style="color:#ff7733;">usize</span><span style="color:#bfbab0cc;">,</span><span> Sort)) </span><span style="color:#bfbab0cc;">-&gt; </span><span>(</span><span style="color:#ff7733;">usize</span><span>, Sort) {
+</span><span>    (c </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span style="color:#bfbab0cc;">,</span><span> s)
+</span><span>}
+</span></code></pre>
+<p>Note how in <code>box4</code> we’re now calling the decrement helper function after the call to <code>box6</code> to count one <code>return</code> we’re going to do immediately after.</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// Box6
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = b e e . a
+</span><span style="font-style:italic;color:#5c6773;">/// E = e e . (d)
+</span><span style="font-style:italic;color:#5c6773;">/// F = e e . (c)
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box6</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(</span><span style="color:#ff7733;">usize</span><span>, Sort), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;c&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>F))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;d&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>E))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>            input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>            </span><span style="color:#f07178;">s7</span><span>(input)</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)
+</span><span>        }
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: E = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;"> ; F = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>The number of returns to do is equal to the size of the body of the rule we are reducing. Of course we immediately decrement because we are going to immediately return, hence the <code>map(decr)</code>.</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// S = b e e a .
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">s7</span><span>(</span><span style="color:#f29718;">_input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(</span><span style="color:#ff7733;">usize</span><span>, Sort), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">4</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>S))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)
+</span><span>}
+</span><span>
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">lex</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">:</span><span> String) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;Terminal&gt; {
+</span><span>    input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">chars</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">collect</span><span>()
+</span><span>}
+</span><span>
+</span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">main</span><span>() </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">let</span><span> input </span><span style="color:#f29668;">= </span><span>env</span><span style="color:#f29668;">::</span><span>args()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">expect</span><span>(</span><span style="color:#c2d94c;">&quot;Argument string to parse&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#ff7733;">let</span><span> input </span><span style="color:#f29668;">= </span><span style="color:#f07178;">lex</span><span>(input)</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#ff7733;">let mut</span><span> input </span><span style="color:#f29668;">=</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peekable</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#f07178;">box0</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> input)
+</span><span>}
+</span></code></pre>
+<p>In our main function we can call <code>box0</code> with the input. Since this is LR(1) we only need a peekable iterator, that can look ahead 1 terminal.</p>
+<h3 id="table-size-code-size">Table size = Code size</h3>
+<p>With both recursive descent and recursive ascent parsing, we’re representing the parsing logic directly in code, not as an explicit data representation of a parse table. As such, if you have a larger parse table, you get more code. In LR, when LALR doesn’t suffice, parse tables can potentially grow quite large, as we saw to a limited extent with the last example.</p>
+<h2 id="recursive-ascent-descent-parsing">Recursive Ascent-Descent Parsing</h2>
+<p>Have you noticed that in the recursive ascent code there are some pretty boring and tiny looking functions? I’m talking about <code>s12</code>, <code>s1</code>, <code>s22</code>, <code>s2</code>, <code>s32</code>, <code>s3</code>, <code>s62</code>, <code>s6</code>. These will likely be targeted by the inliner of the Rust compiler<sup class="footnote-reference" id="fr-inlining-1"><a href="#fn-inlining">[2]</a></sup>, but aren’t they a bit much to even generate?</p>
+<p>The common denominator of these functions, and the states of the LR automaton they correspond to, is that they have already honed in on a single rule from the grammar and are only parsing that. Kind of like in an LL parser, except we used the LR automaton mechanism to select the rule instead of an LL look-ahead. If we follow that idea to its logical conclusion, we can do LL parsing from any point where we know there’s only one rule left (or equivalently, inline those simple functions). This means we only have box functions left:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box1</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;Sort, </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;e&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match </span><span style="color:#f07178;">box3</span><span>(input)</span><span style="color:#f29668;">? </span><span>{
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>E </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#f07178;">consume</span><span>(input</span><span style="color:#bfbab0cc;">, </span><span style="color:#c2d94c;">&#39;c&#39;</span><span>)</span><span style="color:#f29668;">?</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)
+</span><span>            }
+</span><span>            Sort</span><span style="color:#f29668;">::</span><span>F </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#f07178;">consume</span><span>(input</span><span style="color:#bfbab0cc;">, </span><span style="color:#c2d94c;">&#39;d&#39;</span><span>)</span><span style="color:#f29668;">?</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(Sort</span><span style="color:#f29668;">::</span><span>S)
+</span><span>            }
+</span><span>            s </span><span style="color:#f29668;">=&gt; </span><span style="color:#f07178;">unreachable!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected sort: S = a {s:?}&quot;</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>        }</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: S = a . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>This is using the <code>consume</code> function from the recursive descent parser example from before.</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">/// Box6
+</span><span style="font-style:italic;color:#5c6773;">/// Itemset:
+</span><span style="font-style:italic;color:#5c6773;">/// S = b e e . a
+</span><span style="font-style:italic;color:#5c6773;">/// E = e e . (d)
+</span><span style="font-style:italic;color:#5c6773;">/// F = e e . (c)
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">box6</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(</span><span style="color:#ff7733;">usize</span><span>, Sort), </span><span style="font-style:italic;color:#39bae6;">String</span><span>&gt; {
+</span><span>    </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="font-style:italic;color:#39bae6;">String</span><span style="color:#f29668;">::</span><span>from(
+</span><span>            </span><span style="color:#c2d94c;">&quot;Unexpected end of input while parsing E or F.&quot;</span><span style="color:#bfbab0cc;">,
+</span><span>        ))</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;c&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>F))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;d&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>E))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)</span><span style="color:#bfbab0cc;">,
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>            input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// consume &#39;a&#39;
+</span><span>            </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>((</span><span style="color:#f29718;">3</span><span style="color:#bfbab0cc;">, </span><span>Sort</span><span style="color:#f29668;">::</span><span>S))</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(decr)
+</span><span>        }
+</span><span>        </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(</span><span style="color:#f07178;">format!</span><span>(</span><span style="color:#c2d94c;">&quot;Unexpected input: E = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;"> ; F = e . </span><span style="color:#f29718;">{c}</span><span style="color:#c2d94c;">&quot;</span><span>))</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>Note that in box 6 we now count the number of symbols in the body of the rule before the dot to come up with the number of returns.</p>
+<h3 id="left-corners">Left Corners?</h3>
+<p>The left corner of a rule in the grammar is the left-most symbol in the body of the rule, plus the left corners of any sorts in left corner. So it’s basically a <em>First</em> set with the sorts included. I found this is some of the older literature, and figured I’d add a note for myself in here.</p>
+<p>There is/was such a thing as left-corner parsing, seemingly mostly used in natural language processing (NLP). NLP mostly uses <em>ambiguous</em> context-free grammars, and typically uses (used?) a backtracking parser to deal with that. These can be slow of course. And it turns out left corners helped with this, by adding some “filtering” that allows the parser to backtrack less. This is connected to recursive ascent-descent parsing, which you could also see as filtering with LR to finish parsing with LL. In our case we just don’t do backtracking.</p>
+<h1 id="fin">Fin</h1>
+<p>I really need to stop working on this blog post and publish it already. It’s been over a year since I started working on it (on and off, during holidays when I had enough focus time)<sup class="footnote-reference" id="fr-graphviz-1"><a href="#fn-graphviz">[3]</a></sup>. I already had an idea of where to go to next (generalised parsers), but now I also want to study minimal LR(1) automaton/parse table algorithms, and look at continuation passing style again because I think you can pass the left-context as a function argument. This would give you an LALR automaton structure with LR parsing power. Is that a good idea? Don’t know, needs testing (or reading papers/blog posts, probably someone else already tried this before). In the mean time I’ve also been learning about some optimisation techniques to apply on recursive ascent code if you generate it, which makes them look really great in terms of code size and hopefully also performance.</p>
+<p>I usually have a pithy remark or sneak the Kaomoji into the footnotes, but I must be out of practice, because I can’t think of a good way to do that…</p>
+<p>Ehh, whatever ¯\_(ツ)_/¯</p>
+<hr><ol class="footnotes-list">
+<li id="fn-indirect-recursion">
+<p><em>Indirect</em> left recursion is even worse in LL. At least the direct version can still be dealt with by an automatic grammar rewrite algorithm. That’s more or less what the node-reparenting trick mentioned at the end of the LL section does. Similarly, there are automatic grammar rewrites for direct right-recursion for LR, and indirect right recursion can be more problematic… <a href="#fr-indirect-recursion-1">↩</a></p>
+</li>
+<li id="fn-inlining">
+<p>Actually, I checked in <a href="https://godbolt.org/">Compiler Explorer</a> how this turns out, and while <code>s7</code> is inlined and compiled away entirely, adapting <code>box1</code> to consume directly will make the assembly at <code>opt-level=3</code> smaller. Adding an <code>#[inline]</code> hint on <code>consume</code> helps as well. Though I may just be seeing the effect of uniform error messages through <code>consume</code>. Actually following and understanding the optimised assembly code is a pain, so I just clicked around a bit to verify that the example code is reduced to a state machine with jumps and labels instead of using function <code>call</code> instructions. So that’s neat, basically what I was hoping for :) <a href="#fr-inlining-1">↩</a></p>
+</li>
+<li id="fn-graphviz">
+<p>I hope you appreciate how much time it took to find example grammars to steal (or occasionally develop myself) and especially how much time it took to get GraphViz to output somewhat decent automata of those examples! <a href="#fr-graphviz-1">↩</a></p>
+</li>
+</ol>
+
+  </main>
+  <p>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>

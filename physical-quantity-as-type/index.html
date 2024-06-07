@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Types, units and quantities | Whatever</title>
+  <meta name="title" content="Types, units and quantities">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Types, units and quantities</h1>
+      <p>
+        <i>
+          <time datetime='2017-02-15T00:00:00+00:00' pubdate>15 Feb, 2017</time>
+        </i>
+        <br>
+        Last update:
+        <i>
+          <time datetime='2017-02-16T00:00:00+00:00' pubdate>
+            16 Feb, 2017</time>
+        </i>
+      </p>
+  <main>
+    <p>In this post I’d like to shortly discuss an idea I’ve had a long time ago about type systems and
+units of measure. The usual pitch about having units in the type system of a programming language
+starts with a sad story about some space craft crash because different teams used different
+measures of distance. The competing systems are usually
+<a href="https://en.wikipedia.org/wiki/Imperial_units">Imperial</a> vs <del>Rebels</del>
+<a href="https://en.wikipedia.org/wiki/Metric_system"><ins>Metric</ins></a>. Then units in the type system are
+introduced, which is a way to check that only numbers of the exact same unit are used in
+arithmetic<sup class="footnote-reference" id="fr-arithmetic-1"><a href="#fn-arithmetic">[1]</a></sup>. Examples of languages
+with first-class support are
+<a href="https://blogs.msdn.microsoft.com/andrewkennedy/2008/08/29/units-of-measure-in-f-part-one-introducing-units/">F#</a>
+and <a href="https://blogs.oracle.com/projectfortress/entry/fortress_wrapping_up">Fortress</a>.</p>
+<p>I got triggered by a recent explanation of how to emulate <a href="https://github.com/jaheba/stuff/blob/master/communicating_intent.md">units of measure as types in
+Rust</a>. This can be done and is
+done in many languages (I think.. citation needed). But if you like Rust I can recommend reading
+the post, because it uses the Rust-specific conversion traits to its advantage as well. So you can
+work generically with the physical quantity <em>Temperature</em>, while the types are actually units of
+measure <em>Fahrenheit</em> and <em>Degrees Celsius</em>.</p>
+<p>What I find interesting is that all the successful systems I read about focus on units of measure.
+The idea I’d like to explain in this post is unlikely to be original but I haven’t the heart to look
+up how much there is written about it. Gah, I’m beating around the bush. Let’s just dive in.</p>
+<blockquote>
+<p><strong>EDIT:</strong> Please note that although I was triggered by a Rust-specific post and I’m using Rust
+code below, this idea is expressly not based on Rust-specific features. I’m trying to explain it
+in a way that would work for almost any programming language.</p>
+</blockquote>
+<h1 id="the-big-idea">The big idea</h1>
+<p><strong>Use <em>physical quantity</em> (e.g. Temperature) as the type instead of a specific <em>unit of measure</em>
+(e.g. centigrade)</strong>.</p>
+<p>There’s two ways I can easily think of for implementing this.</p>
+<h2 id="normalisation">Normalisation</h2>
+<p>The simplest way, that works in almost any type system, is to decide on a normalisation. There are a
+number of problems with this when you do scientific computation<sup class="footnote-reference" id="fr-normalisation-problems-1"><a href="#fn-normalisation-problems">[2]</a></sup>, but I’m
+ignoring those for a second. Let’s just look at some code that does this for temperature. I’ll stay
+with Rust as the implementation language:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">// Normalise to whole degrees celsius
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Debug</span><span style="color:#bfbab0cc;">,</span><span> Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy)]
+</span><span style="color:#ff7733;">pub struct </span><span style="color:#59c2ff;">Temperature </span><span>{
+</span><span>  degC</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">f64</span><span>, </span><span style="font-style:italic;color:#5c6773;">// note how this field is private
+</span><span>}
+</span></code></pre>
+<p>Now to introduce units of measure, you have “smart constructors”. These could be:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">impl </span><span style="color:#59c2ff;">Temperature </span><span>{
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">from_celsius</span><span>(</span><span style="color:#f29718;">degrees</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">f64</span><span>) </span><span style="color:#bfbab0cc;">-&gt;</span><span> Temperature {
+</span><span>    Temperature { degC </span><span style="color:#f29668;">=</span><span> degrees }
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">from_fahrenheit</span><span>(</span><span style="color:#f29718;">degrees</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">f64</span><span>) </span><span style="color:#bfbab0cc;">-&gt;</span><span> Temperature {
+</span><span>    Temperature { degC </span><span style="color:#f29668;">= </span><span>(degrees </span><span style="color:#f29668;">- </span><span style="color:#f29718;">32.</span><span>) </span><span style="color:#f29668;">* </span><span style="color:#f29718;">5.</span><span style="color:#f29668;">/</span><span style="color:#f29718;">9. </span><span>}
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">to_celsius</span><span>(</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="color:#ff7733;">f64 </span><span>{
+</span><span>    </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>degC
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">to_fahrenheit</span><span>(</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="color:#ff7733;">f64 </span><span>{
+</span><span>    </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>degC </span><span style="color:#f29668;">* </span><span style="color:#f29718;">9.</span><span style="color:#f29668;">/</span><span style="color:#f29718;">5. </span><span style="color:#f29668;">+ </span><span style="color:#f29718;">32.
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>In Rust you would use these as <code>Temperature::from_celsius(20_f64)</code>. And then you could go nuts with
+a compiler plugin to add special syntax that looks more like <code>20 C</code>. Or something slightly better
+and more generic that would work with any units.</p>
+<h2 id="late-conversion">Late conversion</h2>
+<p>I already alluded to some issues with normalisation<sup class="footnote-reference" id="fr-normalisation-problems-2"><a href="#fn-normalisation-problems">[2]</a></sup>. When you have some
+form of case distinction (algebraic data types is what you think of of course, not some silly
+sub-typing hierarchy like OOP) in you type system (<code>enum</code> in Rust), you can also defer the
+normalisations. You can defer conversion entirely within generic calculations, which seems slightly
+more powerful than the units-as-types approach from the other post. Here’s what it might look like:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">// Normalise to whole degrees celsius
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Debug</span><span style="color:#bfbab0cc;">,</span><span> Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy)]
+</span><span style="color:#ff7733;">enum </span><span style="color:#59c2ff;">Temperature </span><span>{
+</span><span>  DegreesCelsius(</span><span style="color:#ff7733;">f64</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>  Fahrenheit(</span><span style="color:#ff7733;">f64</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>}
+</span><span>
+</span><span style="color:#ff7733;">impl </span><span style="color:#59c2ff;">Temperature </span><span>{
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">from_celsius</span><span>(</span><span style="color:#f29718;">degC</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">f64</span><span>) </span><span style="color:#bfbab0cc;">-&gt;</span><span> Temperature {
+</span><span>    DegreesCelsius(degC)
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">from_fahrenheit</span><span>(</span><span style="color:#f29718;">fahr</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">f64</span><span>) </span><span style="color:#bfbab0cc;">-&gt;</span><span> Temperature {
+</span><span>    Fahrenheit(fahr)
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">to_celsius</span><span>(</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="color:#ff7733;">f64 </span><span>{
+</span><span>    </span><span style="color:#ff7733;">match </span><span style="font-style:italic;color:#39bae6;">self </span><span>{
+</span><span>      DegreesCelsius(degC) </span><span style="color:#f29668;">=&gt;</span><span> degC</span><span style="color:#bfbab0cc;">,
+</span><span>      Fahrenheit(fahr) </span><span style="color:#f29668;">=&gt; </span><span>(fahr </span><span style="color:#f29668;">- </span><span style="color:#f29718;">32.</span><span>) </span><span style="color:#f29668;">* </span><span style="color:#f29718;">5.</span><span style="color:#f29668;">/</span><span style="color:#f29718;">9.</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>  }
+</span><span>  </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">to_fahrenheit</span><span>(</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="color:#ff7733;">f64 </span><span>{
+</span><span>    </span><span style="color:#ff7733;">match </span><span style="font-style:italic;color:#39bae6;">self </span><span>{
+</span><span>      DegreesCelsius(degC) </span><span style="color:#f29668;">=&gt;</span><span> degC </span><span style="color:#f29668;">* </span><span style="color:#f29718;">9.</span><span style="color:#f29668;">/</span><span style="color:#f29718;">5. </span><span style="color:#f29668;">+ </span><span style="color:#f29718;">32.</span><span style="color:#bfbab0cc;">,
+</span><span>      Fahrenheit(fahr) </span><span style="color:#f29668;">=&gt;</span><span> fahr</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span><span>
+</span><span style="font-style:italic;color:#5c6773;">/// Implementing addition on temperatures &lt;3
+</span><span style="color:#ff7733;">impl </span><span>Add </span><span style="color:#ff7733;">for </span><span style="color:#59c2ff;">Temperature </span><span>{
+</span><span>  </span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Output </span><span style="color:#f29668;">=</span><span> Temperature</span><span style="color:#bfbab0cc;">;
+</span><span>  
+</span><span>  </span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">add</span><span>(</span><span style="color:#f29718;">self</span><span>, </span><span style="color:#f29718;">rhs</span><span style="color:#bfbab0cc;">:</span><span> Temperature) </span><span style="color:#bfbab0cc;">-&gt;</span><span> Temperature {
+</span><span>    </span><span style="color:#ff7733;">match </span><span>(</span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#bfbab0cc;">,</span><span> rhs) {
+</span><span>      (DegreesCelsius(l)</span><span style="color:#bfbab0cc;">,</span><span> DegreesCelsius(r)) </span><span style="color:#f29668;">=&gt;</span><span> DegreesCelsius(l </span><span style="color:#f29668;">+</span><span> r)</span><span style="color:#bfbab0cc;">,
+</span><span>      (Fahrenheit(l)</span><span style="color:#bfbab0cc;">,</span><span> Fahrenheit(r)) </span><span style="color:#f29668;">=&gt;</span><span> Fahrenheit(l </span><span style="color:#f29668;">+</span><span> r)</span><span style="color:#bfbab0cc;">,
+</span><span>      (DegreesCelsius(l)</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29668;">_</span><span>) </span><span style="color:#f29668;">=&gt;</span><span> DegreesCelsius(l </span><span style="color:#f29668;">+</span><span> rhs</span><span style="color:#f29668;">.</span><span style="color:#f07178;">to_celsius</span><span>())</span><span style="color:#bfbab0cc;">,
+</span><span>      (</span><span style="color:#f29668;">_</span><span style="color:#bfbab0cc;">,</span><span> DegreesCelsius(r)) </span><span style="color:#f29668;">=&gt;</span><span> DegreesCelsius(</span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span style="color:#f07178;">to_celsius</span><span>() </span><span style="color:#f29668;">+</span><span> r)</span><span style="color:#bfbab0cc;">,
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>I think a primary downside of this scheme vs the units-as-types is that it’s less
+extensible<sup class="footnote-reference" id="fr-overhead-1"><a href="#fn-overhead">[3]</a></sup>. An yet, however much I like extensibility, I think about it like this: If
+you want units you probably just want a crate (Rust equivalent of a library) that offers you
+everything you could possibly need. That takes a bit of time, but if everyone just contributes to
+the one crate, you should be able to collect everything you need<sup class="footnote-reference" id="fr-precision-1"><a href="#fn-precision">[4]</a></sup>. It could be that
+simple. Unless I’m overlooking something? Eh, whatever ¯\_(ツ)_/¯</p>
+<blockquote>
+<p><strong>EDIT</strong>: But what about all the other features in the Rust type system? What about type
+parameters and traits and macros and, heck, why not even compiler plugins. Well.. that another
+thing you’ll need to figure out on a per language basis. I suggesting keeping a look out for the
+release of the <a href="https://github.com/iliekturtles/uom">uom crate</a>, which is iteratively improving
+a units of measure implementation, based on quantities and normalisation actually :)</p>
+</blockquote>
+<hr><ol class="footnotes-list">
+<li id="fn-arithmetic">
+<p>Addition anyway, I suppose multiplication should always work but just give you a different unit in return. <a href="#fr-arithmetic-1">↩</a></p>
+</li>
+<li id="fn-normalisation-problems">
+<p>Like when you’re measuring star distances in light-years but the Distance quantity is normalised to meters. And there are other issues with rounding errors. For most systems you can probably use a sufficiently large floating point value though, like, I don’t know, a <a href="https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format">128-bit floating point</a>? <a href="#fr-normalisation-problems-1">↩</a> <a href="#fr-normalisation-problems-2">↩2</a></p>
+</li>
+<li id="fn-overhead">
+<p>Or perhaps the low-level devs mostly care about the memory overhead of the enums? Or maybe even about the branching in the code during calculations? In that case you should go with the normalising approach I guess. <a href="#fr-overhead-1">↩</a></p>
+</li>
+<li id="fn-precision">
+<p>I guess there is the issue of control over precision, which languages with first-class units have better since they can (I think) have any type + unit combination. Maybe we can do something with type parameters.. Hmm, something to ponder/try. <a href="#fr-precision-1">↩</a></p>
+</li>
+</ol>
+
+  </main>
+  <p>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Implementing Finite Automata (Part 2) | Whatever</title>
+  <meta name="title" content="Implementing Finite Automata (Part 2)">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Implementing Finite Automata (Part 2)</h1>
+      <p>
+        <i>
+          <time datetime='2016-11-12T00:00:00+00:00' pubdate>12 Nov, 2016</time>
+        </i>
+      </p>
+  <main>
+    <p>This is post number four in a <a href="https://blog.jeffsmits.net/theory-of-computation/">series</a> on Automata (in the formal languages / regex / parsing sense). It’s also part two of the “implementation-heavy” stuff, where we go into implementing automata for real and useful things. This one is more of a mix of theory and code, which I hope is more appealing than the previous post which were either one or the other. In <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/">part one</a> I naively claimed that this would be two posts of implementation, but I’ve since found more to write about. Plus it allows me to postpone the hardest part of this implementation stuff (benchmarking).</p>
+<p>This post will go into Infinite Sets, NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> and the transitive reachability closures over cyclic graphs.</p>
+<h1 id="infinite-sets">Infinite Sets</h1>
+<p>Something I ran into again at work recently is that regular languages can be finitely expressed with an automaton, even though they (usually) represent an infinite set of words. Every word in the language can be recognised by the finite automaton. So if our automata represent sets, we should be able to do set operations on them.</p>
+<p>So we already know how to test if a word is in the language, by applying our automaton on it. Something new would be union, complement, difference or intersection. Let’s see how we can make sense of these</p>
+<h2 id="union">Union</h2>
+<p>Say you have two automata that can recognise words in their respective languages. The union of the two would recognise words from either language. So creating one NFA for the combined language out of the two only requires that you run the two “in parallel” and if either ends up in a final state you accept. Let’s try the naive way and merge the start states of the two automata:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-1.e1dd8dcd6cab3472.svg" alt="Binary string DFA 1">
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-2.cd480cafe88458b9.svg" alt="Binary string DFA 2">
+
+<img src="https://blog.jeffsmits.net/graphviz/nfa-union-1-2.c951e904f7037b91.svg" alt="NFA union of DFAs 1 and 2">
+<p>Cool. It works. But not in the general case! When there are edges going back to one of the start states, you get a mess. Say you have:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-3.9d22e0e1d87d096a.svg" alt="Binary string DFA 3">
+<p>Odd number of zeroes, then a one, that’s the language. And the other is:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-4.78c73fb27199b5ba.svg" alt="Binary string DFA 4">
+<p>Single word language: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>{</mo><mn>10</mn><mo>}</mo></math></p>
+<p>Now we merge the start states naively as before:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/wrong-nfa-union-3-4.cc7ab4e882ff1bf9.svg" alt="(wrong) NFA union of DFAs 3 and 4">
+<p>Now suddenly <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0010</mn></math> is in the combined language, but it wasn’t in either of the originals. So that’s not a proper union operation. To fix this, we’ll use an extension of NFAs.</p>
+<h3 id="nfa">NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math></h3>
+<p>A simple way to specify the correct union operation is through epsilon transitions. You add a new start state and epsilon transitions to the start states of the automata you want to union:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/nfa-e-union-3-4.66b8dbcfde098fe7.svg" alt="(correct) NFA-e union of DFAs 3 and 4">
+<p>If you remember my <a href="https://blog.jeffsmits.net/finite-automata/#epsilon-moves">first finite automata post</a> you may be reminded of the regex “or” (<code>|</code>) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition “for free” without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:</p>
+
+
+<img src="https://blog.jeffsmits.net/graphviz/nfa-union-3-4.dad15b0a80bfcf24.svg" alt="(correct) NFA union of DFAs 3 and 4">
+<p>This is a perfectly valid thing to do directly instead of going via epsilon transitions and doing using the epsilon-closure operation to turn the NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> into a normal NFA. But at work a friend (Daniël) mentioned that I didn’t go into epsilon closure in my last post, and that it’s surprisingly hard to implement (efficiently anyway), so this time we’ll look at this epsilon-closure.</p>
+<h1 id="the-elusive-epsilon-closure">The elusive epsilon closure</h1>
+<p>So we have an NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> and we want a normal NFA. That means we need to copy the out-transitions of other nodes reachable by epsilon transition. Seems pretty simple right? Let’s do that (naively), with some adapted data definitions from last post:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">// This should look familiar :)
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone)]
+</span><span style="color:#ff7733;">struct </span><span style="color:#59c2ff;">NFAHashState</span><span>&lt;Input, StateRef, Payload&gt; {
+</span><span>    transitions</span><span style="color:#bfbab0cc;">: </span><span>HashMap&lt;Input, HashSet&lt;StateRef&gt;&gt;,
+</span><span>    payload</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Option</span><span>&lt;Payload&gt;,
+</span><span>}
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone)]
+</span><span style="color:#ff7733;">pub struct </span><span style="color:#59c2ff;">FiniteAutomaton</span><span>&lt;Input, State&gt; {
+</span><span>    alphabet</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;Input&gt;,
+</span><span>    states</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;State&gt;,
+</span><span>}
+</span><span>
+</span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">NFA</span><span style="color:#f29668;">&lt;</span><span>Input</span><span style="color:#bfbab0cc;">,</span><span> Payload</span><span style="color:#f29668;">&gt; = </span><span>FiniteAutomaton&lt;Input, NFAHashState&lt;Input, </span><span style="color:#ff7733;">usize</span><span>, Payload&gt;&gt;</span><span style="color:#bfbab0cc;">;
+</span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">NFAE</span><span style="color:#f29668;">&lt;</span><span>Input</span><span style="color:#bfbab0cc;">,</span><span> Payload</span><span style="color:#f29668;">&gt; = </span><span>FiniteAutomaton&lt;Input, NFAHashState&lt;</span><span style="font-style:italic;color:#39bae6;">Option</span><span>&lt;Input&gt;, </span><span style="color:#ff7733;">usize</span><span>, Payload&gt;&gt;</span><span style="color:#bfbab0cc;">;
+</span></code></pre>
+<p>The <code>NFAE</code> is our augmented NFA, which can have a transition on <code>None</code> (the epsilon move) or on <code>Some(input)</code> (the normal transition). Although not quite accurate, we’ll name our <code>NFAE -&gt; NFA</code> operation <code>epsilon_closure</code>. I’m going to give you some <strong>wrong</strong> code that’s simple for the first iteration:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">impl</span><span>&lt;Input</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Eq </span><span style="color:#f29668;">+</span><span> Hash </span><span style="color:#f29668;">+ </span><span style="font-style:italic;color:#39bae6;">Clone</span><span>, Payload</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Clone</span><span>&gt; </span><span style="color:#59c2ff;">NFAE</span><span>&lt;Input, Payload&gt; {
+</span><span>    </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">naive_epsilon_closure</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span>NFA&lt;Input, Payload&gt; {
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> epsilons</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;HashSet&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;&gt; </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(|</span><span style="color:#f29718;">st</span><span>| st</span><span style="color:#f29668;">.</span><span>transitions</span><span style="color:#f29668;">.</span><span style="color:#f07178;">get</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="font-style:italic;color:#39bae6;">None</span><span>)</span><span style="color:#f29668;">.</span><span style="color:#f07178;">cloned</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">unwrap_or_else</span><span>(HashSet</span><span style="color:#f29668;">::</span><span>new))
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">collect</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> states</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;NFAHashState&lt;Input, </span><span style="color:#ff7733;">usize</span><span>, Payload&gt;&gt; </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(|</span><span style="color:#f29718;">st</span><span>| {
+</span><span>                </span><span style="color:#ff7733;">let</span><span> transitions </span><span style="color:#f29668;">=</span><span> st</span><span style="color:#f29668;">.</span><span>transitions
+</span><span>                    </span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()
+</span><span>                    </span><span style="color:#f29668;">.</span><span style="color:#f07178;">filter_map</span><span>(|(</span><span style="color:#f29718;">inp</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">st_ref</span><span>)| inp</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">map</span><span>(|</span><span style="color:#f29718;">k</span><span>| (k</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>()</span><span style="color:#bfbab0cc;">,</span><span> st_ref</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>())))
+</span><span>                    </span><span style="color:#f29668;">.</span><span style="color:#f07178;">collect</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                NFAHashState</span><span style="color:#f29668;">::</span><span>new(transitions</span><span style="color:#bfbab0cc;">,</span><span> st</span><span style="color:#f29668;">.</span><span>payload</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>())
+</span><span>            })
+</span><span>            </span><span style="color:#f29668;">.</span><span style="color:#f07178;">collect</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">for </span><span>(n</span><span style="color:#bfbab0cc;">,</span><span> eps) </span><span style="color:#f29668;">in</span><span> epsilons</span><span style="color:#f29668;">.</span><span style="color:#f07178;">iter</span><span>()</span><span style="color:#f29668;">.</span><span style="color:#f07178;">enumerate</span><span>() {
+</span><span>            </span><span style="color:#ff7733;">for </span><span style="color:#f29668;">&amp;</span><span>e </span><span style="color:#f29668;">in</span><span> eps {
+</span><span>                </span><span style="color:#ff7733;">for </span><span>(inp</span><span style="color:#bfbab0cc;">,</span><span> st_ref) </span><span style="color:#f29668;">in</span><span> states[e]</span><span style="color:#f29668;">.</span><span>transitions</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>() {
+</span><span>                    states[n]</span><span style="color:#f29668;">.</span><span>transitions</span><span style="color:#f29668;">.</span><span style="color:#f07178;">entry</span><span>(inp)</span><span style="color:#f29668;">.</span><span style="color:#f07178;">or_insert_with</span><span>(HashSet</span><span style="color:#f29668;">::</span><span>new)</span><span style="color:#f29668;">.</span><span style="color:#f07178;">extend</span><span>(st_ref)</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>            }
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#f29718;">NFA </span><span>{
+</span><span>            alphabet</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>alphabet</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>()</span><span style="color:#bfbab0cc;">,
+</span><span>            states</span><span style="color:#bfbab0cc;">:</span><span> states</span><span style="color:#bfbab0cc;">,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>I know, collecting the <code>states</code> and <code>epsilons</code> can be done in a single loop. I chose this form for readability, and the compiler might do loop fusion<sup class="footnote-reference" id="fr-loop-fusion-1"><a href="#fn-loop-fusion">[1]</a></sup>. Anyway, as you can see we just split up the normal transitions and epsilons. Then we copy over the normal transitions of a state the epsilon points to, to the origin of that epsilon. Easy peasy. Except, as I warned, it’s <strong>wrong</strong>.</p>
+<h2 id="not-as-simple-as-that">Not as simple as that</h2>
+<p>Epsilon transitions don’t consume any input. So you could as well take multiple before going over a “real” transition. This is what makes an epsilon closure a transitive closure. You can in principle reach more than one state away. That means that we could be doing extra work if we replace the epsilon transitions in an awkward order.</p>
+<p>You may be thinking of dynamic programming, caching or topological order to fix this problem. But there’s another complication: cycles. Automata are just graphs, and cycles are allowed. An epsilon cycle basically means that the states in the cycle can be collapsed into one state. After all, they will all have the same out-transitions, so they’ll have the same behaviour.</p>
+<p>So what I did is a Wikipedia search for a nice <a href="https://en.wikipedia.org/wiki/Reachability">transitive closure algorithm in graphs</a>. What I found when I did this was a <a href="https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm">surprisingly simple, kind of disappointing algorithm</a>. Here’s the TL;DR: It’s <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>O</mi><mo>(</mo><mo>|</mo><mi>V</mi><msup><mo>|</mo><mn>3</mn></msup><mo>)</mo></math>, uses an adjacency matrix and extends that matrix in triply nested loops over the vertices. Not very exciting, so I tried to figure something out myself. I went through multiple iterations here as you <a href="https://github.com/Apanatshka/dnfa/commit/730474af273a9f565e6f337561321a270a9c8b42">can</a> <a href="https://github.com/Apanatshka/dnfa/commit/0d22e1c1ce80df4cff952bf6259dfc110fd84650">see</a>, so wrong, some inelegant. I never got to the point of testing any of my implementations, because I’d discuss my progress at work with Daniël and I’d be motivated to find a nicer way to implement this thing.</p>
+<h2 id="the-real-implementation">The real implementation</h2>
+<p>So basically I was looking in the wrong direction while looking for an existing algorithm. My own implementation probably worked at some point but was quite inelegant, so I searched Wikipedia some different names. When you look at topological order instead of transitive closure, you’ll find the issue of cycles. But if you follow the link on cycles, you get to <a href="https://en.wikipedia.org/wiki/Strongly_connected_component">Strongly Connected Components</a>. A strongly connected component (SCC) is a bunch of nodes that can reach all others in the SCC. So without epsilon cycles all your NFAE states are their own component in the epsilon-transition subgraph. Then when you look at the classic algorithms for getting SCCs in a graph, you’ll find that <a href="https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm">Tarjan’s algorithm for SCCs</a> gives back these SCCs in reverse topological order. Exactly what we need!</p>
+<p>When I found this I felt kind of silly. But I <a href="https://github.com/Apanatshka/dnfa/commit/36bfaba5ded2a6784b811cb04056a1b50493f405">implemented the Tarjan’s SCC algorithm</a>, and it wasn’t very hard. So let’s walk through it. First, I moved the epsilon transition to a separate field in a new struct definition:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#5c6773;">// Much nicer to work with really. Why did I not do this before?
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone)]
+</span><span style="color:#ff7733;">struct </span><span style="color:#59c2ff;">NFAEHashState</span><span>&lt;Input, StateRef, Payload&gt; {
+</span><span>    transitions</span><span style="color:#bfbab0cc;">: </span><span>HashMap&lt;Input, HashSet&lt;StateRef&gt;&gt;,
+</span><span>    e_transition</span><span style="color:#bfbab0cc;">: </span><span>HashSet&lt;StateRef&gt;,
+</span><span>    payload</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Option</span><span>&lt;Payload&gt;,
+</span><span>}
+</span></code></pre>
+<p>Then we have the start up part of the algorithm:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    </span><span style="font-style:italic;color:#5c6773;">/// This is an implementation of Tarjan&#39;s Strongly Connected Components algorithm. The nice
+</span><span>    </span><span style="font-style:italic;color:#5c6773;">/// property of this SCC algorithm is that it gives the SCC&#39;s in reverse topological order.
+</span><span>    </span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">scc</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span>(</span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;, </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;&gt;) {
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> index </span><span style="color:#f29668;">= </span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> st_index </span><span style="color:#f29668;">= </span><span style="color:#f07178;">vec!</span><span>[</span><span style="color:#f29668;">::</span><span>std</span><span style="color:#f29668;">::</span><span>usize</span><span style="color:#f29668;">::</span><span style="color:#f29718;">MAX</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>()]</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> st_lowlink </span><span style="color:#f29668;">= </span><span style="color:#f07178;">vec!</span><span>[</span><span style="color:#f29668;">::</span><span>std</span><span style="color:#f29668;">::</span><span>usize</span><span style="color:#f29668;">::</span><span style="color:#f29718;">MAX</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>()]</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> scc_stack </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">Vec</span><span style="color:#f29668;">::</span><span>new()</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> stack_set </span><span style="color:#f29668;">= </span><span>HashSet</span><span style="color:#f29668;">::</span><span>new()</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> scc_s </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">Vec</span><span style="color:#f29668;">::</span><span>new()</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">for</span><span> st_ref </span><span style="color:#f29668;">in </span><span style="color:#f29718;">0</span><span style="color:#f29668;">..</span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() {
+</span><span>            </span><span style="color:#ff7733;">if</span><span> st_index[st_ref] </span><span style="color:#f29668;">== ::</span><span>std</span><span style="color:#f29668;">::</span><span>usize</span><span style="color:#f29668;">::</span><span style="color:#f29718;">MAX </span><span>{
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span style="color:#f07178;">scc_strongconnect</span><span>(st_ref</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> index</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> st_index</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> st_lowlink</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> scc_stack</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> stack_set</span><span style="color:#bfbab0cc;">,
+</span><span>                                       </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> scc_s)</span><span style="color:#bfbab0cc;">;
+</span><span>            }
+</span><span>        }
+</span><span>        (st_lowlink</span><span style="color:#bfbab0cc;">,</span><span> scc_s)
+</span><span>    }
+</span></code></pre>
+<p>In the end all this does is make sure we visit every node. We visit nodes with a depth-first search, that’s what <code>scc_strongconnect</code> is for:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    </span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">scc_strongconnect</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">self</span><span>,
+</span><span>                         </span><span style="color:#f29718;">from</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">usize</span><span>,
+</span><span>                         </span><span style="color:#f29718;">index</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut usize</span><span>,
+</span><span>                         </span><span style="color:#f29718;">st_index</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> [</span><span style="color:#ff7733;">usize</span><span>],
+</span><span>                         </span><span style="color:#f29718;">st_lowlink</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> [</span><span style="color:#ff7733;">usize</span><span>],
+</span><span>                         </span><span style="color:#f29718;">scc_stack</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;,
+</span><span>                         </span><span style="color:#f29718;">stack_set</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut </span><span>HashSet&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;,
+</span><span>                         </span><span style="color:#f29718;">scc_s</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;</span><span style="color:#ff7733;">usize</span><span>&gt;&gt;) {
+</span><span>        st_index[from] </span><span style="color:#f29668;">= *</span><span>index</span><span style="color:#bfbab0cc;">;
+</span><span>        st_lowlink[from] </span><span style="color:#f29668;">= *</span><span>index</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="color:#f29668;">*</span><span>index </span><span style="color:#f29668;">+= </span><span style="color:#f29718;">1</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        scc_stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(from)</span><span style="color:#bfbab0cc;">;
+</span><span>        stack_set</span><span style="color:#f29668;">.</span><span style="color:#f07178;">insert</span><span>(from)</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">for </span><span style="color:#f29668;">&amp;</span><span>to </span><span style="color:#f29668;">in &amp;</span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states[from]</span><span style="color:#f29668;">.</span><span>e_transition {
+</span><span>            </span><span style="color:#ff7733;">if</span><span> st_index[to] </span><span style="color:#f29668;">== ::</span><span>std</span><span style="color:#f29668;">::</span><span>usize</span><span style="color:#f29668;">::</span><span style="color:#f29718;">MAX </span><span>{
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span style="color:#f07178;">scc_strongconnect</span><span>(to</span><span style="color:#bfbab0cc;">,</span><span> index</span><span style="color:#bfbab0cc;">,</span><span> st_index</span><span style="color:#bfbab0cc;">,</span><span> st_lowlink</span><span style="color:#bfbab0cc;">,</span><span> scc_stack</span><span style="color:#bfbab0cc;">,</span><span> stack_set</span><span style="color:#bfbab0cc;">,</span><span> scc_s)</span><span style="color:#bfbab0cc;">;
+</span><span>                st_lowlink[from] </span><span style="color:#f29668;">= ::</span><span>std</span><span style="color:#f29668;">::</span><span>cmp</span><span style="color:#f29668;">::</span><span>min(st_lowlink[from]</span><span style="color:#bfbab0cc;">,</span><span> st_lowlink[to])</span><span style="color:#bfbab0cc;">;
+</span><span>            } </span><span style="color:#ff7733;">else if</span><span> stack_set</span><span style="color:#f29668;">.</span><span style="color:#f07178;">contains</span><span>(</span><span style="color:#f29668;">&amp;</span><span>to) {
+</span><span>                st_lowlink[from] </span><span style="color:#f29668;">= ::</span><span>std</span><span style="color:#f29668;">::</span><span>cmp</span><span style="color:#f29668;">::</span><span>min(st_lowlink[from]</span><span style="color:#bfbab0cc;">,</span><span> st_index[to])</span><span style="color:#bfbab0cc;">;
+</span><span>            }
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">if</span><span> st_lowlink[from] </span><span style="color:#f29668;">==</span><span> st_index[from] {
+</span><span>            </span><span style="color:#ff7733;">let mut</span><span> scc </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">Vec</span><span style="color:#f29668;">::</span><span>new()</span><span style="color:#bfbab0cc;">;
+</span><span>            </span><span style="color:#ff7733;">while let </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(st_ref) </span><span style="color:#f29668;">=</span><span> scc_stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>() {
+</span><span>                stack_set</span><span style="color:#f29668;">.</span><span style="color:#f07178;">remove</span><span>(</span><span style="color:#f29668;">&amp;</span><span>st_ref)</span><span style="color:#bfbab0cc;">;
+</span><span>                scc</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(st_ref)</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="color:#ff7733;">if</span><span> st_ref </span><span style="color:#f29668;">==</span><span> from {
+</span><span>                    </span><span style="color:#ff7733;">break</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>            }
+</span><span>            scc_s</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(scc)</span><span style="color:#bfbab0cc;">;
+</span><span>        }
+</span><span>    }
+</span></code></pre>
+<p>So the <code>index</code> is a simple counter, and <code>st_index</code> and <code>st_lowlink</code> get a value from when you visit a node. But the lowlink should eventually hold the lowest index you can reach. So after you visit the children (or if you’ve already visited them) you propagate a lower lowlink back with the <code>min</code> function. Now the <code>scc_stack</code> is not only useful for tracking what the DFS has visited so far, but also to track SCCs. Any state that has no outgoing epsilon transitions will just keep <code>st_lowlink[from] == st_index[from]</code> and therefore be an SCC on its own. So it gets popped off of <code>scc_stack</code> and pushed onto <code>scc_s</code>, the reverse topo order SCCs vector. If a state did have epsilon transitions but it’s children can’t reach anything with a lower index than this one, then all states on the <code>scc_stack</code> from here on are one SCC with <code>st_index[from]</code> as an identifying number. So pop them off of <code>scc_stack</code> and add the lot to <code>scc_s</code>.</p>
+<p>If you can follow the code and my description of the algorithm, check out the <a href="https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm#/media/File:Tarjan%27s_Algorithm_Animation.gif">gif on wikipedia</a>. Visual explanations ftw.</p>
+<h3 id="using-the-sccs"><a href="https://github.com/Apanatshka/dnfa/commit/c2463da9bc381a01fb1b09c9f989dcb90c56f50c">Using the SCCs</a></h3>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    </span><span style="font-style:italic;color:#5c6773;">/// Replaces epsilon transitions with equivalent states/transitions
+</span><span>    </span><span style="font-style:italic;color:#5c6773;">/// Cycles are replaced by single states
+</span><span>    </span><span style="font-style:italic;color:#5c6773;">/// States that aren&#39;t reachable from `AUTO_START` are preserved (not by design)
+</span><span>    </span><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">to_nfa</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span>NFA&lt;Input, Payload&gt; {
+</span><span>        </span><span style="font-style:italic;color:#5c6773;">// The SCCs are in reverse topo order for optimal epsilon
+</span><span>        </span><span style="color:#ff7733;">let </span><span>(sccs</span><span style="color:#bfbab0cc;">,</span><span> renumbering) </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span style="color:#f07178;">scc</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>        </span><span style="font-style:italic;color:#5c6773;">// the new states
+</span><span>        </span><span style="color:#ff7733;">let mut</span><span> states</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Vec</span><span>&lt;NFAHashState&lt;Input, </span><span style="color:#ff7733;">usize</span><span>, Payload&gt;&gt; </span><span style="color:#f29668;">= </span><span style="font-style:italic;color:#39bae6;">Vec</span><span style="color:#f29668;">::</span><span>with_capacity(sccs</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>())</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>        </span><span style="color:#ff7733;">for</span><span> scc </span><span style="color:#f29668;">in</span><span> sccs {
+</span><span>            states[renumbering[scc[</span><span style="color:#f29718;">0</span><span>]]] </span><span style="color:#f29668;">=
+</span><span>                </span><span style="color:#ff7733;">Self</span><span style="color:#f29668;">::</span><span>scc_to_nfa_state(</span><span style="color:#f29668;">&amp;</span><span>scc</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29668;">&amp;</span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>states</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29668;">&amp;</span><span>renumbering</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29668;">&amp;</span><span>states)</span><span style="color:#bfbab0cc;">;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#f29718;">NFA </span><span>{
+</span><span>            alphabet</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">self</span><span style="color:#f29668;">.</span><span>alphabet</span><span style="color:#f29668;">.</span><span style="color:#f07178;">clone</span><span>()</span><span style="color:#bfbab0cc;">,
+</span><span>            states</span><span style="color:#bfbab0cc;">:</span><span> states</span><span style="color:#bfbab0cc;">,
+</span><span>        }
+</span><span>}
+</span></code></pre>
+<p>You may think: Is it really this tiny a function once you have the SCCs? But no, there is a helper function <code>scc_to_nfa_state</code> that’s a bit larger. It <em>is</em> this <strong>simple</strong> though. We can get not only the SCCs out of Tarjan’s algorithm in the desired reverse topo order, but we can also take the <code>st_lowlink</code> with. If we use it as a <code>renumbering</code> of the states, we’ll effectively merge all the epsilon loops with no extra effort! Of course the <code>scc_to_nfa_state</code> does need to collect all the extra transitions, but you can do that from the new NFA that you’re building because of the reverse topo order. So it’s really just <a href="https://github.com/Apanatshka/dnfa/blob/dfa16ae236fb21f5fdc6062c0496e18242f18c32/src/nfa.rs#L206-L236">30 lines of bookkeeping</a>, being careful to use the renumbered state index iff necessary.</p>
+<h2 id="removing-the-recursion-are-we-there-yet"><del>Removing the recursion</del> <ins>Are we there yet?</ins></h2>
+<p>Well.. Ok, let’s stop here. I had something more to write about removing the recursion from the depth-first search, but I’ll just link to it and not go into detail. My <a href="https://github.com/Apanatshka/dnfa/commit/d0ed9c2d2931f1fc62007c28bee8768abead3346">first attempt</a> was a bit hairy, but I managed to <a href="https://github.com/Apanatshka/dnfa/commit/cc4b5ad939882a8fa18e50371dbe90ee23f70bf1">refactor it</a> to something that I think is manageable. But it <em>is</em> more code, and not the clear algorithm is was anymore. So not as maintainable, and even though the algorithm will unlikely need any changes if it’s bug-free<sup class="footnote-reference" id="fr-bug-free-1"><a href="#fn-bug-free">[2]</a></sup>, it may still need to be edited if the NFAE data structure changes. In the end I’d rather see the compiler do magic to eliminate recursive function call overhead. If I can do it, and it feels mechanical (it kind of did), then a compiler should be able to do this too right? But it’s definitely non-trivial, so yeah.. Whatever ¯\_(ツ)_/¯</p>
+<hr><ol class="footnotes-list">
+<li id="fn-loop-fusion">
+<p>I have no idea how much the compiler can currently do in this regard. Nor whether a single loop is even better in this case. <a href="#fr-loop-fusion-1">↩</a></p>
+</li>
+<li id="fn-bug-free">
+<p>I’m so sorry, but I didn’t test any of the code in this blog post (or linked to in the post) <em>at all</em> O_O I’m a terrible person, I know. I thought of testing the code, but I was still exploring possible solutions. And I don’t trust unit tests to really cover the whole problem and they can be brittle with this data layout for NFAs. Ideally I’d write property-based test (<a href="https://crates.io/crates/quickcheck">quickcheck</a>), but that really requires extra code to normalise NFAs so structurally same NFAs have a unique representation. And I’d need to understand the problemspace fully to generate good input/output. So I thought of all this and I went “bleh, maybe later”. In retrospect I should have just written a few unit tests… <a href="#fr-bug-free-1">↩</a></p>
+</li>
+</ol>
+
+  </main>
+  <p>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>

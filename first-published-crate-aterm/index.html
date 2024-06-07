@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My first published crate: aterm | Whatever</title>
+  <meta name="title" content="My first published crate: aterm">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>My first published crate: aterm</h1>
+      <p>
+        <i>
+          <time datetime='2017-05-07T00:00:00+00:00' pubdate>07 May, 2017</time>
+        </i>
+      </p>
+  <main>
+    <p>I published my first crate to <a href="https://crates.io/">crates.io</a>! It’s called <a href="https://crates.io/crates/aterm"><code>aterm</code></a>, and it’s a library that implements the <u>A</u>nnotated <u>Term</u> format. Currently it can only parse and print the normal textual format, but I’m planning to add the other three formats too at some point. There are also a number of other improvements that I have planned. But I’m going to try to not make this post a brain-dump of meandering thoughts…</p>
+<h1 id="what-are-aterms">What are ATerms</h1>
+<p>The Annotated Term format<sup class="footnote-reference" id="fr-1-1"><a href="#fn-1">[1]</a></sup> originates from the <a href="https://www.cwi.nl/about">Centre for Mathematics and Computer Science (CWI)</a> in Amsterdam. It describes trees and annotations on those trees. The big features are maximal sharing (subtrees that are the same are only allocated once), a compressed binary format, and a C implementation that does garbage collection. The format dates back to around 2000.</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>Add(Int(&quot;1&quot;){Value(1)}, Int(&quot;2&quot;){Value(2)}){Value(3)}
+</span></code></pre>
+<p>(^A small tree describing addition of two numbers, with annotations on each “application” with the value)</p>
+<p>The ATerm format was used by a number of tools in a number of research groups as an exchange format (and they probably also used the library implementations to provide the internal representation as well). Maximal sharing was super fancy, although recently research was published that this maximal sharing can in many situations be more overhead than optimisation. <sup class="footnote-reference" id="fr-2-1"><a href="#fn-2">[2]</a></sup> The compressed formats allowed pretty quick communication between different tools that sometimes explicitly held on to the <a href="https://en.wikipedia.org/wiki/Unix_philosophy">Unix philosophy</a>.</p>
+<p>For those of you who are interested in implementations of this format in other languages, have a look at the <a href="https://github.com/cwi-swat/aterms">CWI repository</a>, which includes implementations in C, Java and C#.</p>
+<h1 id="why-implement-this">Why implement this</h1>
+<p>As mentioned in the high-level description above, this was used by a number of tools created by researchers as an exchange format. I actually use this format myself at TU Delft. So I figured I could combine my wish to learn more Rust and performance engineering, with some of the knowledge I have about ageing tools I use!</p>
+<p>In particular, I’m currently working on an interpreter, written in Rust, that executes Stratego Core code. <a href="http://strategoxt.org/">Stratego</a> (or Stratego/XT, to disambiguate from the board game) is a language for program transformation. The Stratego compiler can return an intermediate representation called the “core” language, as an AST in the ATerm format. I’m planning to write about this interpreter in another blog post soon. (EDIT: <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/">I have now</a>)</p>
+<h1 id="the-implementation">The implementation</h1>
+<p>Ok, so here’s what you get from the <code>aterm</code> crate:</p>
+<ol>
+<li>A parser that takes in a text format ATerm string.
+<ul>
+<li>I have <a href="https://gitlab.com/Apanatshka/aterm/issues/10">a</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/4">number</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/5">of</a> <a href="https://gitlab.com/Apanatshka/aterm/issues/6">issues</a> open: basically zero-copy parsing and the other formats.</li>
+</ul>
+</li>
+<li>A printer for the text format. Again, the other formats are todo.</li>
+<li>A factory trait for building ATerms.</li>
+<li>An ATerm trait for matching ATerms.</li>
+<li>Some basics such as the default enum for terms (<code>Int(i32)</code>, <code>Real(f32)</code>, <code>Application(constructor, children)</code>, <code>List(children)</code>, <code>Placeholder(placeholder_enum)</code>).</li>
+<li>The <a href="http://homepages.cwi.nl/~daybuild/daily-books/technology/aterm-guide/aterm-guide.html">ATerm programming guide</a> mentions a BLOB term, which I considered an extension point that could be typed in Rust. So you can add more stuff to the term enum with the variant <code>Blob(your_extension_here)</code>.</li>
+<li>An implementation of the ATerm trait for the above basics.</li>
+<li>A reference counting implementation with factory.</li>
+<li>A second Rc implementation where the factory guarantees maximal sharing.</li>
+</ol>
+<p>For more details, check out the <a href="https://docs.rs/aterm">docs</a>. (Which I should probably extend a little…)</p>
+<h2 id="highlights-things-i-learned">Highlights &amp; Things I learned</h2>
+<ol>
+<li>Ideally I would have use higher-kinded types for this ATerm implementation. But Rust doesn’t have that. So I found a way where the <code>ATerm</code> trait defines an associated type <code>Rec: Borrow&lt;Self&gt;</code>. That still allows people to implement the <code>ATerm</code> trait while adding in more of their own things. The basic <code>rc::ATerm</code> implementation looks like this:</li>
+</ol>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">struct </span><span style="color:#59c2ff;">ATerm</span><span>&lt;B&gt;(ATermInner&lt;Rc&lt;ATerm&lt;B&gt;&gt;, B&gt;)
+</span></code></pre>
+<p>Where <code>ATermInner</code> is a basic implementation that contains a term and a list of annotations.
+2. Using your own library is the only way to make sure it’s actually usable! I had this implementation that compiled a while back, then I started using the factory for the parser, and nothing actually worked out. Then I started to think things over, removed a bunch type parameters, generally simplified things. I’m now a bit unhappy with the allocation characteristics, but the crate isn’t 1.0 yet, I can still tinker with it a little although I don’t want to introduce big breaking changes anymore.
+3. I had an arena allocation implementation at some point. It was terribly broken, so I had to cut it out. I plan on <a href="https://gitlab.com/Apanatshka/aterm/issues/9">revisiting that idea soon</a> by using someone else’s arena allocation crate.
+4. While simplifying and trying to get my library usable, I found out a thing I hadn’t really grasped before in the Rust type system: <em>Associated types are unique per trait implementation</em>. So for my <code>ATerm</code> trait I made the <code>Rec</code> and <code>Blob</code> types associative, and that made it much more usable. You see, associated types are easier on Rust’s type inference: Given a fully concrete type there is definitely only one trait implementation possible. And it’s not as limiting for the implementor as you might think. You can still use type parameters in your <code>impl</code>s:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">impl</span><span>&lt;Rec, B&gt; ATerm </span><span style="color:#ff7733;">for </span><span style="color:#59c2ff;">ATermInner</span><span>&lt;Rec, B&gt;
+</span><span>     </span><span style="color:#ff7733;">where</span><span> Rec</span><span style="color:#bfbab0cc;">: </span><span>Borrow&lt;ATermInner&lt;Rec, B&gt;&gt;
+</span><span>{
+</span><span>     </span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Rec </span><span style="color:#f29668;">=</span><span> Rec</span><span style="color:#bfbab0cc;">;
+</span><span>     </span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">Blob </span><span style="color:#f29668;">=</span><span> B</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>     </span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">inline</span><span>]
+</span><span>     </span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">into_inner</span><span>(</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span>ATermInner&lt;Rec, B&gt; {
+</span><span>         </span><span style="font-style:italic;color:#39bae6;">self
+</span><span>     }
+</span><span>     </span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">inline</span><span>]
+</span><span>     </span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">as_inner</span><span>(</span><span style="color:#f29668;">&amp;</span><span style="color:#f29718;">self</span><span>) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="color:#f29668;">&amp;</span><span>ATermInner&lt;</span><span style="color:#ff7733;">Self</span><span style="color:#f29668;">::</span><span>Rec, </span><span style="color:#ff7733;">Self</span><span style="color:#f29668;">::</span><span>Blob&gt; {
+</span><span>         </span><span style="font-style:italic;color:#39bae6;">self
+</span><span>     }
+</span><span>}
+</span></code></pre>
+<p>The only thing I dislike about associated types is how large your where clauses get when you want to add extra constraints. While working on my Stratego interpreter, at some point I had where clauses like this:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">where</span><span> F</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">&#39;a </span><span style="color:#f29668;">+ </span><span>ATermFactory&lt;</span><span style="color:#ff7733;">&#39;a</span><span>, B, ATermRef = A&gt;</span><span style="color:#bfbab0cc;">,
+</span><span>       A</span><span style="color:#bfbab0cc;">: </span><span>Borrow&lt;&lt;F </span><span style="color:#f29668;">as </span><span>ATermFactory&lt;</span><span style="color:#ff7733;">&#39;a</span><span>, B&gt;&gt;</span><span style="color:#f29668;">::</span><span>ATerm&gt; </span><span style="color:#f29668;">+ </span><span style="font-style:italic;color:#39bae6;">Clone</span><span style="color:#bfbab0cc;">,
+</span><span>       &lt;F </span><span style="color:#f29668;">as </span><span>ATermFactory&lt;</span><span style="color:#ff7733;">&#39;a</span><span>, B&gt;&gt;</span><span style="color:#f29668;">::</span><span>ATerm</span><span style="color:#bfbab0cc;">: </span><span style="font-style:italic;color:#39bae6;">Eq</span><span style="color:#bfbab0cc;">,
+</span><span>       B</span><span style="color:#bfbab0cc;">: </span><span style="color:#ff7733;">&#39;a
+</span></code></pre>
+<p>I was already using type parameter <code>A</code> so I didn’t have to use <code>&lt;F as ATermFactory&lt;'a, B&gt;&gt;::ATermRef</code>. I found a slight improvement when I defined type aliases for <code>ATermRef</code> and <code>ATerm</code> from a factory. Later I just defined the concrete types I was using with some type aliases (for easy changing later) and went with that. Makes it slightly harder to change them later if I start to depend on concrete parts of the types, but most code was already written in a generic way, so it shouldn’t be too much of a pain. It’s kind of sad that writing generic code is so ugly and sometimes impossible, I like writing code where I only require a minimal contract on what the types need to be capable of.</p>
+<h1 id="what-happened-to-automata">What happened to automata?</h1>
+<p>I wrote my last automata blog post in November last year. Since then I’ve been really busy. In the short amounts of spare time I had left, at first I tried to do the benchmarking for the third Finite Automata post. But I couldn’t figure out how to do it right, or maybe it was all in reading the trace output. Basically I’m not that familiar with performance measurement tools yet, and I was mostly  stumped by <em>why</em> my implementation was so much slower than the one I was comparing with (I wasn’t surprised <em>that</em> it was slower, I was comparing to <a href="https://crates.io/crates/aho-corasick">BurntSushi’s <code>aho-corasick</code></a>, good luck beating his stuff ^^). Since I only had an hour here or there, I couldn’t effectively work on it, so I gave up for a while. When I got a bit of time again, I needed something new and exciting, not something to bash my head against. So that’s why you got ATerms, and soon a post on my Stratego interpreter. I’ll get back to automata afterwards. I think I can also do some performance engineering on the interpreter, so maybe I’ll learn more that way and use that knowledge to finish writing about the Finite Automata. Until then, I hope you can be patient. Or just say: Eh, whatever ¯\_(ツ)_/¯</p>
+<hr><ol class="footnotes-list">
+<li id="fn-1">
+<p>van den Brand, M. G., De Jong, H. A., Klint, P., &amp; Olivier, P. A. (2000). Efficient annotated terms. <em>Software Practice and Experience</em>, 30(3), 259-291. <a href="#fr-1-1">↩</a></p>
+</li>
+<li id="fn-2">
+<p>Steindorfer, M. J., &amp; Vinju, J. J. (2016, March). Performance Modeling of Maximal Sharing. In <em>Proceedings</em> of the 7th ACM/SPEC on <em>International Conference on Performance Engineering</em> (pp. 135-146). ACM. <a href="#fr-2-1">↩</a></p>
+</li>
+</ol>
+
+  </main>
+  <p>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>
