@@ -1,6 +1,7 @@
 +++
 title = "Theory of Computation"
 date = "2016-03-28"
+aliases = ["compsci/2016/03/28/theory-of-computation"]
 description = "Announcement post about theory of computation blog post series"
 taxonomies.tags = ["announcement", "theory of computation", "automata", "rust"]
 +++

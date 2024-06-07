@@ -1,6 +1,7 @@
 +++
 title = "Pushy Automata"
 date = "2016-05-15"
+aliases = ["compsci/2016/05/15/pushy-automata"]
 taxonomies.tags = ["theory of computation", "automata", "pda", "context-free language", "context-free grammar"]
 +++
 

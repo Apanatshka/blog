@@ -1,6 +1,7 @@
 +++
 title = "A Stratego interpreter in Rust"
 date = "2017-08-06"
+aliases = ["compsci/2017/08/06/a-stratego-interpreter-in-rust"]
 taxonomies.tags = ["rust", "stratego"]
 +++
 

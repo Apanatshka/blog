@@ -1,6 +1,7 @@
 +++
 title = "My first published crate: aterm"
 date = "2017-05-07"
+aliases = ["compsci/2017/05/07/first-published-crate-aterm"]
 taxonomies.tags = ["rust", "annotated term"]
 +++
 

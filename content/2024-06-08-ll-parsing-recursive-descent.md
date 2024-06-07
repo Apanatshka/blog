@@ -1,6 +1,7 @@
 +++
 title = "LL Parsing and Recursive Descent"
 date = "2024-06-07"
+aliases = ["compsci/2024/04/07/parsing-and-all-that"]
 taxonomies.tags = ["theory of computation", "automata", "context-free grammar", "pda", "parsing"]
 +++
 

@@ -1,6 +1,7 @@
 +++
 title = "Optimising CTree and strs"
 date = "2018-05-08"
+aliases = ["compsci/2018/05/08/optimising-stratego-core"]
 taxonomies.tags = ["rust", "stratego", "interpreter", "optimisation", "tool"]
 +++
 

@@ -1,6 +1,7 @@
 +++
 title = "Porting cargo benchcmp"
 date = "2016-09-04"
+aliases = ["compsci/2016/09/04/porting-cargo-benchcmp"]
 taxonomies.tags = ["rust", "tool", "benchmark"]
 +++
 

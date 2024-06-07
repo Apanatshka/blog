@@ -1,6 +1,7 @@
 +++
 title = "Learn Rust by project"
 date = "2018-04-30"
+aliases = ["compsci/2018/04/30/learn-rust-by-project"]
 taxonomies.tags = ["rust"]
 +++
 

@@ -2,6 +2,7 @@
 title = "Finite Automata"
 date = "2016-04-10"
 updated = "2016-04-17"
+aliases = ["compsci/2016/04/10/finite-automata"]
 taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "regular expression", "rust"]
 +++
 

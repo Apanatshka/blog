@@ -1,6 +1,7 @@
 +++
 title = "Pretty Terminal"
 date = "2016-07-23"
+aliases = ["compsci/2016/07/23/pretty-terminal"]
 taxonomies.tags = ["terminal", "shell"]
 +++
 

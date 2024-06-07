@@ -1,6 +1,7 @@
 +++
 title = "Implementing Finite Automata (Part 1)"
 date = "2016-10-03"
+aliases = ["compsci/2016/10/03/implementing-finite-automata-part-1"]
 taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
 +++
 

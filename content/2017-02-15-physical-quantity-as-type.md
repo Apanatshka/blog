@@ -2,6 +2,7 @@
 title = "Types, units and quantities"
 date = "2017-02-15"
 updated = "2017-02-16"
+aliases = ["compsci/2017/02/15/physical-quantity-as-type"]
 taxonomies.tags = ["rust", "programming patterns", "types"]
 +++
 

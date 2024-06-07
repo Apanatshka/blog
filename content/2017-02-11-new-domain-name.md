@@ -1,6 +1,7 @@
 +++
 title = "New domain name"
 date = "2017-02-11"
+aliases = ["meta/2017/02/11/new-domain-name"]
 taxonomies.tags = ["meta"]
 +++
 
