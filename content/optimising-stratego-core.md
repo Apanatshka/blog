@@ -5,7 +5,7 @@ aliases = ["compsci/2018/05/08/optimising-stratego-core"]
 taxonomies.tags = ["rust", "stratego", "interpreter", "optimisation", "tool"]
 +++
 
-Once upon a time, I wrote an [interpreter for Stratego Core](@/2017-08-06-a-stratego-interpreter-in-rust.md) in Rust, which I named `strs`. Stratego Core is the core language that Stratego is compiled to before the compiler goes further (to Java, or previously to C). A core language is an intermediate representation that is a subset of the surface language. 
+Once upon a time, I wrote an [interpreter for Stratego Core](@/a-stratego-interpreter-in-rust.md) in Rust, which I named `strs`. Stratego Core is the core language that Stratego is compiled to before the compiler goes further (to Java, or previously to C). A core language is an intermediate representation that is a subset of the surface language. 
 
 While I optimised that interpreter quite a bit, I noticed that the CTree (Stratego Core Abstract Syntax Tree) that the compiler spit out for me to interpret was very unoptimised. Therefore one the plans I described at the end of the blog post was a little tool for Copy Propagation on CTree files. This post is about that tool, and the optimisations in the interpreter that made it obsolete again. 
 
@@ -15,7 +15,7 @@ Copy propagation looks for assignments of one variable to the value of another v
 
 ## Copy Propagation for Stratego
 
-Here's a really short refresher, look at the [`strs` blog post](@/2017-08-06-a-stratego-interpreter-in-rust.md) if you need more. In Stratego Core we have a current term. There are term variable and strategy variables, new ones can be introduced with scopes and lets respectively. We can match against the current term, and we can build another term in its place, where both use patterns that can have term variables in them. We can call strategies and primitives. There are generic traversals over terms, basic `id` and `fail` strategies, and the guarded choice as a kind of if-then-else.
+Here's a really short refresher, look at the [`strs` blog post](@/a-stratego-interpreter-in-rust.md) if you need more. In Stratego Core we have a current term. There are term variable and strategy variables, new ones can be introduced with scopes and lets respectively. We can match against the current term, and we can build another term in its place, where both use patterns that can have term variables in them. We can call strategies and primitives. There are generic traversals over terms, basic `id` and `fail` strategies, and the guarded choice as a kind of if-then-else.
 
 An assignment in Stratego Core can be found when you match the current term against a pattern. What we're looking for in particular is building a plain variable, then matching another plain variable (no more complicated patterns). However, matching against a variable that already has a bound value is _not_ an assignment. Then the meaning is an equality test. So we can't just look in a sequence of strategies for a `..., Build(Var(...)), Match(Var(...)), ...`, we need to check whether the match is actually a binding of a fresh variable. The simplest way I know to do so is by adapting the interpreter we had, to instead to an "abstract interpretation". 
 

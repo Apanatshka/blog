@@ -8,7 +8,7 @@ taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "regular e
 
 What do Turing machines and regular expressions have in common? One is a theoretical model of a computer, and can be used to prove that some things cannot be computed. The other is a practical tool for matching strings. And yet they are both based on a simple *computational model*: a (very constrained) finite state machine (FSM). 
 
-In this blog post we'll go over the basics of this type of FSM and instead of going over proofs, we'll go over examples and little implementations in Rust. For more information about this blog post series, see [this announcement post](@/2016-03-28-theory-of-computation.md). 
+In this blog post we'll go over the basics of this type of FSM and instead of going over proofs, we'll go over examples and little implementations in Rust. For more information about this blog post series, see [this announcement post](@/theory-of-computation.md). 
 
 # An exercise in minimalism
 

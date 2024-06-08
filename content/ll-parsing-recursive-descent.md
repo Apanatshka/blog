@@ -1,15 +1,15 @@
 +++
 title = "LL Parsing and Recursive Descent"
-date = "2024-06-07"
+date = "2024-04-07"
 aliases = ["compsci/2024/04/07/parsing-and-all-that"]
 taxonomies.tags = ["theory of computation", "automata", "context-free grammar", "pda", "parsing"]
 +++
 
-Hello again! I'm picking up my [series on Automata](@/2016-03-28-theory-of-computation.md), with this post that goes into what I had always meant to get to: parsers. We'll check out the old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. Originally this was one big post, but given the feedback I've gotten from friends, I've now split it up into two. In this first post we'll check out LL, parse tables, and recursive descent. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations but explaining things from an automata point of view instead of by rote algorithm. I'll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser. The [second post](@/2024-06-09-lr-parsing-recursive-ascent.md) is on LR parsing. Enjoy!
+Hello again! I'm picking up my [series on Automata](@/theory-of-computation.md), with this post that goes into what I had always meant to get to: parsers. We'll check out the old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. Originally this was one big post, but given the feedback I've gotten from friends, I've now split it up into two. In this first post we'll check out LL, parse tables, and recursive descent. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations but explaining things from an automata point of view instead of by rote algorithm. I'll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser. The [second post](@/lr-parsing-recursive-ascent.md) is on LR parsing. Enjoy!
 
 # Refresher from Pushy Automata
 
-We'll start with a brief refresher from the previous post of the series, [pushy automata](@/2016-05-15-pushy-automata.md), since that was a little while back.
+We'll start with a brief refresher from the previous post of the series, [pushy automata](@/pushy-automata.md), since that was a little while back.
 
 ## Push-Down Automata
 
@@ -423,11 +423,11 @@ We've seen how we can construct simple DFAs for each rule in our grammar, and th
 
 The recursive descent way of writing a parser directly as code is nice and simple, it really just follows the grammar. Since you're writing plain old code with function calls, you can imagine people have found nice ways to extend and adapt the pattern of recursive descent parsers. For one, it's quite easy to reason about where you are in the parse when hitting an error state, which makes it fairly easy to give friendly error messages when the parser doesn't accept an input. You can also use a trick to fix up direct left-recursion called [node reparenting](https://en.wikipedia.org/wiki/Tail_recursive_parser), where you use a loop or tail-recursion locally construct the tree bottom-up. You could argue that such a parser is a hybrid between recursive descent and ascent, a "recursive descent-ascent parser".
 
-Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/2016-04-10-finite-automata.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
+Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/finite-automata.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
 
 # Continue?
 
-Now that you've learned all about LL parsing, would you like to learn about LR parsing? About how it's more powerful, also uses parse tables with some of the same construction tricks, also has nice corresponding push-down automata, and even has an analogue to recursive descent? Then click on to [part 2](@/2024-06-09-lr-parsing-recursive-ascent.md)! Or bookmark it for later, when you are able to absorb information again or whatever ¯\\\_(ツ)\_/¯
+Now that you've learned all about LL parsing, would you like to learn about LR parsing? About how it's more powerful, also uses parse tables with some of the same construction tricks, also has nice corresponding push-down automata, and even has an analogue to recursive descent? Then click on to [part 2](@/lr-parsing-recursive-ascent.md)! Or bookmark it for later, when you are able to absorb information again or whatever ¯\\\_(ツ)\_/¯
 
 
 [^LLdef]: I'm fairly sure my prose description there is the same as a formal definition, and it feel a bit nicer to think about than [the ones you can find on Wikipedia](https://en.wikipedia.org/wiki/LL_grammar#Formal_definition).

@@ -5,7 +5,7 @@ aliases = ["compsci/2016/11/12/implementing-finite-automata-part-2"]
 taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
 +++
 
-This is post number four in a [series](@/2016-03-28-theory-of-computation.md) on Automata (in the formal languages / regex / parsing sense). It's also part two of the "implementation-heavy" stuff, where we go into implementing automata for real and useful things. This one is more of a mix of theory and code, which I hope is more appealing than the previous post which were either one or the other. In [part one](@/2016-10-03-implementing-finite-automata-part-1.md) I naively claimed that this would be two posts of implementation, but I've since found more to write about. Plus it allows me to postpone the hardest part of this implementation stuff (benchmarking). 
+This is post number four in a [series](@/theory-of-computation.md) on Automata (in the formal languages / regex / parsing sense). It's also part two of the "implementation-heavy" stuff, where we go into implementing automata for real and useful things. This one is more of a mix of theory and code, which I hope is more appealing than the previous post which were either one or the other. In [part one](@/implementing-finite-automata-part-1.md) I naively claimed that this would be two posts of implementation, but I've since found more to write about. Plus it allows me to postpone the hardest part of this implementation stuff (benchmarking). 
 
 This post will go into Infinite Sets, NFA-$\varepsilon$ and the transitive reachability closures over cyclic graphs. 
 
@@ -47,7 +47,7 @@ A simple way to specify the correct union operation is through epsilon transitio
 
 {{ digraph(gz_file="implementing-finite-automata-part-2/nfa-e-union-3-4.gv", alt="(correct) NFA-e union of DFAs 3 and 4") }}
 
-If you remember my [first finite automata post](@/2016-04-10-finite-automata.md#epsilon-moves) you may be reminded of the regex "or" (`|`) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition "for free" without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:
+If you remember my [first finite automata post](@/finite-automata.md#epsilon-moves) you may be reminded of the regex "or" (`|`) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition "for free" without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:
 
 {{ digraph(gz_file="implementing-finite-automata-part-2/nfa-union-3-4.gv", alt="(correct) NFA union of DFAs 3 and 4") }}
 

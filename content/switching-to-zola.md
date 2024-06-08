@@ -1,6 +1,6 @@
 +++
 title = "Switching to Zola"
-date = "2024-06-09"
+date = "2024-06-08"
 taxonomies.tags = ["meta", "rust"]
 +++
 

@@ -5,9 +5,9 @@ aliases = ["compsci/2016/05/15/pushy-automata"]
 taxonomies.tags = ["theory of computation", "automata", "pda", "context-free language", "context-free grammar"]
 +++
 
-Welcome back! This is my second post in a [series](@/2016-03-28-theory-of-computation.md) on Automata. I decided to do another theory post first on context-free languages, and only afterwards start on a more implementation-heavy post about implementing this kind of theory in Rust for practically useful stuff. There is of course still code in this post as well :)
+Welcome back! This is my second post in a [series](@/theory-of-computation.md) on Automata. I decided to do another theory post first on context-free languages, and only afterwards start on a more implementation-heavy post about implementing this kind of theory in Rust for practically useful stuff. There is of course still code in this post as well :)
 
-I'll start with a quick refresher, but for more details read the [first post](@/2016-04-10-finite-automata.md). 
+I'll start with a quick refresher, but for more details read the [first post](@/finite-automata.md). 
 
 # Finite Automata refresher
 
@@ -212,7 +212,7 @@ This describes a language that has either (1) a number of $a$'s followed by an e
 
 ## Pumping lemma
 
-In the [previous blog post](@/2016-04-10-finite-automata.md) I originally skipped the description of the pumping lemma for regular languages. But after some feedback on the post, I [added the description of the basic idea](@/2016-04-10-finite-automata.md#addendum). The idea is that any regular language (although also other languages) will have the property of a pumping length, where any word in the language larger than this length can be pumped up to a larger word that's still in the language. For a language with a finite number of words the pumping length is larger than the largest word in the language. For infinite languages you cannot do this, which means that there are words in the language where you can find a part of the word that you're allowed to repeat an arbitrary amount of times. This arbitrary repetition corresponds with a loop in the DFA or NFA that describes the language. 
+In the [previous blog post](@/finite-automata.md) I originally skipped the description of the pumping lemma for regular languages. But after some feedback on the post, I [added the description of the basic idea](@/finite-automata.md#addendum). The idea is that any regular language (although also other languages) will have the property of a pumping length, where any word in the language larger than this length can be pumped up to a larger word that's still in the language. For a language with a finite number of words the pumping length is larger than the largest word in the language. For infinite languages you cannot do this, which means that there are words in the language where you can find a part of the word that you're allowed to repeat an arbitrary amount of times. This arbitrary repetition corresponds with a loop in the DFA or NFA that describes the language. 
 
 The pumping lemma for context-free languages is similar to that of regular languages. We have a pumping length and can split words larger than the pumping length into parts. Instead three parts of which the middle can be repeated, in CFLs we split words into five parts. The second and fourth part can be repeated an arbitrary amount of times as long as they are both repeated the same number of times. This makes sense because as we've seen, we can remember a bunch of things with the stack in a PDA so we can keep two parts of a word in sync with respect to repetition. From a CFG perspective it also makes sense, because the repeated parts are basically the two terminal parts that surround a recursively defined variable (for example). 
 
