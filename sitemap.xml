@@ -29,11 +29,11 @@
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/ll-parsing-recursive-descent/</loc>
-        <lastmod>2024-06-07</lastmod>
+        <lastmod>2024-04-07</lastmod>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/lr-parsing-recursive-ascent/</loc>
-        <lastmod>2024-06-08</lastmod>
+        <lastmod>2024-04-08</lastmod>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/new-domain-name/</loc>
@@ -61,10 +61,13 @@
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/switching-to-zola/</loc>
-        <lastmod>2024-06-09</lastmod>
+        <lastmod>2024-06-08</lastmod>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/tags/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/annotated-term/</loc>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/tags/announcement/</loc>
@@ -73,10 +76,61 @@
         <loc>https://blog.jeffsmits.net/tags/automata/</loc>
     </url>
     <url>
+        <loc>https://blog.jeffsmits.net/tags/benchmark/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/context-free-grammar/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/context-free-language/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/dfa/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/interpreter/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/meta/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/nfa/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/optimisation/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/parsing/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/pda/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/programming-patterns/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/regular-expression/</loc>
+    </url>
+    <url>
         <loc>https://blog.jeffsmits.net/tags/rust/</loc>
     </url>
     <url>
+        <loc>https://blog.jeffsmits.net/tags/shell/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/stratego/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/terminal/</loc>
+    </url>
+    <url>
         <loc>https://blog.jeffsmits.net/tags/theory-of-computation/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/tool/</loc>
+    </url>
+    <url>
+        <loc>https://blog.jeffsmits.net/tags/types/</loc>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/theory-of-computation/</loc>

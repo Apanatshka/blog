@@ -7,20 +7,20 @@
       <generator>Zola</generator>
       <language>en</language>
       <atom:link href="https://blog.jeffsmits.net/rss.xml" rel="self" type="application/rss+xml"/>
-      <lastBuildDate>Sun, 09 Jun 2024 00:00:00 +0000</lastBuildDate>
+      <lastBuildDate>Sat, 08 Jun 2024 00:00:00 +0000</lastBuildDate>
       <item>
           <title>Switching to Zola</title>
-          <pubDate>Sun, 09 Jun 2024 00:00:00 +0000</pubDate>
+          <pubDate>Sat, 08 Jun 2024 00:00:00 +0000</pubDate>
           <author>Unknown</author>
           <link>https://blog.jeffsmits.net/switching-to-zola/</link>
           <guid>https://blog.jeffsmits.net/switching-to-zola/</guid>
-          <description xml:base="https://blog.jeffsmits.net/switching-to-zola/">&lt;p&gt;Sorry if I broke your RSS reader. I figured I’d start straight out of the gate with that apology for probably the most annoying change. I’ve switched away from Jekyll to &lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt; for generating this blog. And I preserved only the blog post links (through HTML based redirects), and didn’t preserve the exact format of the RSS feed file, or really any of the design of the blog as you can see. I just picked a theme from among the ones on Zola’s list on the site, one that looked simple and didn’t contain any JavaScript. Then I forked Zola, because it has no plugin system and I needed some extra features like rendering LaTeX formulae at generation time (remember, no JavaScript), and calls to GraphViz for rendering some graphics. I’m currently seeing if&#x2F;how I can contribute my changes back to Zola. I’m less secure about the formula rendering now than when I proposed on their forum to contribute it back, the &lt;a href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;latex2mathml&quot;&gt;&lt;code&gt;latex2mathml&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; crate I’m using turned out to be pretty limited. It works ok for my purposes, but probably not for others… I’ll need to poll the Zola project about GraphViz support too, I’m just shelling out to it, hoping it’s installed and in on the &lt;code&gt;PATH&lt;&#x2F;code&gt;. But hey, at least my static site generator can be installed again because it’s not some ancient version of Jekyll. Now I no longer need to have Ruby installed anymore. And Zola is actually snappy at generating the blog, that’s neat.&lt;&#x2F;p&gt;
+          <description xml:base="https://blog.jeffsmits.net/switching-to-zola/">&lt;p&gt;Sorry if I broke the feed in your RSS reader. I’ve switched away from Jekyll to &lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt; for generating this blog. And I preserved only the blog post links (through HTML based redirects). I didn’t preserve the exact format of the RSS feed file, or really any of the design of the blog as you can see. I just picked a theme from among the ones on Zola’s list on the site, one that looked simple and didn’t contain any JavaScript. Then I forked Zola, because it has no plugin system and I needed some extra features like rendering LaTeX formulae at generation time (remember, no JavaScript), and calls to GraphViz for rendering some graphics. I’m currently seeing if&#x2F;how I can contribute my changes back to Zola. I’m less secure about the formula rendering now than when I proposed on their forum to contribute it back, the &lt;a href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;latex2mathml&quot;&gt;&lt;code&gt;latex2mathml&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; crate I’m using turned out to be pretty limited. It works ok for my purposes, but probably not for others… I’ll need to poll the Zola project about GraphViz support too, I’m just shelling out to it, hoping it’s installed and in on the &lt;code&gt;PATH&lt;&#x2F;code&gt;. But hey, at least my static site generator can be installed again because it’s not some ancient version of Jekyll. Now I no longer need to have Ruby installed anymore. And Zola is actually snappy at generating the blog, that’s neat.&lt;&#x2F;p&gt;
 &lt;p&gt;I did a tiny bit of rewriting history while moving the blog over to the new tool: I split up the &lt;em&gt;Parsing and all that&lt;&#x2F;em&gt; blog post into a first one on LL parsing, and a second on LR parsing. Most of the people I know who checked out the original gave me the feedback TLDR. At first I rebelled against the idea of accommodating these lazy people who couldn’t appreciate all the effort I’d put into that post. Then I figured I was being silly and splitting it up is not that much work. I’ve already gained the knowledge I wanted from writing the post, but if I want to have people read it, I might as well put in a tiny amount more effort. Whatever ¯\_(ツ)_&#x2F;¯&lt;&#x2F;p&gt;
 </description>
       </item>
       <item>
           <title>LR Parsing and Recursive Ascent</title>
-          <pubDate>Sat, 08 Jun 2024 00:00:00 +0000</pubDate>
+          <pubDate>Mon, 08 Apr 2024 00:00:00 +0000</pubDate>
           <author>Unknown</author>
           <link>https://blog.jeffsmits.net/lr-parsing-recursive-ascent/</link>
           <guid>https://blog.jeffsmits.net/lr-parsing-recursive-ascent/</guid>
@@ -515,7 +515,7 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
       </item>
       <item>
           <title>LL Parsing and Recursive Descent</title>
-          <pubDate>Fri, 07 Jun 2024 00:00:00 +0000</pubDate>
+          <pubDate>Sun, 07 Apr 2024 00:00:00 +0000</pubDate>
           <author>Unknown</author>
           <link>https://blog.jeffsmits.net/ll-parsing-recursive-descent/</link>
           <guid>https://blog.jeffsmits.net/ll-parsing-recursive-descent/</guid>
