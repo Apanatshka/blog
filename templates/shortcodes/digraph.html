@@ -1,3 +1,5 @@
 {% set colocated_path = page.colocated_path | as_str %}
 {% set rendered = dot(path=colocated_path ~ gz_file) %}
-<img src="{{ rendered.url | safe }}" alt="{{ alt }}">
+<div class="gz_dot">
+    <img src="{{ rendered.url | safe }}" alt="{{ alt }}">
+</div>
