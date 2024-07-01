@@ -52,26 +52,36 @@
 <p>We start again with the separate automata for each rule:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-rule-automata.f04db4ae501d9ff2.svg" alt="Simple automata for each grammar rule from the example">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-rule-automata.f04db4ae501d9ff2.svg" alt="Simple automata for each grammar rule from the example">
+</div>
 <p>Now in order to explore to the bottom-left of the parse tree, we need to be free to go into any rule. So we will connect the rules again to the nodes that expect a certain sort, but with epsilon transitions so we don’t observe how far down we are or with what rule in particular we got there. We’ll need that later, but let’s not worry about that until we have the downward exploration.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-epsilon.ff3ef073d150d485.svg" alt="Partially constructed automaton using the automata from the grammar rules, using epsilon transitions">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-epsilon.ff3ef073d150d485.svg" alt="Partially constructed automaton using the automata from the grammar rules, using epsilon transitions">
+</div>
 <p>Obviously this is not a full automaton model of a parser yet, but it allows us to always go down to the next leaf of the parse tree without using the stack. Let’s clean up the automaton with an NFA-to-DFA conversion:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-dfa.efccfa9e2e0f6245.svg" alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-dfa.efccfa9e2e0f6245.svg" alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion">
+</div>
 <p>This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the “LR item“s <code>S = . a S</code> and <code>S = a . S</code>. But otherwise it would be pretty much this. This is considered a PDA, though what’s happening on the stack is left implicit. That’s because what’s actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I’ll demonstrate it once:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit.63cea2eed826dc75.svg" alt="A fully explicit PDA that does LR parsing">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit.63cea2eed826dc75.svg" alt="A fully explicit PDA that does LR parsing">
+</div>
 <p>This should look quite familiar. We’re pushing inputs on the stack as we consume them, paired with the state we’re in at that point. And then we’re popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a <em>shift</em> action, the second is called a <em>reduce</em> action. We’ve seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher. But this time we get an automaton with more states.</p>
 <p>Notice that <em>where</em> a reduce action goes depends on originating state of the last thing that’s popped. That’s why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the <code>a</code> came from box 1 or box 0, we go to different places. This is easier to see in our proper LR(0) automaton, where box 1 points to state S₁ with a transition labeled <code>A</code>. This is a <em>goto</em> action. In an LR parse table interpreter, the <em>goto</em> is a separate action that immediately follows a <em>reduce</em> action, which merely returns to the last popped state. When a reduce just returns that’s also more like a function call and return, so that’s nice. Anyway, that’s also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.</p>
 <p>Something worth repeating now that we’re looking at the details: LL decides what rule to take <em>before</em> consuming the input for that rule, whereas LR decides what rule to take <em>after</em> consuming all the input for that rule. In other words, we only reduce by a rule when we’ve seen the entire body of the rule, that why there’s less trouble with look-ahead.</p>
 <p>Speaking of look-ahead: we have some shift-reduce problems in our automaton. And by that I mean: how do we choose when to shift and when to reduce when both are an option? This is a determinism issue in our current automaton, and just like in our LL automaton, we solve it with look-ahead (and yes, that can and will later be summarised in a parse table). Our latest automaton gives a clear view of what we will be able to do if we reduce, so the look-ahead follows from what input can be consumed next after each reduce:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit-lookahead.958e71e94e30f5b4.svg" alt="A fully explicit PDA that does LR parsing, with look-ahead">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-single-automaton-explicit-lookahead.958e71e94e30f5b4.svg" alt="A fully explicit PDA that does LR parsing, with look-ahead">
+</div>
 <p>As you can see, we need at most 1 look-ahead to deterministically parse this grammar. We’re sometimes looking ahead to the end-of-input represented with <code>$</code>. The look-ahead makes this an LALR(1) grammar; what that is and why it’s different from normal LR(1) is what we’ll see in the next section.</p>
 <h2 id="lr-parsetable-construction-and-expressivity">LR parsetable construction and expressivity</h2>
 <p>Let’s look at some example grammars, how to construct their tables, and when you need a better parsetable construction method.</p>
@@ -86,7 +96,9 @@ Let’s look at an LR(0) grammar:</p>
 <p>The LR automaton for this grammar is:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-zero.ebd33936c2d16874.svg" alt="An LR(0) automaton for the above grammar">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-zero.ebd33936c2d16874.svg" alt="An LR(0) automaton for the above grammar">
+</div>
 <p>The corresponding parse table follows this automaton:</p>
 <div class="parsetable">
 <table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>1</code></th><th style="text-align: center"><code>2</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th></tr></thead><tbody>
@@ -108,7 +120,9 @@ Let’s look at an LR(0) grammar:</p>
 <p>Notice how rule 2 is now right-recursive instead of left-recursive. It’s a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules <em>could</em> give you trouble in LR<sup class="footnote-reference" id="fr-indirect-recursion-1"><a href="#fn-indirect-recursion">[1]</a></sup>.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/simple-lr.b65515fd9fccdc3f.svg" alt="An LR(0) automaton for the above grammar"><div class="parsetable">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/simple-lr.b65515fd9fccdc3f.svg" alt="An LR(0) automaton for the above grammar">
+</div><div class="parsetable">
 <table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>1</code></th><th style="text-align: center"><code>2</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th></tr></thead><tbody>
 <tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center">S₁₁</td></tr>
 <tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center">s Box1 / r 3</td><td style="text-align: center">r 3</td><td style="text-align: center">r 3</td><td style="text-align: center">E₂</td></tr>
@@ -140,7 +154,9 @@ Let’s look at an LR(0) grammar:</p>
 <p>See how rules 4 and 5 are the same except they have different sort names? Yeah, that’s going to be “fun” if they’re used with the same prefix like in rules 1 and 2. Let’s have a look at the automaton and SLR parse table.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/look-ahead-lr.cc712fdaaf5db521.svg" alt="An LR(0) automaton for the above grammar"><div class="parsetable">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/look-ahead-lr.cc712fdaaf5db521.svg" alt="An LR(0) automaton for the above grammar">
+</div><div class="parsetable">
 <table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>a</code></th><th style="text-align: center"><code>b</code></th><th style="text-align: center"><code>c</code></th><th style="text-align: center"><code>d</code></th><th style="text-align: center"><code>e</code></th><th style="text-align: center"><code>$</code></th><th style="text-align: center"><code>E</code></th><th style="text-align: center"><code>F</code></th></tr></thead><tbody>
 <tr><td style="text-align: left"><strong>Box0</strong></td><td style="text-align: center">s Box1</td><td style="text-align: center">s Box2</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"><em>accept</em></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
 <tr><td style="text-align: left"><strong>Box1</strong></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s Box3</td><td style="text-align: center"></td><td style="text-align: center">S₁₂</td><td style="text-align: center">S₂₂</td></tr>
@@ -176,13 +192,17 @@ Let’s look at an LR(0) grammar:</p>
 <p>This results in an automaton that’s almost the same as before:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-one-zero.0e90a277fb481378.svg" alt="An LR(0) automaton for the above grammar">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-one-zero.0e90a277fb481378.svg" alt="An LR(0) automaton for the above grammar">
+</div>
 <p>We now have a reduce-reduce conflict in box 3 again. With look-ahead <code>a</code> you can reduce to both <code>E</code> and <code>F</code>. Same for look-ahead <code>b</code> by the way. It <em>is</em> deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.</p>
 <p>With LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That’s keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above: the left context. I know the information is technically on the stack, but our parsing process decides on the rule to reduce by based on the state and look-ahead only.</p>
 <p>LR(k) automata/parsers keep the same parsing process still, they just have larger automata in which their states summarise the left context. We’re basically going to distinguish almost every occurrence of a sort in the grammar, similar to when we made our LL(2) grammar strong:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/lr-one.f367f0ba85665481.svg" alt="An LR(1) automaton for the above grammar">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/lr-one.f367f0ba85665481.svg" alt="An LR(1) automaton for the above grammar">
+</div>
 <p>How do we do this? We duplicate each rule for each terminal in the LL follow set of the sort of that rule. We annotate each of those rules with that terminal. Now we do our usual thing: rule to automaton, epsilons, NFA-to-DFA. But when wiring the epsilons, extra terminal annotations should now match up with the <em>LALR</em> follow set of the occurrence of the sort.</p>
 <p>With this particular example, the automaton looks almost the same. There’s a bit more fluff with the annotations, but they basically propagate the look-ahead for each rule. Which means we can distinguish the context in which <code>E</code> and <code>F</code> are used differently! In general though, duplicating each rule for each terminal in the LL follow set leads to a very large amount of rules, and plenty of the time this isn’t necessary… LR(1) automata have lots of redundant states that do basically the same thing and would have been merged in LALR without any reduce-reduce conflicts.</p>
 <h3 id="parse-table-construction-algorithm">Parse table construction algorithm</h3>
@@ -204,7 +224,9 @@ Let’s look at an LR(0) grammar:</p>
 <p>The reason for the extra <code>e</code>s in rules 3 and 4 is to show how that increases the LR(1) automaton size. We’ll now have 4 states instead of 2 + an LALR reduce-reduce conflict. The reason for adding rule 7 is so we have a state where we might shift or reduce depending on the look-ahead, which influences the code we generate. Let’s check out the automaton first:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/recursive-ascent.8b8bb3333fd51c96.svg" alt="An LR(1) automaton for the above grammar">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/recursive-ascent.8b8bb3333fd51c96.svg" alt="An LR(1) automaton for the above grammar">
+</div>
 <p>Perhaps making both changes at the same time makes this a bad example to show off LR(1) automaton size… If you imagine the automaton without rule 7 you’ll see that boxes 3 and 4 are the same except for their ingoing and outgoing edges. This is what happens with longer rules and having to distinguish the final state of the rules for a different look-ahead (boxes 5 and 6 here).</p>
 <p>The other notable difference is that we now have a box 6 that can both shift and reduce. This will make the code for the recursive ascent more interesting. Let’s start with the basics:</p>
 <pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">use </span><span>std</span><span style="color:#f29668;">::</span><span>env</span><span style="color:#bfbab0cc;">;

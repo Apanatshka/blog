@@ -68,6 +68,11 @@ main,article {
 table {
 }
 
+.parsetable {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 .parsetable table {
   border: 1px solid;
   border-collapse: collapse;
@@ -88,9 +93,19 @@ table {
   font-weight: normal;
 }
 
-
 img {
   max-width: 100%;
+}
+
+div.gz_dot {
+  background-color: #444;
+  padding: 20px;
+}
+
+div.gz_dot > img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 code {

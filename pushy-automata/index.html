@@ -50,18 +50,24 @@
 <p>The finite automaton that has a stack is called a pushdown automaton (PDA). You can think of the stack as a tray dispenser that you can <em>push</em> new trays <em>down</em> on. Let’s kick things off with an example PDA that recognises our non-regular language example:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/non-regular-language.24c339db73e81fd6.svg" alt="Non-regular language example">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/non-regular-language.24c339db73e81fd6.svg" alt="Non-regular language example">
+</div>
 <p>So what’s happening here? The transitions now have a lot more than than just the input symbol being consumed. After the comma is the top stack symbol that’s popped, and after the arrow is the new stack symbol to be pushed. If you look at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msub><mi>q</mi><mn>1</mn></msub></math>, it is taking 0’s off the input and pushed them onto the stack. Then it takes in as many 1’s as 0’s, by popping a 0 off the stack for every <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>1</mn></math> in the input.<br />
 The outer states are only there to make sure we have a fully empty stack before we go into a final state. The $ is usually used as an <em>End Of Stack</em> character. You can also change the definition of the PDA to already hold 1 character on the stack at the start. This is part of the definition as you find it on <a href="https://en.wikipedia.org/wiki/Pushdown_automaton#Formal_definition">Wikipedia</a>.</p>
 <h2 id="determinism">Determinism</h2>
 <p>The previous PDA was non-deterministic, but we can make it deterministic. I’ve left off the stuck state, but there should be no overlapping transitions and all transitions consume either input, stack or both.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/non-regular-deterministic.d05812ca2e175a1d.svg" alt="Non-regular language example, deterministic">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/non-regular-deterministic.d05812ca2e175a1d.svg" alt="Non-regular language example, deterministic">
+</div>
 <p>Now in general, we <em>cannot</em> change our PDAs to a deterministic version (deterministic PDAs are strictly less powerful). For example, take the language of even-length binary palindromes. This language can be recognised by the following non-deterministic PDA, but not by a deterministic one:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes.24c798dbcfd6472c.svg" alt="Even-length binary palindromes">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes.24c798dbcfd6472c.svg" alt="Even-length binary palindromes">
+</div>
 <p>If you think about it, it makes sense that a non-deterministic PDA is more powerful than a deterministic PDA. With the NFAs in the previous post we had just a finite amount of states we could be in while executing, and you can model that with (an exponential amount of) states in a DFA. But for a PDA, it isn’t just the state that matters, but the stack as well. Since the stack isn’t finite, we can’t just model it in more states.</p>
 <h2 id="code">Code</h2>
 <p>These PDAs are a bit annoying to write as is. Epsilons for the input character mean that we’re not advancing the input. We could write a direct encoding of the formal definition, but then we need to resolve epsilons at runtime. The execution would become pull-based, asking for input and the top of the stack when we need it. Somehow that feels wrong to me.<br />
@@ -99,7 +105,9 @@ So instead we’re going to adapt our definition of PDAs, so that we can write c
 <p>With the above fixes, we can get a PDA that will always either advance one step in the input, or at the end of the input advance on the stack. These fixes can be expressed in the original definition, so it still has the same power. Here’s the new version of the PDA:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-v2.446ad52071efa146.svg" alt="Even-length binary palindromes, v2">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-v2.446ad52071efa146.svg" alt="Even-length binary palindromes, v2">
+</div>
 <p>So with that, we can go to the code. I apologise for the messier transition functions. Those don’t correspond to the diagram as clearly. In retrospect this approach to the transition functions would have also worked for the other PDA, although it would be slightly less efficient (I think).</p>
 <pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">State </span><span style="color:#f29668;">= </span><span style="color:#ff7733;">u8</span><span style="color:#bfbab0cc;">;
 </span><span style="color:#ff7733;">type </span><span style="color:#59c2ff;">InputSymbol </span><span style="color:#f29668;">= </span><span style="color:#ff7733;">u8</span><span style="color:#bfbab0cc;">;
@@ -244,12 +252,16 @@ These rules are written with terminals (symbols from the alphabet), and sorts (o
 <p>Let’s look at the PDA for the binary palindrome grammar:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-grammar.891c793ca235c49c.svg" alt="Even-length binary palindromes, translated from the grammar">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-grammar.891c793ca235c49c.svg" alt="Even-length binary palindromes, translated from the grammar">
+</div>
 <p>I went for the PDA which starts with an initialised stack and can manipulate multiple things on (the top of) the stack at once. That gives a more compact PDA, and is also closer to an implementable state. Sadly this example doesn’t visibly show that the bodies of the rules are reversed, because all rules in this grammar are symmetrical.</p>
 <p>It’s interesting to see that this PDA is actually smaller in states than our hand-written one. But this one does have some more overhead because it’s pushing a lot of stuff on the stack including sorts. Let’s see if we can reduce that overhead a little by at least making the transitions that don’t consume any input into transitions that do. For that we need to merge a rule like <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi><mo>,</mo><mi>S</mi><mo>→</mo><mn>0</mn><mi>S</mi><mn>0</mn></math> with other rules that will come afterwards which do consume input. That’s <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0</mn><mo>,</mo><mn>0</mn><mo>→</mo><mi>ε</mi></math> in this case. So combining the two rules gets us <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0</mn><mo>,</mo><mi>S</mi><mo>→</mo><mn>0</mn><mi>S</mi></math>, by adding the input symbol consumption and resolving the stack pop. We can do the same with the other transition that takes no input. The last rule to resolve is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ϵ</mi><mo>,</mo><mi>S</mi><mo>→</mo><mi>ε</mi></math>. This one can be merged with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ϵ</mi><mo>,</mo><mi>S</mi><mo>→</mo><mn>0</mn><mi>S</mi><mn>0</mn></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0</mn><mo>,</mo><mn>0</mn><mo>→</mo><mi>ε</mi></math> to form <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0</mn><mo>,</mo><mi>S</mi><mo>→</mo><mn>0</mn></math> and with the other two transitions to form <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>1</mn><mo>,</mo><mi>S</mi><mo>→</mo><mn>1</mn></math>.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-merged.644de76ac1a2ac30.svg" alt="Even-length binary palindromes, merged grammar rules">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/even-binary-palindromes-merged.644de76ac1a2ac30.svg" alt="Even-length binary palindromes, merged grammar rules">
+</div>
 <p>Now the sort <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi></math> has been changed from a fairly useless overhead to a marker of “we’re not halfway yet”. In our hand-written PDA this was not a symbol on the stack but a different state.</p>
 <p>When you <a href="https://github.com/Apanatshka/blog/tree/zola/content/pushy-automata/binary_palindrome/src/grammar_based.rs">implement</a> this PDA you get an output that shows that there is one redundant state that it’s always in:</p>
 <pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>[(</span><span style="color:#f29718;">0</span><span style="color:#bfbab0cc;">, </span><span>[</span><span style="color:#f29718;">2</span><span style="color:#bfbab0cc;">, </span><span style="color:#f29718;">3</span><span>])</span><span style="color:#bfbab0cc;">, </span><span>(</span><span style="color:#f29718;">1</span><span style="color:#bfbab0cc;">, </span><span>[])]
@@ -289,9 +301,13 @@ This rule without the overhead is just a simple combination of the old rules <ma
 <table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
 <tr><td style="text-align: left">
 
-<img src="https://blog.jeffsmits.net/graphviz/arith-derivation-tree1.c3126759c569d570.svg" alt="arithmetic expressions derivation tree 1"></td><td style="text-align: left">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/arith-derivation-tree1.c3126759c569d570.svg" alt="arithmetic expressions derivation tree 1">
+</div></td><td style="text-align: left">
 
-<img src="https://blog.jeffsmits.net/graphviz/arith-derivation-tree2.4e9d2b14e511624b.svg" alt="arithmetic expressions derivation tree 2"></td></tr>
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/arith-derivation-tree2.4e9d2b14e511624b.svg" alt="arithmetic expressions derivation tree 2">
+</div></td></tr>
 </tbody></table>
 <p>These trees show how the derivations went from sorts to terminals. In a way, they also show an ordering, where the left one does the multiplication first and the right one does the addition first. Although this is an ambiguous grammar, it doesn’t have to be. The language that it captures, arithmetic expressions, has a notion of ordering between addition and multiplication, namely that multiplication goes first. This is called precedence: multiplication takes precedence over (binds tighter than) addition. For this unambiguous language you can explicitly encode the precedence rules in the grammar to get an unambiguous grammar.</p>
 <h3 id="inherently-ambiguous">Inherently ambiguous</h3>

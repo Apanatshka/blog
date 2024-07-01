@@ -43,26 +43,36 @@
 &lt;p&gt;We start again with the separate automata for each rule:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-rule-automata.f04db4ae501d9ff2.svg&quot; alt=&quot;Simple automata for each grammar rule from the example&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-rule-automata.f04db4ae501d9ff2.svg&quot; alt=&quot;Simple automata for each grammar rule from the example&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Now in order to explore to the bottom-left of the parse tree, we need to be free to go into any rule. So we will connect the rules again to the nodes that expect a certain sort, but with epsilon transitions so we don’t observe how far down we are or with what rule in particular we got there. We’ll need that later, but let’s not worry about that until we have the downward exploration.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-epsilon.ff3ef073d150d485.svg&quot; alt=&quot;Partially constructed automaton using the automata from the grammar rules, using epsilon transitions&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-epsilon.ff3ef073d150d485.svg&quot; alt=&quot;Partially constructed automaton using the automata from the grammar rules, using epsilon transitions&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Obviously this is not a full automaton model of a parser yet, but it allows us to always go down to the next leaf of the parse tree without using the stack. Let’s clean up the automaton with an NFA-to-DFA conversion:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-dfa.efccfa9e2e0f6245.svg&quot; alt=&quot;Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-dfa.efccfa9e2e0f6245.svg&quot; alt=&quot;Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the “LR item“s &lt;code&gt;S = . a S&lt;&#x2F;code&gt; and &lt;code&gt;S = a . S&lt;&#x2F;code&gt;. But otherwise it would be pretty much this. This is considered a PDA, though what’s happening on the stack is left implicit. That’s because what’s actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I’ll demonstrate it once:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-explicit.63cea2eed826dc75.svg&quot; alt=&quot;A fully explicit PDA that does LR parsing&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-explicit.63cea2eed826dc75.svg&quot; alt=&quot;A fully explicit PDA that does LR parsing&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;This should look quite familiar. We’re pushing inputs on the stack as we consume them, paired with the state we’re in at that point. And then we’re popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a &lt;em&gt;shift&lt;&#x2F;em&gt; action, the second is called a &lt;em&gt;reduce&lt;&#x2F;em&gt; action. We’ve seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher. But this time we get an automaton with more states.&lt;&#x2F;p&gt;
 &lt;p&gt;Notice that &lt;em&gt;where&lt;&#x2F;em&gt; a reduce action goes depends on originating state of the last thing that’s popped. That’s why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the &lt;code&gt;a&lt;&#x2F;code&gt; came from box 1 or box 0, we go to different places. This is easier to see in our proper LR(0) automaton, where box 1 points to state S₁ with a transition labeled &lt;code&gt;A&lt;&#x2F;code&gt;. This is a &lt;em&gt;goto&lt;&#x2F;em&gt; action. In an LR parse table interpreter, the &lt;em&gt;goto&lt;&#x2F;em&gt; is a separate action that immediately follows a &lt;em&gt;reduce&lt;&#x2F;em&gt; action, which merely returns to the last popped state. When a reduce just returns that’s also more like a function call and return, so that’s nice. Anyway, that’s also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.&lt;&#x2F;p&gt;
 &lt;p&gt;Something worth repeating now that we’re looking at the details: LL decides what rule to take &lt;em&gt;before&lt;&#x2F;em&gt; consuming the input for that rule, whereas LR decides what rule to take &lt;em&gt;after&lt;&#x2F;em&gt; consuming all the input for that rule. In other words, we only reduce by a rule when we’ve seen the entire body of the rule, that why there’s less trouble with look-ahead.&lt;&#x2F;p&gt;
 &lt;p&gt;Speaking of look-ahead: we have some shift-reduce problems in our automaton. And by that I mean: how do we choose when to shift and when to reduce when both are an option? This is a determinism issue in our current automaton, and just like in our LL automaton, we solve it with look-ahead (and yes, that can and will later be summarised in a parse table). Our latest automaton gives a clear view of what we will be able to do if we reduce, so the look-ahead follows from what input can be consumed next after each reduce:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-explicit-lookahead.958e71e94e30f5b4.svg&quot; alt=&quot;A fully explicit PDA that does LR parsing, with look-ahead&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-single-automaton-explicit-lookahead.958e71e94e30f5b4.svg&quot; alt=&quot;A fully explicit PDA that does LR parsing, with look-ahead&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;As you can see, we need at most 1 look-ahead to deterministically parse this grammar. We’re sometimes looking ahead to the end-of-input represented with &lt;code&gt;$&lt;&#x2F;code&gt;. The look-ahead makes this an LALR(1) grammar; what that is and why it’s different from normal LR(1) is what we’ll see in the next section.&lt;&#x2F;p&gt;
 &lt;h2 id=&quot;lr-parsetable-construction-and-expressivity&quot;&gt;LR parsetable construction and expressivity&lt;&#x2F;h2&gt;
 &lt;p&gt;Let’s look at some example grammars, how to construct their tables, and when you need a better parsetable construction method.&lt;&#x2F;p&gt;
@@ -77,7 +87,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;The LR automaton for this grammar is:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-zero.ebd33936c2d16874.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-zero.ebd33936c2d16874.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;The corresponding parse table follows this automaton:&lt;&#x2F;p&gt;
 &lt;div class=&quot;parsetable&quot;&gt;
 &lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th style=&quot;text-align: left&quot;&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;1&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;2&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;$&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;E&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
@@ -99,7 +111,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;Notice how rule 2 is now right-recursive instead of left-recursive. It’s a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules &lt;em&gt;could&lt;&#x2F;em&gt; give you trouble in LR&lt;sup class=&quot;footnote-reference&quot; id=&quot;fr-indirect-recursion-1&quot;&gt;&lt;a href=&quot;#fn-indirect-recursion&quot;&gt;[1]&lt;&#x2F;a&gt;&lt;&#x2F;sup&gt;.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;simple-lr.b65515fd9fccdc3f.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;&lt;div class=&quot;parsetable&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;simple-lr.b65515fd9fccdc3f.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;&lt;div class=&quot;parsetable&quot;&gt;
 &lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th style=&quot;text-align: left&quot;&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;1&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;2&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;$&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;E&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
 &lt;tr&gt;&lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Box0&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;s Box1&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;em&gt;accept&lt;&#x2F;em&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;S₁₁&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
 &lt;tr&gt;&lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Box1&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;s Box1 &#x2F; r 3&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;r 3&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;r 3&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;E₂&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
@@ -131,7 +145,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;See how rules 4 and 5 are the same except they have different sort names? Yeah, that’s going to be “fun” if they’re used with the same prefix like in rules 1 and 2. Let’s have a look at the automaton and SLR parse table.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;look-ahead-lr.cc712fdaaf5db521.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;&lt;div class=&quot;parsetable&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;look-ahead-lr.cc712fdaaf5db521.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;&lt;div class=&quot;parsetable&quot;&gt;
 &lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th style=&quot;text-align: left&quot;&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;a&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;b&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;c&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;d&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;e&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;$&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;E&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: center&quot;&gt;&lt;code&gt;F&lt;&#x2F;code&gt;&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
 &lt;tr&gt;&lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Box0&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;s Box1&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;s Box2&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;em&gt;accept&lt;&#x2F;em&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
 &lt;tr&gt;&lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Box1&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;s Box3&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;S₁₂&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: center&quot;&gt;S₂₂&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
@@ -167,13 +183,17 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;This results in an automaton that’s almost the same as before:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-one-zero.0e90a277fb481378.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-one-zero.0e90a277fb481378.svg&quot; alt=&quot;An LR(0) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;We now have a reduce-reduce conflict in box 3 again. With look-ahead &lt;code&gt;a&lt;&#x2F;code&gt; you can reduce to both &lt;code&gt;E&lt;&#x2F;code&gt; and &lt;code&gt;F&lt;&#x2F;code&gt;. Same for look-ahead &lt;code&gt;b&lt;&#x2F;code&gt; by the way. It &lt;em&gt;is&lt;&#x2F;em&gt; deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.&lt;&#x2F;p&gt;
 &lt;p&gt;With LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That’s keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above: the left context. I know the information is technically on the stack, but our parsing process decides on the rule to reduce by based on the state and look-ahead only.&lt;&#x2F;p&gt;
 &lt;p&gt;LR(k) automata&#x2F;parsers keep the same parsing process still, they just have larger automata in which their states summarise the left context. We’re basically going to distinguish almost every occurrence of a sort in the grammar, similar to when we made our LL(2) grammar strong:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-one.f367f0ba85665481.svg&quot; alt=&quot;An LR(1) automaton for the above grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;lr-one.f367f0ba85665481.svg&quot; alt=&quot;An LR(1) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;How do we do this? We duplicate each rule for each terminal in the LL follow set of the sort of that rule. We annotate each of those rules with that terminal. Now we do our usual thing: rule to automaton, epsilons, NFA-to-DFA. But when wiring the epsilons, extra terminal annotations should now match up with the &lt;em&gt;LALR&lt;&#x2F;em&gt; follow set of the occurrence of the sort.&lt;&#x2F;p&gt;
 &lt;p&gt;With this particular example, the automaton looks almost the same. There’s a bit more fluff with the annotations, but they basically propagate the look-ahead for each rule. Which means we can distinguish the context in which &lt;code&gt;E&lt;&#x2F;code&gt; and &lt;code&gt;F&lt;&#x2F;code&gt; are used differently! In general though, duplicating each rule for each terminal in the LL follow set leads to a very large amount of rules, and plenty of the time this isn’t necessary… LR(1) automata have lots of redundant states that do basically the same thing and would have been merged in LALR without any reduce-reduce conflicts.&lt;&#x2F;p&gt;
 &lt;h3 id=&quot;parse-table-construction-algorithm&quot;&gt;Parse table construction algorithm&lt;&#x2F;h3&gt;
@@ -195,7 +215,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;The reason for the extra &lt;code&gt;e&lt;&#x2F;code&gt;s in rules 3 and 4 is to show how that increases the LR(1) automaton size. We’ll now have 4 states instead of 2 + an LALR reduce-reduce conflict. The reason for adding rule 7 is so we have a state where we might shift or reduce depending on the look-ahead, which influences the code we generate. Let’s check out the automaton first:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;recursive-ascent.8b8bb3333fd51c96.svg&quot; alt=&quot;An LR(1) automaton for the above grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;recursive-ascent.8b8bb3333fd51c96.svg&quot; alt=&quot;An LR(1) automaton for the above grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Perhaps making both changes at the same time makes this a bad example to show off LR(1) automaton size… If you imagine the automaton without rule 7 you’ll see that boxes 3 and 4 are the same except for their ingoing and outgoing edges. This is what happens with longer rules and having to distinguish the final state of the rules for a different look-ahead (boxes 5 and 6 here).&lt;&#x2F;p&gt;
 &lt;p&gt;The other notable difference is that we now have a box 6 that can both shift and reduce. This will make the code for the recursive ascent more interesting. Let’s start with the basics:&lt;&#x2F;p&gt;
 &lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#0f1419;color:#bfbab0;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#ff7733;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span&gt;std&lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29668;&quot;&gt;::&lt;&#x2F;span&gt;&lt;span&gt;env&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;;
@@ -526,7 +548,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;Push-down automata (PDAs) are automata with a &lt;em&gt;stack&lt;&#x2F;em&gt;. Normal finite automata just consume input and have fixed memory via their states. PDAs can remember things on a single stack too, by pushing onto it and popping from it. Here’s a deterministic PDA for recognising the language of words that start with zeroes, followed by an equal number of ones:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-deterministic.d05812ca2e175a1d.svg&quot; alt=&quot;Non-regular language example, deterministic&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-deterministic.d05812ca2e175a1d.svg&quot; alt=&quot;Non-regular language example, deterministic&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;So we start at &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt;, see if there is a &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; as input, ignore the top of the stack, and put a &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;$&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; on the stack as a marker for the end of the stack. Now we’re in state &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt;, in which we can consume more zeroes from the input and put those on the stack. If we find a one as input, we remove a zero from the stack by not pushing anything new on the stack. Now we’re in state &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;2&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt; where we remove zeroes from the stack for every one in the input, until we consume the final one by removing the &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;$&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; from the stack.&lt;&#x2F;p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Aside: This is one of the examples from the old blog post, and I now see that it is missing a transition! This automaton rejects the input &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;01&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt;, because there is no transition &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;3&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt; labeled &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;$&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;. Oops ^_^&lt;&#x2F;p&gt;
@@ -541,7 +565,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;The most general, naive way to derive a push-down automaton for any context-free grammar is by pushing the end-of-stack and start symbol at the start, having a “main” state that uses the grammar rules with the body reversed (to deal with the stack order), and an accept state that pops the end-of-stack:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-grammar.ea4303ed8632e2ff.svg&quot; alt=&quot;Naive PDA of the above binary grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-grammar.ea4303ed8632e2ff.svg&quot; alt=&quot;Naive PDA of the above binary grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Here the stack grows left-to-right, so the lowest symbol on the stack is $ (end of stack), followed by S (the grammar start symbol). By the rules of the grammar we can manipulate the top of the stack and rewrite it to the body. If the input lines up with what we have on the stack, we can eliminate both. It’s simple, but inefficient because of all the nondeterminism.&lt;&#x2F;p&gt;
 &lt;h2 id=&quot;derivations-parse-trees-and-ambiguity&quot;&gt;Derivations, Parse Trees and Ambiguity&lt;&#x2F;h2&gt;
 &lt;p&gt;Let’s look at a slightly more interesting grammar from a parser perspective:&lt;&#x2F;p&gt;
@@ -563,7 +589,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;The most common semantic actions I’m aware of is to build a syntax tree with a parser. This builds a tree structure out of the parsed text. A parse tree, or concrete syntax tree, contains all the rule applications as seen in the grammar. An abstract syntax tree abstracts over some parts of the syntax tree, such as leaving out whitespace, or parentheticals (the shape of the tree captures the precedence anyway), or injections (grammars rules of the form &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;msub&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mn&gt;2&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt; ). Let’s look at some parse trees of the last example, &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;+&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;*&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; :&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;parse-trees.d6bd2504748a4c7d.svg&quot; alt=&quot;Parse trees of 1 + (1 * 1) and (1 + 1) * 1&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;parse-trees.d6bd2504748a4c7d.svg&quot; alt=&quot;Parse trees of 1 + (1 * 1) and (1 + 1) * 1&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Notice how the leaves of the two trees are in the same order left-to-right as the input, but for the left tree the plus is higher up in the tree while in the right tree the star is higher up. If we want to interpreter the input as simple arithmetic, where multiplication binds tighter than addition, the left tree is the one we want. This is the predecedence of the operators, &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mo&gt;*&lt;&#x2F;mo&gt;&lt;mo&gt;&gt;&lt;&#x2F;mo&gt;&lt;mo&gt;+&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt; .&lt;&#x2F;p&gt;
 &lt;p&gt;When you can get multiple trees like this, the grammar is called ambiguous. More formally, if you use only leftmost derivations (or only rightmost) and still find two distinct derivations that give the same sentence, the grammar is ambiguous. So to be clear: the above trees can be created with only leftmost derivations, it’s not a matter of choosing one or the other for the two trees. Derivation order (leftmost or rightmost) has to do with &lt;em&gt;side-effect order&lt;&#x2F;em&gt; of semantic actions only. When you build trees you don’t really need side-effects, so the derivation order has no effect on it.&lt;&#x2F;p&gt;
 &lt;p&gt;&lt;strong&gt;With that recap out of the way:&lt;&#x2F;strong&gt; For the purposes of &lt;em&gt;this&lt;&#x2F;em&gt; blog post, we’ll look at &lt;em&gt;un&lt;&#x2F;em&gt;ambiguous grammars for the languages we want to parse. Still, whether you use leftmost derivation or rightmost derivation in a parser that parses unambiguous grammars matters quite a lot in terms of what languages you can describe deterministically. It also influences how easily you can write a parser by hand for such a grammar, and how easily you can (programmatically) explain why your parser &lt;em&gt;doesn’t&lt;&#x2F;em&gt; accept certain inputs (parser error messages). So let’s have a look at LL and LR parsing techniques, where the first L in those abbreviations stands for Left-to-right (as in reading direction in text), and the second letters are respectively leftmost and rightmost derivation.&lt;&#x2F;p&gt;
@@ -609,7 +637,9 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;Step 1: Let’s build a simple automaton for each rule of the grammar, where we assume both sorts and terminals are on the input.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-rule-automata.be659b2664c7a3cd.svg&quot; alt=&quot;Simple automata for each grammar rule from the last example&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-rule-automata.be659b2664c7a3cd.svg&quot; alt=&quot;Simple automata for each grammar rule from the last example&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Note how each node of a rule automaton has the number of the rule followed by the offset into the body of the rule. The state represents where we are in the rule while parsing by that rule. The last node doesn’t have this offset so you can easily identify it, even when it’s no longer a final state.&lt;&#x2F;p&gt;
 &lt;p&gt;Typically you’ll find texts on parsers display the position in a rule more visually with “LR item” notation. This uses the actual rule and a dot to indicate where we are in the rule. While this makes individual automata states more readable, it makes the automata large and therefore harder to display in a readable way as a whole. That’s why you won’t find that notation in this post’s automata. But just to illustrate an example of the notation:&lt;&#x2F;p&gt;
 &lt;div class=&quot;parsetable&quot;&gt;
@@ -623,12 +653,16 @@ Let’s look at an LR(0) grammar:&lt;&#x2F;p&gt;
 &lt;p&gt;Step 2: Now instead of consuming a sort with an automaton, we’ll use &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; rules to jump to the automata of the rules for that sort instead. We’ll use the PDA stack with unique labels to get back to where you would be after consuming the sort.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-single-automaton.799f4fb2d9457d92.svg&quot; alt=&quot;Single PDA using the automata from the grammar rules&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-single-automaton.799f4fb2d9457d92.svg&quot; alt=&quot;Single PDA using the automata from the grammar rules&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;The &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mo&gt;↓&lt;&#x2F;mo&gt;&lt;mrow&gt;&lt;&#x2F;mrow&gt;&lt;mi&gt;X&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; is an abbreviation for an &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mi&gt;X&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; edge that pushes a symbol on the stack unconditionally, it was hard to get graphviz to cooperate on node placement of this graph otherwise… Now at every node that had a sort transition you have multiple transition options, these are where you need to look ahead. Soooo…&lt;&#x2F;p&gt;
 &lt;p&gt;Step 3: at a sort transition node, for each &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mo&gt;↓&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt; transition, follow transitions until you’ve consumed &lt;em&gt;k&lt;&#x2F;em&gt; terminals (2 in this example) from the input. These are the terminals of the column in the parse table, and the rule of the &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mo&gt;↓&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt; transition gets put into that cell. You can also put the look-ahead into the automaton:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-single-automaton-lookahead.99854ad3ee7ebc2e.svg&quot; alt=&quot;Single PDA using the automata from the grammar rules with lookahead noted&quot;&gt;&lt;h3 id=&quot;building-ll-tables-for-strong-ll-grammars-by-traditional-method&quot;&gt;Building LL tables for strong LL grammars by traditional method&lt;&#x2F;h3&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;ll-single-automaton-lookahead.99854ad3ee7ebc2e.svg&quot; alt=&quot;Single PDA using the automata from the grammar rules with lookahead noted&quot;&gt;
+&lt;&#x2F;div&gt;&lt;h3 id=&quot;building-ll-tables-for-strong-ll-grammars-by-traditional-method&quot;&gt;Building LL tables for strong LL grammars by traditional method&lt;&#x2F;h3&gt;
 &lt;p&gt;While the above building of automata gives a visual intuition, it’s not the most efficient way to express how we can build LL tables. The traditional method does the same thing in essence, but using some pre-computed sets to calculate the cells in the table.&lt;&#x2F;p&gt;
 &lt;p&gt;A cell at the row labeled with sort &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; and the column labeled with terminal(s) &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;v&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; should have the grammar rule &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; (where &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; is a mix of terminals and sorts or &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;), under the following condition: &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;v&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; is in the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;, or &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; is in the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; and &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;v&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; is in the &lt;em&gt;Follow&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;. In other words: &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;v&lt;&#x2F;mi&gt;&lt;mo&gt;∈&lt;&#x2F;mo&gt;&lt;mrow&gt;&lt;mi&gt;F&lt;&#x2F;mi&gt;&lt;mi&gt;i&lt;&#x2F;mi&gt;&lt;mi&gt;r&lt;&#x2F;mi&gt;&lt;mi&gt;s&lt;&#x2F;mi&gt;&lt;mi&gt;t&lt;&#x2F;mi&gt;&lt;&#x2F;mrow&gt;&lt;mo&gt;(&lt;&#x2F;mo&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;mo&gt;)&lt;&#x2F;mo&gt;&lt;mo&gt;·&lt;&#x2F;mo&gt;&lt;mrow&gt;&lt;mi&gt;F&lt;&#x2F;mi&gt;&lt;mi&gt;o&lt;&#x2F;mi&gt;&lt;mi&gt;l&lt;&#x2F;mi&gt;&lt;mi&gt;l&lt;&#x2F;mi&gt;&lt;mi&gt;o&lt;&#x2F;mi&gt;&lt;mi&gt;w&lt;&#x2F;mi&gt;&lt;&#x2F;mrow&gt;&lt;mo&gt;(&lt;&#x2F;mo&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;mo&gt;)&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt;&lt;&#x2F;p&gt;
 &lt;p&gt;Let’s unpack that. The &lt;em&gt;First&lt;&#x2F;em&gt; set of a terminal is a singleton set with that terminal. The &lt;em&gt;First&lt;&#x2F;em&gt; set of a sort is the set of first non-terminals that the sort can expand to, directly or indirectly. So a rule &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;mi&gt;a&lt;&#x2F;mi&gt;&lt;mo&gt;[&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;]&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt; causes &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;a&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; to appear in the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;, &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;mi&gt;B&lt;&#x2F;mi&gt;&lt;mo&gt;[&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;.&lt;&#x2F;mo&gt;&lt;mo&gt;]&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt; causes the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;B&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; to be included in the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;, and &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; causes &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; to appear in the &lt;em&gt;First&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;. This last rule says &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; can be expanded to “nothing”, so if that’s an option we need to check the &lt;em&gt;Follow&lt;&#x2F;em&gt; set of &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;A&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;.&lt;&#x2F;p&gt;
@@ -1884,34 +1918,50 @@ other than the original intended use-case of networks&lt;sup class=&quot;footnot
 &lt;p&gt;Say you have two automata that can recognise words in their respective languages. The union of the two would recognise words from either language. So creating one NFA for the combined language out of the two only requires that you run the two “in parallel” and if either ends up in a final state you accept. Let’s try the naive way and merge the start states of the two automata:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-1.e1dd8dcd6cab3472.svg&quot; alt=&quot;Binary string DFA 1&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-1.e1dd8dcd6cab3472.svg&quot; alt=&quot;Binary string DFA 1&quot;&gt;
+&lt;&#x2F;div&gt;
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-2.cd480cafe88458b9.svg&quot; alt=&quot;Binary string DFA 2&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-2.cd480cafe88458b9.svg&quot; alt=&quot;Binary string DFA 2&quot;&gt;
+&lt;&#x2F;div&gt;
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-union-1-2.c951e904f7037b91.svg&quot; alt=&quot;NFA union of DFAs 1 and 2&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-union-1-2.c951e904f7037b91.svg&quot; alt=&quot;NFA union of DFAs 1 and 2&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Cool. It works. But not in the general case! When there are edges going back to one of the start states, you get a mess. Say you have:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-3.9d22e0e1d87d096a.svg&quot; alt=&quot;Binary string DFA 3&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-3.9d22e0e1d87d096a.svg&quot; alt=&quot;Binary string DFA 3&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Odd number of zeroes, then a one, that’s the language. And the other is:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-4.78c73fb27199b5ba.svg&quot; alt=&quot;Binary string DFA 4&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-4.78c73fb27199b5ba.svg&quot; alt=&quot;Binary string DFA 4&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Single word language: &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mn&gt;10&lt;&#x2F;mn&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt;&lt;&#x2F;p&gt;
 &lt;p&gt;Now we merge the start states naively as before:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;wrong-nfa-union-3-4.cc7ab4e882ff1bf9.svg&quot; alt=&quot;(wrong) NFA union of DFAs 3 and 4&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;wrong-nfa-union-3-4.cc7ab4e882ff1bf9.svg&quot; alt=&quot;(wrong) NFA union of DFAs 3 and 4&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Now suddenly &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0010&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; is in the combined language, but it wasn’t in either of the originals. So that’s not a proper union operation. To fix this, we’ll use an extension of NFAs.&lt;&#x2F;p&gt;
 &lt;h3 id=&quot;nfa&quot;&gt;NFA-&lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;&lt;&#x2F;h3&gt;
 &lt;p&gt;A simple way to specify the correct union operation is through epsilon transitions. You add a new start state and epsilon transitions to the start states of the automata you want to union:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-e-union-3-4.66b8dbcfde098fe7.svg&quot; alt=&quot;(correct) NFA-e union of DFAs 3 and 4&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-e-union-3-4.66b8dbcfde098fe7.svg&quot; alt=&quot;(correct) NFA-e union of DFAs 3 and 4&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;If you remember my &lt;a href=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;finite-automata&#x2F;#epsilon-moves&quot;&gt;first finite automata post&lt;&#x2F;a&gt; you may be reminded of the regex “or” (&lt;code&gt;|&lt;&#x2F;code&gt;) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition “for free” without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-union-3-4.dad15b0a80bfcf24.svg&quot; alt=&quot;(correct) NFA union of DFAs 3 and 4&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;nfa-union-3-4.dad15b0a80bfcf24.svg&quot; alt=&quot;(correct) NFA union of DFAs 3 and 4&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;This is a perfectly valid thing to do directly instead of going via epsilon transitions and doing using the epsilon-closure operation to turn the NFA-&lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; into a normal NFA. But at work a friend (Daniël) mentioned that I didn’t go into epsilon closure in my last post, and that it’s surprisingly hard to implement (efficiently anyway), so this time we’ll look at this epsilon-closure.&lt;&#x2F;p&gt;
 &lt;h1 id=&quot;the-elusive-epsilon-closure&quot;&gt;The elusive epsilon closure&lt;&#x2F;h1&gt;
 &lt;p&gt;So we have an NFA-&lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; and we want a normal NFA. That means we need to copy the out-transitions of other nodes reachable by epsilon transition. Seems pretty simple right? Let’s do that (naively), with some adapted data definitions from last post:&lt;&#x2F;p&gt;
@@ -2587,18 +2637,24 @@ If you’re on a mac, Terminal.app is not going to help you with 256 colours. Wh
 &lt;p&gt;The finite automaton that has a stack is called a pushdown automaton (PDA). You can think of the stack as a tray dispenser that you can &lt;em&gt;push&lt;&#x2F;em&gt; new trays &lt;em&gt;down&lt;&#x2F;em&gt; on. Let’s kick things off with an example PDA that recognises our non-regular language example:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-language.24c339db73e81fd6.svg&quot; alt=&quot;Non-regular language example&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-language.24c339db73e81fd6.svg&quot; alt=&quot;Non-regular language example&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;So what’s happening here? The transitions now have a lot more than than just the input symbol being consumed. After the comma is the top stack symbol that’s popped, and after the arrow is the new stack symbol to be pushed. If you look at &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msub&gt;&lt;mi&gt;q&lt;&#x2F;mi&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;msub&gt;&lt;&#x2F;math&gt;, it is taking 0’s off the input and pushed them onto the stack. Then it takes in as many 1’s as 0’s, by popping a 0 off the stack for every &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; in the input.&lt;br &#x2F;&gt;
 The outer states are only there to make sure we have a fully empty stack before we go into a final state. The $ is usually used as an &lt;em&gt;End Of Stack&lt;&#x2F;em&gt; character. You can also change the definition of the PDA to already hold 1 character on the stack at the start. This is part of the definition as you find it on &lt;a href=&quot;https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Pushdown_automaton#Formal_definition&quot;&gt;Wikipedia&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
 &lt;h2 id=&quot;determinism&quot;&gt;Determinism&lt;&#x2F;h2&gt;
 &lt;p&gt;The previous PDA was non-deterministic, but we can make it deterministic. I’ve left off the stuck state, but there should be no overlapping transitions and all transitions consume either input, stack or both.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-deterministic.d05812ca2e175a1d.svg&quot; alt=&quot;Non-regular language example, deterministic&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;non-regular-deterministic.d05812ca2e175a1d.svg&quot; alt=&quot;Non-regular language example, deterministic&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Now in general, we &lt;em&gt;cannot&lt;&#x2F;em&gt; change our PDAs to a deterministic version (deterministic PDAs are strictly less powerful). For example, take the language of even-length binary palindromes. This language can be recognised by the following non-deterministic PDA, but not by a deterministic one:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes.24c798dbcfd6472c.svg&quot; alt=&quot;Even-length binary palindromes&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes.24c798dbcfd6472c.svg&quot; alt=&quot;Even-length binary palindromes&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;If you think about it, it makes sense that a non-deterministic PDA is more powerful than a deterministic PDA. With the NFAs in the previous post we had just a finite amount of states we could be in while executing, and you can model that with (an exponential amount of) states in a DFA. But for a PDA, it isn’t just the state that matters, but the stack as well. Since the stack isn’t finite, we can’t just model it in more states.&lt;&#x2F;p&gt;
 &lt;h2 id=&quot;code&quot;&gt;Code&lt;&#x2F;h2&gt;
 &lt;p&gt;These PDAs are a bit annoying to write as is. Epsilons for the input character mean that we’re not advancing the input. We could write a direct encoding of the formal definition, but then we need to resolve epsilons at runtime. The execution would become pull-based, asking for input and the top of the stack when we need it. Somehow that feels wrong to me.&lt;br &#x2F;&gt;
@@ -2636,7 +2692,9 @@ So instead we’re going to adapt our definition of PDAs, so that we can write c
 &lt;p&gt;With the above fixes, we can get a PDA that will always either advance one step in the input, or at the end of the input advance on the stack. These fixes can be expressed in the original definition, so it still has the same power. Here’s the new version of the PDA:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-v2.446ad52071efa146.svg&quot; alt=&quot;Even-length binary palindromes, v2&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-v2.446ad52071efa146.svg&quot; alt=&quot;Even-length binary palindromes, v2&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;So with that, we can go to the code. I apologise for the messier transition functions. Those don’t correspond to the diagram as clearly. In retrospect this approach to the transition functions would have also worked for the other PDA, although it would be slightly less efficient (I think).&lt;&#x2F;p&gt;
 &lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#0f1419;color:#bfbab0;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#ff7733;&quot;&gt;type &lt;&#x2F;span&gt;&lt;span style=&quot;color:#59c2ff;&quot;&gt;State &lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29668;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ff7733;&quot;&gt;u8&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;;
 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ff7733;&quot;&gt;type &lt;&#x2F;span&gt;&lt;span style=&quot;color:#59c2ff;&quot;&gt;InputSymbol &lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29668;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ff7733;&quot;&gt;u8&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;;
@@ -2781,12 +2839,16 @@ These rules are written with terminals (symbols from the alphabet), and sorts (o
 &lt;p&gt;Let’s look at the PDA for the binary palindrome grammar:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-grammar.891c793ca235c49c.svg&quot; alt=&quot;Even-length binary palindromes, translated from the grammar&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-grammar.891c793ca235c49c.svg&quot; alt=&quot;Even-length binary palindromes, translated from the grammar&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;I went for the PDA which starts with an initialised stack and can manipulate multiple things on (the top of) the stack at once. That gives a more compact PDA, and is also closer to an implementable state. Sadly this example doesn’t visibly show that the bodies of the rules are reversed, because all rules in this grammar are symmetrical.&lt;&#x2F;p&gt;
 &lt;p&gt;It’s interesting to see that this PDA is actually smaller in states than our hand-written one. But this one does have some more overhead because it’s pushing a lot of stuff on the stack including sorts. Let’s see if we can reduce that overhead a little by at least making the transitions that don’t consume any input into transitions that do. For that we need to merge a rule like &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; with other rules that will come afterwards which do consume input. That’s &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; in this case. So combining the two rules gets us &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;, by adding the input symbol consumption and resolving the stack pop. We can do the same with the other transition that takes no input. The last rule to resolve is &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ϵ&lt;&#x2F;mi&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt;. This one can be merged with &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;ϵ&lt;&#x2F;mi&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; and &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mi&gt;ε&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; to form &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt; and with the other two transitions to form &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;mo&gt;→&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;&#x2F;math&gt;.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-merged.644de76ac1a2ac30.svg&quot; alt=&quot;Even-length binary palindromes, merged grammar rules&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;even-binary-palindromes-merged.644de76ac1a2ac30.svg&quot; alt=&quot;Even-length binary palindromes, merged grammar rules&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Now the sort &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi&gt;S&lt;&#x2F;mi&gt;&lt;&#x2F;math&gt; has been changed from a fairly useless overhead to a marker of “we’re not halfway yet”. In our hand-written PDA this was not a symbol on the stack but a different state.&lt;&#x2F;p&gt;
 &lt;p&gt;When you &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;Apanatshka&#x2F;blog&#x2F;tree&#x2F;zola&#x2F;content&#x2F;pushy-automata&#x2F;binary_palindrome&#x2F;src&#x2F;grammar_based.rs&quot;&gt;implement&lt;&#x2F;a&gt; this PDA you get an output that shows that there is one redundant state that it’s always in:&lt;&#x2F;p&gt;
 &lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#0f1419;color:#bfbab0;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;[(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29718;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span&gt;[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29718;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29718;&quot;&gt;3&lt;&#x2F;span&gt;&lt;span&gt;])&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#f29718;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bfbab0cc;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span&gt;[])]
@@ -2826,9 +2888,13 @@ This rule without the overhead is just a simple combination of the old rules &lt
 &lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th style=&quot;text-align: left&quot;&gt;&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: left&quot;&gt;&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
 &lt;tr&gt;&lt;td style=&quot;text-align: left&quot;&gt;
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;arith-derivation-tree1.c3126759c569d570.svg&quot; alt=&quot;arithmetic expressions derivation tree 1&quot;&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: left&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;arith-derivation-tree1.c3126759c569d570.svg&quot; alt=&quot;arithmetic expressions derivation tree 1&quot;&gt;
+&lt;&#x2F;div&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: left&quot;&gt;
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;arith-derivation-tree2.4e9d2b14e511624b.svg&quot; alt=&quot;arithmetic expressions derivation tree 2&quot;&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;arith-derivation-tree2.4e9d2b14e511624b.svg&quot; alt=&quot;arithmetic expressions derivation tree 2&quot;&gt;
+&lt;&#x2F;div&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
 &lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
 &lt;p&gt;These trees show how the derivations went from sorts to terminals. In a way, they also show an ordering, where the left one does the multiplication first and the right one does the addition first. Although this is an ambiguous grammar, it doesn’t have to be. The language that it captures, arithmetic expressions, has a notion of ordering between addition and multiplication, namely that multiplication goes first. This is called precedence: multiplication takes precedence over (binds tighter than) addition. For this unambiguous language you can explicitly encode the precedence rules in the grammar to get an unambiguous grammar.&lt;&#x2F;p&gt;
 &lt;h3 id=&quot;inherently-ambiguous&quot;&gt;Inherently ambiguous&lt;&#x2F;h3&gt;
@@ -2876,7 +2942,9 @@ The way you formally describe a DFA is by defining:&lt;&#x2F;p&gt;
 &lt;p&gt;Let’s construct a DFA that can recognise inputs that start with a one, has at least two zeroes after that, and then at least one more one, after which the ‘word’ ends.&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa.e3428977631cdb51.svg&quot; alt=&quot;Binary string DFA&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa.e3428977631cdb51.svg&quot; alt=&quot;Binary string DFA&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Note that I’ve already started cheating with the construction of this DFA. Not every state handles all symbols in the alphabet (0 and 1). This partially defined DFA is usually easier to write and read. The usual way to make it fully defined is to add an explicit &lt;em&gt;stuck state&lt;&#x2F;em&gt;. All the unhandled symbols go to that state, and with any next input the DFA will stay in that state.&lt;&#x2F;p&gt;
 &lt;h3 id=&quot;code-code-code&quot;&gt;Code code code&lt;&#x2F;h3&gt;
 &lt;p&gt;In Rust we can do the partial definition of the DFA with an &lt;code&gt;Option&lt;&#x2F;code&gt; type:&lt;&#x2F;p&gt;
@@ -2924,13 +2992,17 @@ So &lt;code&gt;None&lt;&#x2F;code&gt; is the stuck state and the ‘real’ stat
 &lt;p&gt;Note that DFAs are so restricted that they don’t really have mutable memory. Any kind of memory of what you’ve already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-memory.a32126a3cc4bc109.svg&quot; alt=&quot;Binary string DFA encoding memory&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-dfa-memory.a32126a3cc4bc109.svg&quot; alt=&quot;Binary string DFA encoding memory&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;We remember the last three input symbols in our states. That gives us &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;msup&gt;&lt;mn&gt;2&lt;&#x2F;mn&gt;&lt;mn&gt;3&lt;&#x2F;mn&gt;&lt;&#x2F;msup&gt;&lt;&#x2F;math&gt; states, an exponential relation. So with these kinds of problems, you really don’t want to design these DFAs by hand.&lt;&#x2F;p&gt;
 &lt;h2 id=&quot;non-deterministic-finite-automaton-nfa&quot;&gt;Non-deterministic Finite Automaton (NFA)&lt;&#x2F;h2&gt;
 &lt;p&gt;Non-determinism allows states to have multiple transitions per symbol. That means that when you simulate an NFA, you can be in multiple states at once. This allows us to avoid the exponential blowup of the last example:&lt;&#x2F;p&gt;
 
 
-&lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-nfa.eaa5e116dbae9837.svg&quot; alt=&quot;Binary string NFA&quot;&gt;
+&lt;div class=&quot;gz_dot&quot;&gt;
+    &lt;img src=&quot;https:&#x2F;&#x2F;blog.jeffsmits.net&#x2F;graphviz&#x2F;binary-string-nfa.eaa5e116dbae9837.svg&quot; alt=&quot;Binary string NFA&quot;&gt;
+&lt;&#x2F;div&gt;
 &lt;p&gt;Although this NFA is easier to describe, it’s still always translatable to a DFA. This translation algorithm is called powerset construction or subset construction. The powerset of a set is the set of all combinations: &lt;math xmlns=&quot;http:&#x2F;&#x2F;www.w3.org&#x2F;1998&#x2F;Math&#x2F;MathML&quot; display=&quot;inline&quot;&gt;&lt;mi mathvariant=&quot;double-struck&quot;&gt;P&lt;&#x2F;mi&gt;&lt;mo&gt;(&lt;&#x2F;mo&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;mo&gt;)&lt;&#x2F;mo&gt;&lt;mo&gt;=&lt;&#x2F;mo&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mi mathvariant=&quot;normal&quot;&gt;∅&lt;&#x2F;mi&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mo&gt;{&lt;&#x2F;mo&gt;&lt;mn&gt;0&lt;&#x2F;mn&gt;&lt;mo&gt;,&lt;&#x2F;mo&gt;&lt;mn&gt;1&lt;&#x2F;mn&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;mo&gt;}&lt;&#x2F;mo&gt;&lt;&#x2F;math&gt;&lt;&#x2F;p&gt;
 &lt;h3 id=&quot;powerset-construction&quot;&gt;Powerset construction&lt;&#x2F;h3&gt;
 &lt;ol&gt;

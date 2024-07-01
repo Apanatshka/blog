@@ -57,7 +57,9 @@ The way you formally describe a DFA is by defining:</p>
 <p>Let’s construct a DFA that can recognise inputs that start with a one, has at least two zeroes after that, and then at least one more one, after which the ‘word’ ends.</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa.e3428977631cdb51.svg" alt="Binary string DFA">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa.e3428977631cdb51.svg" alt="Binary string DFA">
+</div>
 <p>Note that I’ve already started cheating with the construction of this DFA. Not every state handles all symbols in the alphabet (0 and 1). This partially defined DFA is usually easier to write and read. The usual way to make it fully defined is to add an explicit <em>stuck state</em>. All the unhandled symbols go to that state, and with any next input the DFA will stay in that state.</p>
 <h3 id="code-code-code">Code code code</h3>
 <p>In Rust we can do the partial definition of the DFA with an <code>Option</code> type:</p>
@@ -105,13 +107,17 @@ So <code>None</code> is the stuck state and the ‘real’ states are wrapped in
 <p>Note that DFAs are so restricted that they don’t really have mutable memory. Any kind of memory of what you’ve already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-memory.a32126a3cc4bc109.svg" alt="Binary string DFA encoding memory">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-memory.a32126a3cc4bc109.svg" alt="Binary string DFA encoding memory">
+</div>
 <p>We remember the last three input symbols in our states. That gives us <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msup><mn>2</mn><mn>3</mn></msup></math> states, an exponential relation. So with these kinds of problems, you really don’t want to design these DFAs by hand.</p>
 <h2 id="non-deterministic-finite-automaton-nfa">Non-deterministic Finite Automaton (NFA)</h2>
 <p>Non-determinism allows states to have multiple transitions per symbol. That means that when you simulate an NFA, you can be in multiple states at once. This allows us to avoid the exponential blowup of the last example:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-nfa.eaa5e116dbae9837.svg" alt="Binary string NFA">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-nfa.eaa5e116dbae9837.svg" alt="Binary string NFA">
+</div>
 <p>Although this NFA is easier to describe, it’s still always translatable to a DFA. This translation algorithm is called powerset construction or subset construction. The powerset of a set is the set of all combinations: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi mathvariant="double-struck">P</mi><mo>(</mo><mo>{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>}</mo><mo>)</mo><mo>=</mo><mo>{</mo><mi mathvariant="normal">∅</mi><mo>,</mo><mo>{</mo><mn>0</mn><mo>}</mo><mo>,</mo><mo>{</mo><mn>1</mn><mo>}</mo><mo>,</mo><mo>{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>}</mo><mo>}</mo></math></p>
 <h3 id="powerset-construction">Powerset construction</h3>
 <ol>

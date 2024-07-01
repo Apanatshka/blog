@@ -42,34 +42,50 @@
 <p>Say you have two automata that can recognise words in their respective languages. The union of the two would recognise words from either language. So creating one NFA for the combined language out of the two only requires that you run the two “in parallel” and if either ends up in a final state you accept. Let’s try the naive way and merge the start states of the two automata:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-1.e1dd8dcd6cab3472.svg" alt="Binary string DFA 1">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-1.e1dd8dcd6cab3472.svg" alt="Binary string DFA 1">
+</div>
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-2.cd480cafe88458b9.svg" alt="Binary string DFA 2">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-2.cd480cafe88458b9.svg" alt="Binary string DFA 2">
+</div>
 
-<img src="https://blog.jeffsmits.net/graphviz/nfa-union-1-2.c951e904f7037b91.svg" alt="NFA union of DFAs 1 and 2">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/nfa-union-1-2.c951e904f7037b91.svg" alt="NFA union of DFAs 1 and 2">
+</div>
 <p>Cool. It works. But not in the general case! When there are edges going back to one of the start states, you get a mess. Say you have:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-3.9d22e0e1d87d096a.svg" alt="Binary string DFA 3">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-3.9d22e0e1d87d096a.svg" alt="Binary string DFA 3">
+</div>
 <p>Odd number of zeroes, then a one, that’s the language. And the other is:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-4.78c73fb27199b5ba.svg" alt="Binary string DFA 4">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/binary-string-dfa-4.78c73fb27199b5ba.svg" alt="Binary string DFA 4">
+</div>
 <p>Single word language: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>{</mo><mn>10</mn><mo>}</mo></math></p>
 <p>Now we merge the start states naively as before:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/wrong-nfa-union-3-4.cc7ab4e882ff1bf9.svg" alt="(wrong) NFA union of DFAs 3 and 4">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/wrong-nfa-union-3-4.cc7ab4e882ff1bf9.svg" alt="(wrong) NFA union of DFAs 3 and 4">
+</div>
 <p>Now suddenly <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mn>0010</mn></math> is in the combined language, but it wasn’t in either of the originals. So that’s not a proper union operation. To fix this, we’ll use an extension of NFAs.</p>
 <h3 id="nfa">NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math></h3>
 <p>A simple way to specify the correct union operation is through epsilon transitions. You add a new start state and epsilon transitions to the start states of the automata you want to union:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/nfa-e-union-3-4.66b8dbcfde098fe7.svg" alt="(correct) NFA-e union of DFAs 3 and 4">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/nfa-e-union-3-4.66b8dbcfde098fe7.svg" alt="(correct) NFA-e union of DFAs 3 and 4">
+</div>
 <p>If you remember my <a href="https://blog.jeffsmits.net/finite-automata/#epsilon-moves">first finite automata post</a> you may be reminded of the regex “or” (<code>|</code>) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition “for free” without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:</p>
 
 
-<img src="https://blog.jeffsmits.net/graphviz/nfa-union-3-4.dad15b0a80bfcf24.svg" alt="(correct) NFA union of DFAs 3 and 4">
+<div class="gz_dot">
+    <img src="https://blog.jeffsmits.net/graphviz/nfa-union-3-4.dad15b0a80bfcf24.svg" alt="(correct) NFA union of DFAs 3 and 4">
+</div>
 <p>This is a perfectly valid thing to do directly instead of going via epsilon transitions and doing using the epsilon-closure operation to turn the NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> into a normal NFA. But at work a friend (Daniël) mentioned that I didn’t go into epsilon closure in my last post, and that it’s surprisingly hard to implement (efficiently anyway), so this time we’ll look at this epsilon-closure.</p>
 <h1 id="the-elusive-epsilon-closure">The elusive epsilon closure</h1>
 <p>So we have an NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> and we want a normal NFA. That means we need to copy the out-transitions of other nodes reachable by epsilon transition. Seems pretty simple right? Let’s do that (naively), with some adapted data definitions from last post:</p>
