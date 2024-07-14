@@ -1,0 +1,11 @@
+[package]
+name = "optimizing_directly_executable_lr_parsers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "paper_benchmarks"
+harness = false

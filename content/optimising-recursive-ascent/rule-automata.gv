@@ -1,0 +1,74 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    subgraph {
+    node [style=filled, fillcolor="#fff", fontcolor="#333"];
+    start7 [style="", shape=none, label="", width=0];
+    F7 [shape=doublecircle, width=0.4, label="F₇"];
+    F71 [label="F₇₁"];
+    F72 [label="F₇₂"];
+    F70 [label="F₇₀"];
+    start7 -> F70;
+    F70 -> F71 [label="("];
+    F71 -> F72 [label="E"];
+    F72 -> F7 [label=")"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#ddd", fontcolor="#333"];
+    start6 [style="", shape=none, label="", width=0];
+    F6 [shape=doublecircle, width=0.4, label="F₆"];
+    F60 [label="F₆₀"];
+    start6 -> F60;
+    F60 -> F6 [label="a"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#bbb", fontcolor="#333"];
+    start5 [style="", shape=none, label="", width=0];
+    T5 [shape=doublecircle, width=0.4, label="T₅"];
+    T50 [label="T₅₀"];
+    start5 -> T50;
+    T50 -> T5 [label="F"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#999", fontcolor="#333"];
+    start4 [style="", shape=none, label="", width=0];
+    T4 [shape=doublecircle, width=0.4, label="T₄"];
+    T40 [label="T₄₀"];
+    T41 [label="T₄₁"];
+    T42 [label="T₄₂"];
+    start4 -> T40;
+    T40 -> T41 [label="T"];
+    T41 -> T42 [label="*"];
+    T42 -> T4 [label="F"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#777"];
+    start3 [style="", shape=none, label="", width=0];
+    E3 [shape=doublecircle, width=0.4, label="E₃"];
+    E30 [label="E₃₀"];
+    start3 -> E30;
+    E30 -> E3 [label="T"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#555"];
+    start2 [style="", shape=none, label="", width=0];
+    E2 [shape=doublecircle, width=0.4, label="E₂"];
+    E20 [label="E₂₀"];
+    E21 [label="E₂₁"];
+    E22 [label="E₂₂"];
+    start2 -> E20;
+    E20 -> E21 [label="E"];
+    E21 -> E22 [label="+"];
+    E22 -> E2 [label="T"];
+    }
+    subgraph {
+    start1 [shape=none, label="", width=0];
+    node [style=filled, fillcolor="#333"];
+    S1 [shape=doublecircle, width=0.4, label="S₁"];
+    S10 [label="S₁₀"];
+    start1 -> S10;
+    S10 -> S1 [label="E"];
+    }
+}
