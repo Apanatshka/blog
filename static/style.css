@@ -109,11 +109,11 @@ div.gz_dot > img {
 
 code {
   padding: 2px 5px;
-  background-color: #a2a2a2;
+  background-color: #444;
+  color: #ddd;
 }
 
 pre code {
-  color: #222;
   display: block;
   padding: 20px;
   white-space: pre-wrap;
