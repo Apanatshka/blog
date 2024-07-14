@@ -32,7 +32,7 @@ a {
 }
 
 .title h1 {
-font-size: 1.5em;
+  font-size: 1.5em;
 }
 
 .title span {
@@ -66,11 +66,8 @@ main,article {
 }
 
 table {
-}
-
-.parsetable {
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 1em;
+  margin-bottom: 1em;
 }
 
 .parsetable table {
@@ -100,6 +97,8 @@ img {
 div.gz_dot {
   background-color: #444;
   padding: 20px;
+  margin-top: 1em;
+  margin-bottom: 1em;
 }
 
 div.gz_dot > img {
@@ -137,6 +136,10 @@ blockquote {
   color: #222;
   padding-left: 20px;
   font-style: italic;
+}
+
+blockquote em, blockquote i {
+  font-style: normal;
 }
 
 footer {
