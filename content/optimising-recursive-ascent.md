@@ -75,11 +75,11 @@ So we have our input type `Iter` of characters we can peek into without consumin
 Let's continue to our first go at some recursive ascent code for the parse table. You don't have to read through and study all of it, have a quick look, then I'll highlight some insights after:
 
 ```rust
-fn parse(start_state: State_, input: &mut Iter) -> Result<(), Error> {
+pub fn parse(input: &mut Iter) -> Result<(), Error> {
     use State_::*;
 
     let mut stack = vec![];
-    let mut label = start_state;
+    let mut label = S0;
     loop {
         match label {
             S0 => match input.next() {
@@ -99,7 +99,6 @@ fn parse(start_state: State_, input: &mut Iter) -> Result<(), Error> {
                     Sort::E => S1,
                     Sort::T => S2,
                     Sort::F => S3,
-                    _ => unreachable!(),
                 }
             }
             S1 => match input.next() {
@@ -163,7 +162,7 @@ fn parse(start_state: State_, input: &mut Iter) -> Result<(), Error> {
                 label = match sort {
                     Sort::E => S8,
                     Sort::T => S2,
-                    _ => unreachable!(),
+                    Sort::F => S3,
                 }
             }
             S6 => match input.next() {
@@ -173,7 +172,7 @@ fn parse(start_state: State_, input: &mut Iter) -> Result<(), Error> {
                 }
                 Some('(') => {
                     stack.push(6);
-                    label = S5; // (self)
+                    label = S5;
                 }
                 Some(c) => return Err(Error::Unexpected(c)),
                 None => return Err(Error::EOF),
@@ -192,7 +191,7 @@ fn parse(start_state: State_, input: &mut Iter) -> Result<(), Error> {
                 }
                 Some('(') => {
                     stack.push(7);
-                    label = S5; // (self)
+                    label = S5;
                 }
                 Some(c) => return Err(Error::Unexpected(c)),
                 None => return Err(Error::EOF),
@@ -272,11 +271,11 @@ enum State {    S0,    S1,    S2,    S3,    S4,    S5,    S6,    S7,    S8,    S
 Now we get to have the same start of the parsing function:
 
 ```rust
-fn parse_reverse_goto(start_state: State, input: &mut Iter) -> Result<(), Error> {
+fn parse_reverse_goto(input: &mut Iter) -> Result<(), Error> {
     use State::*;
 
     let mut stack = vec![];
-    let mut label = start_state;
+    let mut label = S0;
     loop {
         match label {
 ```
