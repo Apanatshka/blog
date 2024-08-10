@@ -258,7 +258,7 @@ Note how we push `4` before setting the `label` to `S4` to continue there, and w
 
 ### More Code Sharing Among Similar Enough States?
 
-If you have two states with the same left side of the parse table for most but not all cells, you can share the code for that same part by testing for only the different part in each state, and have a new label for the shared part. According to the paper, in practice there are commonly many states that share a core set of inputs/actions that can be shared. They suggest using a bitvector per state like this to test for an input where that state should use the shared core. If the input matches the bit in that vector, you jump to the label for the shared core. With and without the bitvector, this is apparently very effective at reducing the generated code size with very little cost to the run time performance.
+If you have two states with the same left side of the parse table for most but not all columns, you can share the code for that same part by testing for only the different part in each state, and have a new label for the shared part. According to the paper, in practice there are commonly many states that share a core set of inputs/actions that can be shared. They suggest using a bitvector per state to test for an input where that state should use the shared core. If the input matches the bit in that vector, you jump to the label for the shared core. With and without the bitvector, this is apparently very effective at reducing the generated code size with very little cost to the run time performance.
 
 Speaking of, let's check that for our simple push-first trick:
 
@@ -400,18 +400,16 @@ Found 10 outliers among 100 measurements (10.00%)
 
 ```
 
-Cool, we got there. We reduced the states to _only two_! We got faster than where we started. Everything is great. Just for fun, let's compare to where we ended up last week in terms of performance with a whole 9 states left:
+Cool, we got there. We reduced the states to _only two_! We got faster than where we started. Everything is great. Just for fun, let's compare to where we ended up last time in terms of performance with a whole 9 states left:
 
 ```
 parse_max_inline/a+a*(a+a)*a
                         time:   [56.606 ns 56.721 ns 56.840 ns]
 ```
 
-Well, boo.
+Well, boo. At first I tried to improve on my code, tested a few more tricks, including duplicating a bunch of code. Things got faster, but I also duplicated a bunch of `outprod` calls. I took another look at the old `parse_max_inline`, and then I found it: a bug in the code! I forgot to push state number 7 onto the stack in `S7` :( 
 
-### The Performance Was a Lie?!
-
-At first I tried to improve on my code, tested a few more tricks, including duplicating a bunch of code. Things got faster, but I also duplicated a bunch of `outprod` calls... I took another look at the old `parse_max_inline`, and then I found it: a bug in the code! I forgot to push state number 7. Adding that back in gives us:
+### The Performance Was a Lie
 
 ```
 parse_max_inline/a+a*(a+a)*a
@@ -423,14 +421,16 @@ Found 5 outliers among 100 measurements (5.00%)
   2 (2.00%) high severe
 ```
 
-Suddenly our `parse_inline2/a+a*(a+a)*a` result looks a lot less silly.
+Suddenly our `parse_inline2/a+a*(a+a)*a` result looks a lot less silly. Still not _impressive_, I was expecting to do better here. But hey, at least they're pretty close.
 
 Find [all the code in my blog's repo](https://github.com/Apanatshka/blog/tree/zola/code/optimising-recursive-ascent-part-2).
 
 ## Conclusion
 
-I've playing it fast and loose by doing all these optimisations by hand. Consider how few test and benchmark inputs I've actually used, and the results start to smell pretty fishy :\ Learning nothing from what I just mentioned, I feel pretty confident that my latest implementation is correct and the numbers are good. Well, "good" anyway, it's still just a single benchmark input... 
+I've been playing it fast and loose by doing all these optimisations by hand. Consider how few test and benchmark inputs I've actually used, and the results start to smell pretty fishy :\ Learning nothing from this, I feel pretty confident that my latest implementation is correct and the numbers are good :D [^sarcasm]
 
 Now I need to put an end to this blog post and this topic of optimising recursive ascent parsers if I want to reach the next parsing topic. You see, I'm tempted to dive into a deeper investigation of what makes `push_first` so slow. And I want to know the performance of the techniques from the previous post if we skip chain elimination, which duplicates `outprod` calls. But I also want to tell you about _generalised_ parsers, and I've been reading a bit about _error recovery_ as well. Plenty more cool new things to discover, if I can just let go of this for a little while.
 
-A final note: pushing state numbers onto the stack as numbers is apparently dumb. If you make it an enum, Rust can significantly optimise the code, I saw a 25% improvement on my benchmark. Though again, that's on a single input. But then I'm not writing a research paper here, now am I? ¯\\\_(ツ)\_/¯
+A final note: pushing state numbers onto the stack as numbers is apparently dumb. If you make it an enum, `rustc` can significantly optimise the code, I saw a 25% improvement on my benchmark. Though again, that's on a single input. But then I'm not writing a research paper here, now am I? ¯\\\_(ツ)\_/¯
+
+[^sarcasm]: That was a joke. I thought I should clarify, in case you didn't pick up on the sarcasm ^^
