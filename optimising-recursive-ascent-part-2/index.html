@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optimising Recursive Ascent Parsing, Part 2 | Whatever</title>
+  <meta name="title" content="Optimising Recursive Ascent Parsing, Part 2">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Optimising Recursive Ascent Parsing, Part 2</h1>
+      <p>
+        <i>
+          <time datetime='2024-08-10T00:00:00+00:00' pubdate>10 Aug, 2024</time>
+        </i>
+      </p>
+  <main>
+    <p>Welcome back! Previously, on <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/">Optimising Recursive Ascent Parsing</a>, we explored the ideas from <a href="https://doi.org/10.1007/3-540-53669-8_82">a 1990 paper called <em>Optimizing Directly Executable LR Parsers</em> by Peter Pfahler</a>. With the paper’s example grammar, and the described optimisations, we managed to optimise away 6 out of 15 states in the parser. But that’s peanuts compared to what we’ll do in this post! We’ll be taking inspiration from another 1990 paper, this one is called <a href="https://doi.org/10.1002/spe.4380200602"><em>Even Faster LR Parsing</em> by Nigel Horspool and Michael Whitney</a>. The optimisations make the recursive ascent parser significantly smaller, keeping only 4 out of the original 15 states. However, the optimisation steps are not always a performance win on our little test input…</p>
+<h2 id="quick-recap">Quick recap</h2>
+<p>Here’s the example grammar again. The grammar is a simple arithmetic grammar that has been made unambiguous by encoding the precedent relation between multiplication and addition (multiplication binds tighter):</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>E</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>E</mi><mo>+</mo><mi>T</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>T</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>T</mi><mo>=</mo><mi>T</mi><mo>*</mo><mi>F</mi></math></td><td style="text-align: left">(4)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>T</mi><mo>=</mo><mi>F</mi></math></td><td style="text-align: left">(5)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>a</mi></math></td><td style="text-align: left">(6)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mo>(</mo><mi>E</mi><mo>)</mo></math></td><td style="text-align: left">(7)</td></tr>
+</tbody></table>
+<p>The LALR(1) parse table for this grammar is the following:</p>
+<div class="parsetable">
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: center"><code>a</code></th><th style="text-align: center"><code>+</code></th><th style="text-align: center"><code>*</code></th><th style="text-align: center"><code>(</code></th><th style="text-align: center"><code>)</code></th><th style="text-align: center"><code>$</code></th><th></th><th style="text-align: center"><code>E</code></th><th style="text-align: center"><code>T</code></th><th style="text-align: center"><code>F</code></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>S0</strong></td><td style="text-align: center">s S4</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S5</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center">S1</td><td style="text-align: center">S2</td><td style="text-align: center">S3</td></tr>
+<tr><td style="text-align: left"><strong>S1</strong></td><td style="text-align: center"></td><td style="text-align: center">s S6</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">ra 1</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S2</strong></td><td style="text-align: center"></td><td style="text-align: center">r 3</td><td style="text-align: center">s S7</td><td style="text-align: center"></td><td style="text-align: center">r 3</td><td style="text-align: center">r 3</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S3</strong></td><td style="text-align: center"></td><td style="text-align: center">r 5</td><td style="text-align: center">r 5</td><td style="text-align: center"></td><td style="text-align: center">r 5</td><td style="text-align: center">r 5</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S4</strong></td><td style="text-align: center"></td><td style="text-align: center">r 6</td><td style="text-align: center">r 6</td><td style="text-align: center"></td><td style="text-align: center">r 6</td><td style="text-align: center">r 6</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S5</strong></td><td style="text-align: center">s S4</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S5</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center">S8</td><td style="text-align: center">S2</td><td style="text-align: center">S3</td></tr>
+<tr><td style="text-align: left"><strong>S6</strong></td><td style="text-align: center">s S4</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S5</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center">S9</td><td style="text-align: center">S3</td></tr>
+<tr><td style="text-align: left"><strong>S7</strong></td><td style="text-align: center">s S4</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S5</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">S10</td></tr>
+<tr><td style="text-align: left"><strong>S8</strong></td><td style="text-align: center"></td><td style="text-align: center">s S6</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">s S11</td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S9</strong></td><td style="text-align: center"></td><td style="text-align: center">r 2</td><td style="text-align: center">s S7</td><td style="text-align: center"></td><td style="text-align: center">r 2</td><td style="text-align: center">r 2</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S10</strong></td><td style="text-align: center"></td><td style="text-align: center">r 4</td><td style="text-align: center">r 4</td><td style="text-align: center"></td><td style="text-align: center">r 4</td><td style="text-align: center">r 4</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: left"><strong>S11</strong></td><td style="text-align: center"></td><td style="text-align: center">r 7</td><td style="text-align: center">r 7</td><td style="text-align: center"></td><td style="text-align: center">r 7</td><td style="text-align: center">r 7</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td></tr>
+</tbody></table>
+</div>
+<p>Note that I’ve fused reducing by rule 1 (our only rule of the start symbol) with accepting the input (<code>ra</code> = reduce + accept). This way we also don’t need a column <code>S</code> in the goto part of the table.</p>
+<p>I’ll repeat the definitions that we’re still using the code:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">pub type </span><span style="color:#59c2ff;">Iter</span><span style="color:#f29668;">&lt;</span><span style="color:#ff7733;">&#39;a</span><span style="color:#f29668;">&gt; = </span><span>Peekable&lt;Chars&lt;</span><span style="color:#ff7733;">&#39;a</span><span>&gt;&gt;</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy</span><span style="color:#bfbab0cc;">,</span><span> Debug</span><span style="color:#bfbab0cc;">,</span><span> Eq</span><span style="color:#bfbab0cc;">,</span><span> Hash</span><span style="color:#bfbab0cc;">,</span><span> PartialEq)]
+</span><span style="color:#ff7733;">pub enum </span><span style="color:#59c2ff;">Sort </span><span>{ </span><span style="font-style:italic;color:#5c6773;">/*   S,*/</span><span>    E</span><span style="color:#bfbab0cc;">,</span><span>    T</span><span style="color:#bfbab0cc;">,</span><span>    F }
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy</span><span style="color:#bfbab0cc;">,</span><span> Debug</span><span style="color:#bfbab0cc;">,</span><span> Eq</span><span style="color:#bfbab0cc;">,</span><span> Hash</span><span style="color:#bfbab0cc;">,</span><span> PartialEq)]
+</span><span style="color:#ff7733;">pub enum </span><span style="color:#59c2ff;">State </span><span>{    </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S1</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S2</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S3</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S5</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S6</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S7</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S8</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S9</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S10</span><span style="color:#bfbab0cc;">,    </span><span style="color:#f29718;">S11</span><span style="color:#bfbab0cc;">,</span><span>    EGoto</span><span style="color:#bfbab0cc;">,</span><span>    TGoto</span><span style="color:#bfbab0cc;">,</span><span>    FGoto }
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">inline</span><span>(never)]
+</span><span style="color:#ff7733;">fn </span><span style="color:#ffb454;">outprod</span><span>(</span><span style="color:#f29718;">rule</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">str</span><span>) {
+</span><span>    </span><span style="font-style:italic;color:#5c6773;">// a semantic action
+</span><span>    </span><span style="color:#f07178;">eprintln!</span><span>(</span><span style="color:#c2d94c;">&quot;</span><span style="color:#f29718;">{}</span><span style="color:#c2d94c;">&quot;</span><span style="color:#bfbab0cc;">,</span><span> rule)
+</span><span>}
+</span><span>
+</span><span style="color:#bfbab0cc;">#</span><span>[</span><span style="color:#ffb454;">derive</span><span>(Clone</span><span style="color:#bfbab0cc;">,</span><span> Copy</span><span style="color:#bfbab0cc;">,</span><span> Debug</span><span style="color:#bfbab0cc;">,</span><span> Eq</span><span style="color:#bfbab0cc;">,</span><span> Hash</span><span style="color:#bfbab0cc;">,</span><span> PartialEq)]
+</span><span style="color:#ff7733;">pub enum </span><span style="color:#59c2ff;">Error </span><span>{    </span><span style="color:#f29718;">EOF</span><span style="color:#bfbab0cc;">,</span><span>    Unexpected(</span><span style="color:#ff7733;">char</span><span>) }
+</span></code></pre>
+<p>So we have our input type <code>Iter</code> of characters we can peek into without consuming for that single lookahead. We’ve got <code>Sort</code>s, a <code>State</code> enum. Note how the states are just <code>S#</code>, but the goto actions will be handled by sort instead of by state. This is what we need for the <em>reverse goto</em> optimisation of Pfahler’s, which we will use again in this post. To do a “semantic action” when reducing we mark these places with an uninlinable <code>outprod</code>. This will just be a placeholder for an expensive operation. There’s an <code>Error</code> type, no surprises here.</p>
+<p>Let’s continue to the <em>reverse goto</em> recursive ascent code for the parse table. You don’t have to read through and study all of it, have a quick look, then I’ll highlight some insights after:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">parse_reverse_goto</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(), Error&gt; {
+</span><span>    </span><span style="color:#ff7733;">use </span><span>State</span><span style="color:#f29668;">::*</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>    </span><span style="color:#ff7733;">let mut</span><span> stack </span><span style="color:#f29668;">= </span><span style="color:#f07178;">vec!</span><span>[]</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#ff7733;">let mut</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#ff7733;">loop </span><span>{
+</span><span>        </span><span style="color:#ff7733;">match</span><span> label {
+</span><span>            </span><span style="color:#f29718;">S0 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">0</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">0</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S5</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S1 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;+&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">1</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S6</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">1</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                    </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;S = E&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Ok</span><span>(())</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S2 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;*&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">2</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S7</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="color:#f29668;">_ =&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">2</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                    </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;E = T&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">=</span><span> EGoto
+</span><span>                }
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S3 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">3</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;T = F&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                label </span><span style="color:#f29668;">=</span><span> TGoto
+</span><span>            }
+</span><span>            </span><span style="color:#f29718;">S4 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">4</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;F = a&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                label </span><span style="color:#f29668;">=</span><span> FGoto
+</span><span>            }
+</span><span>            </span><span style="color:#f29718;">S5 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">5</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">5</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S5</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// (self)
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S6 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">6</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">6</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S5</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S7 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">7</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">7</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S5</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S8 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;+&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">8</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S6</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;)&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">8</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S11</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S9 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;*&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">;
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">9</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S7</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="color:#f29668;">_ =&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">9</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 9
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 6
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 1
+</span><span>                    </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;E = E + T&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">=</span><span> EGoto
+</span><span>                }
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S10 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">10</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 10
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 7
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 2 or 9
+</span><span>                </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;T = T * F&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                label </span><span style="color:#f29668;">=</span><span> TGoto
+</span><span>            }
+</span><span>            </span><span style="color:#f29718;">S11 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">11</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 11
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 8
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 5
+</span><span>                </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;F = ( E )&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                label </span><span style="color:#f29668;">=</span><span> FGoto
+</span><span>            }
+</span><span>            EGoto </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> stack[stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span>] {
+</span><span>                </span><span style="color:#f29718;">5 </span><span style="color:#f29668;">=&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S8</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="color:#f29668;">_ =&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S1</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            TGoto </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> stack[stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span>] {
+</span><span>                </span><span style="color:#f29718;">6 </span><span style="color:#f29668;">=&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S9</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="color:#f29668;">_ =&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S2</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            FGoto </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> stack[stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span>] {
+</span><span>                </span><span style="color:#f29718;">7 </span><span style="color:#f29668;">=&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S10</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="color:#f29668;">_ =&gt;</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S3</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>We use a mutable variable <code>label</code> to hold the current <code>State</code> of the parser. Since this label is assigned static values throughout the code, this and the loop/match gets compiled away into goto instructions and labels by the compiler. The <code>stack</code> is used to keep track of the state numbers in which we pushed a terminal or did the goto on a sort. So a shift action pushes the current state number and sets <code>label</code> to the next <code>State</code>. A reduce action pops off all but one state number on the <code>stack</code> and uses the produced sort to decide the <code>label</code> with the form <code>SortGoto</code>. This goto <code>State</code> handles the shared logic of jumping to the next state based on the state number on the <code>stack</code>.</p>
+<p>In the previous post the next optimisation we applied was Chain Elimination, which inlined all the states that did (only) a reduce on rules with a single symbol on the right-hand side (RHS). This eliminated <code>S3</code> and <code>S4</code>, but my gripe with it is that it duplicates the code of <code>S4</code> in four places. And remember that <code>outprod("F = a")</code> is supposed to represent a significant amount of code in both size and execution cost. Pfahler argues in his paper that this is a very effective optimisation as most rules with a single symbol RHS do not have an expensive associated semantic action. This makes sense for rules 1, 3, and 5 of the grammar, which embed one sort into another sort for the purpose of encoding the precedence relation between <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>+</mo></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mo>*</mo></math>. But rule 6, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>a</mi></math> is a leaf node in the tree. I think it’s only natural for that rule to be observed, and yet by Chain Elimination we inline its semantic action all over the code. So let’s do something else…</p>
+<h2 id="code-sharing-through-push-first">Code Sharing Through Push-First</h2>
+<p>Notice how the left part of the parse table (the shift/reduce part) has a couple of duplicate rows. <code>S0</code>, <code>S5</code>, <code>S6</code>, and <code>S7</code> have almost the same code due to this. Our guiding paper for this post says we should be able to do code sharing between these states but doesn’t exactly spell out the trick to that. The issue that makes the code not quite the same is that we push the current stack number. The trick to this that isn’t mentioned in the paper, or at least my trick, is to push a state number <em>before</em> you go to the state. This means that at the start of our program we need to have the start state zero already on the stack:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#ff7733;">pub fn </span><span style="color:#ffb454;">parse_push_first</span><span>(</span><span style="color:#f29718;">input</span><span style="color:#bfbab0cc;">: </span><span style="color:#f29668;">&amp;</span><span style="color:#ff7733;">mut</span><span> Iter) </span><span style="color:#bfbab0cc;">-&gt; </span><span style="font-style:italic;color:#39bae6;">Result</span><span>&lt;(), Error&gt; {
+</span><span>    </span><span style="color:#ff7733;">use </span><span>State</span><span style="color:#f29668;">::*</span><span style="color:#bfbab0cc;">;
+</span><span>
+</span><span>    </span><span style="color:#ff7733;">let mut</span><span> stack </span><span style="color:#f29668;">= </span><span style="color:#f07178;">vec!</span><span>[</span><span style="color:#f29718;">0</span><span>]</span><span style="color:#bfbab0cc;">;
+</span><span>    </span><span style="color:#ff7733;">let mut</span><span> label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span></code></pre>
+<p>State <code>S0</code> now doesn’t push its own number on the stack, but the number of the state that it’s going to next:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>            </span><span style="color:#f29718;">S0 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">4</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">5</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span></code></pre>
+<p>Note how we push <code>4</code> before setting the <code>label</code> to <code>S4</code> to continue there, and we push <code>5</code> as before, but now we’re going to state <code>S0</code>. This is because we’ve gotten rid of <code>S5</code> entirely and use <code>S0</code> instead now. Because we push the state number first, we can still distinguish our code-shared states.</p>
+<h3 id="more-code-sharing-among-similar-enough-states">More Code Sharing Among Similar Enough States?</h3>
+<p>If you have two states with the same left side of the parse table for most but not all cells, you can share the code for that same part by testing for only the different part in each state, and have a new label for the shared part. According to the paper, in practice there are commonly many states that share a core set of inputs/actions that can be shared. They suggest using a bitvector per state like this to test for an input where that state should use the shared core. If the input matches the bit in that vector, you jump to the label for the shared core. With and without the bitvector, this is apparently very effective at reducing the generated code size with very little cost to the run time performance.</p>
+<p>Speaking of, let’s check that for our simple push-first trick:</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_reverse_goto/a+a*(a+a)*a
+</span><span>                        time:   [138.27 ns 138.47 ns 138.65 ns]
+</span><span>Found 4 outliers among 100 measurements (4.00%)
+</span><span>  3 (3.00%) high mild
+</span><span>  1 (1.00%) high severe
+</span><span>
+</span><span>parse_push_first/a+a*(a+a)*a
+</span><span>                        time:   [210.75 ns 210.97 ns 211.18 ns]
+</span><span>Found 4 outliers among 100 measurements (4.00%)
+</span><span>  2 (2.00%) high mild
+</span><span>  2 (2.00%) high severe
+</span></code></pre>
+<p>That is a lot more performance degradation than I expected… Note that these measurements are kinda dumb, you should take them with a grain of salt. This is using a tiny example grammar, a single tiny input, and running the benchmarks on a desktop that is probably doing some other background tasks too.<br />
+Let’s see if we can’t improve the original <code>reverse_goto</code> time by applying more optimisations.</p>
+<h2 id="minimal-push-optimisation">Minimal Push Optimisation</h2>
+<p><a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#stack-access-minimisation">Sound familiar?</a> In the last post we had a detailed discussion of this optimisation that comes down to: don’t push states onto the stack that you don’t read the value of. The relevant states that we actually match on are 0, 5, 6, and 7, as before. This removes a lot of pushes and pops from states:</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>            </span><span style="color:#f29718;">S0 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>() {
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;a&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S4</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;(&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">5</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span><span>                }
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(c) </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span>Unexpected(c))</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="font-style:italic;color:#39bae6;">None </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">return </span><span style="font-style:italic;color:#39bae6;">Err</span><span>(Error</span><span style="color:#f29668;">::</span><span style="color:#f29718;">EOF</span><span>)</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            </span><span style="color:#f29718;">S10 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 7
+</span><span>                </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;T = T * F&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                label </span><span style="color:#f29668;">=</span><span> TGoto
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span></code></pre>
+<p>How’s our performance now?</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_reverse_goto/a+a*(a+a)*a
+</span><span>                        time:   [138.27 ns 138.47 ns 138.65 ns]
+</span><span>
+</span><span>parse_push_first/a+a*(a+a)*a
+</span><span>                        time:   [210.75 ns 210.97 ns 211.18 ns]
+</span><span>
+</span><span>parse_minpush/a+a*(a+a)*a
+</span><span>                        time:   [147.08 ns 147.23 ns 147.38 ns]
+</span><span>Found 14 outliers among 100 measurements (14.00%)
+</span><span>  7 (7.00%) low mild
+</span><span>  4 (4.00%) high mild
+</span><span>  3 (3.00%) high severe
+</span></code></pre>
+<p>Hmm, getting close to the original <code>reverse_goto</code> time, but not exactly impressive.</p>
+<p>Well, last time we got the biggest bump from inlining states that are only referenced in one place. So let’s try that again.</p>
+<h2 id="inline-states-with-single-reference">Inline States with Single Reference</h2>
+<p>You might be surprised to learn that with the two steps above, we’ve made a <em>lot</em> of states available for inlining. We can in fact inline all states except for <code>S0</code>, and the <code>_Goto</code> states!</p>
+<pre data-lang="rust" style="background-color:#0f1419;color:#bfbab0;" class="language-rust "><code class="language-rust" data-lang="rust"><span>            TGoto </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> stack[stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span>] {
+</span><span>                </span><span style="color:#f29718;">6 </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>                    </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;*&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                        </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// *
+</span><span>                        stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">7</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                        label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span><span>                    }
+</span><span>                    </span><span style="color:#f29668;">_ =&gt; </span><span>{
+</span><span>                        </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 6
+</span><span>                        </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;E = E + T&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                        label </span><span style="color:#f29668;">=</span><span> EGoto
+</span><span>                    }
+</span><span>                }</span><span style="color:#bfbab0cc;">,
+</span><span>                </span><span style="color:#f29668;">_ =&gt; </span><span style="color:#ff7733;">match</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">peek</span><span>() {
+</span><span>                    </span><span style="font-style:italic;color:#39bae6;">Some</span><span>(</span><span style="color:#c2d94c;">&#39;*&#39;</span><span>) </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                        </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> input</span><span style="color:#f29668;">.</span><span style="color:#f07178;">next</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// *
+</span><span>                        stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">push</span><span>(</span><span style="color:#f29718;">7</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                        label </span><span style="color:#f29668;">= </span><span style="color:#f29718;">S0</span><span style="color:#bfbab0cc;">;
+</span><span>                    }
+</span><span>                    </span><span style="color:#f29668;">_ =&gt; </span><span>{
+</span><span>                        </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;E = T&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                        label </span><span style="color:#f29668;">=</span><span> EGoto
+</span><span>                    }
+</span><span>                }</span><span style="color:#bfbab0cc;">,
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span><span>            FGoto </span><span style="color:#f29668;">=&gt; </span><span style="color:#ff7733;">match</span><span> stack[stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">len</span><span>() </span><span style="color:#f29668;">- </span><span style="color:#f29718;">1</span><span>] {
+</span><span>                </span><span style="color:#f29718;">7 </span><span style="color:#f29668;">=&gt; </span><span>{
+</span><span>                    </span><span style="color:#ff7733;">let </span><span style="color:#f29668;">_ =</span><span> stack</span><span style="color:#f29668;">.</span><span style="color:#f07178;">pop</span><span>()</span><span style="color:#bfbab0cc;">; </span><span style="font-style:italic;color:#5c6773;">// 7
+</span><span>                    </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;T = T * F&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">=</span><span> TGoto
+</span><span>                }
+</span><span>                </span><span style="color:#f29668;">_ =&gt; </span><span>{
+</span><span>                    </span><span style="color:#f07178;">outprod</span><span>(</span><span style="color:#c2d94c;">&quot;T = F&quot;</span><span>)</span><span style="color:#bfbab0cc;">;
+</span><span>                    label </span><span style="color:#f29668;">=</span><span> TGoto
+</span><span>                }
+</span><span>            }</span><span style="color:#bfbab0cc;">,
+</span></code></pre>
+<p>What you’re looking at here is <code>TGoto</code> with states <code>S9</code> and <code>S2</code> inlined into it. <code>EGoto</code> looks similar, with <code>S8</code> and <code>S1</code> inlined: a match on the top of the stack, a look at the next thing in the input, and similar but not equal match statements.</p>
+<p>Now I might be extrapolating from a overly simple example here, but I think it may be generally good to exchange the match on the next character with the match on the stack number after inlining things into a <code>_Goto</code> state. In our case what this does is allow us to avoid checking the stack in case of a <code>*</code>, and unify the other case were we set the <code>label</code> to <code>EGoto</code>. This means we can inline <code>EGoto</code>.</p>
+<p>In <code>FGoto</code> we can simply note that it always goes to <code>TGoto</code> afterwards, so we can just inline <code>TGoto</code> after the top-of-stack <code>match</code> code (since that’s the only place where it’s used). This means we’ve eliminated two more states, and now we only have <code>S0</code> and <code>FGoto</code> left.</p>
+<p>I’ve kept both the simple inlined version as <code>inline1</code> and the second one with just two states as <code>inline2</code> to see the performance:</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_reverse_goto/a+a*(a+a)*a
+</span><span>                        time:   [138.27 ns 138.47 ns 138.65 ns]
+</span><span>
+</span><span>parse_push_first/a+a*(a+a)*a
+</span><span>                        time:   [210.75 ns 210.97 ns 211.18 ns]
+</span><span>
+</span><span>parse_minpush/a+a*(a+a)*a
+</span><span>                        time:   [147.08 ns 147.23 ns 147.38 ns]
+</span><span>
+</span><span>parse_inline1/a+a*(a+a)*a
+</span><span>                        time:   [125.38 ns 125.54 ns 125.70 ns]
+</span><span>Found 12 outliers among 100 measurements (12.00%)
+</span><span>  2 (2.00%) low mild
+</span><span>  7 (7.00%) high mild
+</span><span>  3 (3.00%) high severe
+</span><span>
+</span><span>parse_inline2/a+a*(a+a)*a
+</span><span>                        time:   [117.35 ns 117.54 ns 117.73 ns]
+</span><span>Found 10 outliers among 100 measurements (10.00%)
+</span><span>  4 (4.00%) low mild
+</span><span>  5 (5.00%) high mild
+</span><span>  1 (1.00%) high severe
+</span><span>
+</span></code></pre>
+<p>Cool, we got there. We reduced the states to <em>only two</em>! We got faster than where we started. Everything is great. Just for fun, let’s compare to where we ended up last week in terms of performance with a whole 9 states left:</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_max_inline/a+a*(a+a)*a
+</span><span>                        time:   [56.606 ns 56.721 ns 56.840 ns]
+</span></code></pre>
+<p>Well, boo.</p>
+<h3 id="the-performance-was-a-lie">The Performance Was a Lie?!</h3>
+<p>At first I tried to improve on my code, tested a few more tricks, including duplicating a bunch of code. Things got faster, but I also duplicated a bunch of <code>outprod</code> calls… I took another look at the old <code>parse_max_inline</code>, and then I found it: a bug in the code! I forgot to push state number 7. Adding that back in gives us:</p>
+<pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_max_inline/a+a*(a+a)*a
+</span><span>                        time:   [97.611 ns 97.769 ns 97.924 ns]
+</span><span>                        change: [+72.289% +72.740% +73.150%] (p = 0.00 &lt; 0.05)
+</span><span>                        Performance has regressed.
+</span><span>Found 5 outliers among 100 measurements (5.00%)
+</span><span>  3 (3.00%) high mild
+</span><span>  2 (2.00%) high severe
+</span></code></pre>
+<p>Suddenly our <code>parse_inline2/a+a*(a+a)*a</code> result looks a lot less silly.</p>
+<p>Find <a href="https://github.com/Apanatshka/blog/tree/zola/code/optimising-recursive-ascent-part-2">all the code in my blog’s repo</a>.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>I’ve playing it fast and loose by doing all these optimisations by hand. Consider how few test and benchmark inputs I’ve actually used, and the results start to smell pretty fishy :\ Learning nothing from what I just mentioned, I feel pretty confident that my latest implementation is correct and the numbers are good. Well, “good” anyway, it’s still just a single benchmark input…</p>
+<p>Now I need to put an end to this blog post and this topic of optimising recursive ascent parsers if I want to reach the next parsing topic. You see, I’m tempted to dive into a deeper investigation of what makes <code>push_first</code> so slow. And I want to know the performance of the techniques from the previous post if we skip chain elimination, which duplicates <code>outprod</code> calls. But I also want to tell you about <em>generalised</em> parsers, and I’ve been reading a bit about <em>error recovery</em> as well. Plenty more cool new things to discover, if I can just let go of this for a little while.</p>
+<p>A final note: pushing state numbers onto the stack as numbers is apparently dumb. If you make it an enum, Rust can significantly optimise the code, I saw a 25% improvement on my benchmark. Though again, that’s on a single input. But then I’m not writing a research paper here, now am I? ¯\_(ツ)_/¯</p>
+
+  </main>
+  <p>
+        Tags:
+          <a href="https://blog.jeffsmits.net/tags/theory-of-computation/">#theory of computation</a>
+          <a href="https://blog.jeffsmits.net/tags/automata/">#automata</a>
+          <a href="https://blog.jeffsmits.net/tags/nfa/">#nfa</a>
+          <a href="https://blog.jeffsmits.net/tags/dfa/">#dfa</a>
+          <a href="https://blog.jeffsmits.net/tags/rust/">#rust</a>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>
