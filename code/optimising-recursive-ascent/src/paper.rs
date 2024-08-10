@@ -684,10 +684,12 @@ pub fn parse_max_inline(input: &mut Iter) -> Result<(), Error> {
             },
             S7 => match input.next() {
                 Some('a') => {
+                    stack.push(7);
                     outprod("F = a");
                     label = S10
                 }
                 Some('(') => {
+                    stack.push(7);
                     label = S5;
                 }
                 Some(c) => return Err(Error::Unexpected(c)),

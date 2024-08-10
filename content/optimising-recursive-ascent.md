@@ -1,6 +1,7 @@
 +++
 title = "Optimising Recursive Ascent Parsing"
 date = "2024-07-14"
+updated = "2024-08-10"
 taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
 +++
 
@@ -30,20 +31,20 @@ The parse table representation of this DFA is the following:
 
 <div class="parsetable">
 
-|            | `a`    | `+`    | `*`    | `(`    | `)`     | `$`      | `E`  | `T`  | `F`   |
-|:-----------|:------:|:------:|:------:|:------:|:-------:|:--------:|:----:|:----:|:-----:|
-| **Box0**   | s Box4 |        |        | s Box5 |         | _accept_ | Box1 | Box2 | Box3  |
-| **Box1**   |        | s Box6 |        |        |         | r 1      |      |      |       |
-| **Box2**   |        | r 3    | s Box7 |        | r 3     | r 3      |      |      |       |
-| **Box3**   |        | r 5    | r 5    |        | r 5     | r 5      |      |      |       |
-| **Box4**   |        | r 6    | r 6    |        | r 6     | r 6      |      |      |       |
-| **Box5**   | s Box4 |        |        | s Box5 |         |          | Box8 | Box2 | Box3  |
-| **Box6**   | s Box4 |        |        | s Box5 |         |          |      | Box9 | Box3  |
-| **Box7**   | s Box4 |        |        | s Box5 |         |          |      |      | Box10 |
-| **Box8**   |        | s Box6 |        |        | s Box11 |          |      |      |       |
-| **Box9**   |        | r 2    | s Box7 |        | r 2     | r 2      |      |      |       |
-| **Box10**  |        | r 4    | r 4    |        | r 4     | r 4      |      |      |       |
-| **Box11**  |        | r 7    | r 7    |        | r 7     | r 7      |      |      |       |
+|            | `a`    | `+`    | `*`    | `(`    | `)`     | `$`      | | `E`  | `T`  | `F`   |
+|:-----------|:------:|:------:|:------:|:------:|:-------:|:--------:|-|:----:|:----:|:-----:|
+| **Box0**   | s Box4 |        |        | s Box5 |         | _accept_ | | Box1 | Box2 | Box3  |
+| **Box1**   |        | s Box6 |        |        |         | r 1      | |      |      |       |
+| **Box2**   |        | r 3    | s Box7 |        | r 3     | r 3      | |      |      |       |
+| **Box3**   |        | r 5    | r 5    |        | r 5     | r 5      | |      |      |       |
+| **Box4**   |        | r 6    | r 6    |        | r 6     | r 6      | |      |      |       |
+| **Box5**   | s Box4 |        |        | s Box5 |         |          | | Box8 | Box2 | Box3  |
+| **Box6**   | s Box4 |        |        | s Box5 |         |          | |      | Box9 | Box3  |
+| **Box7**   | s Box4 |        |        | s Box5 |         |          | |      |      | Box10 |
+| **Box8**   |        | s Box6 |        |        | s Box11 |          | |      |      |       |
+| **Box9**   |        | r 2    | s Box7 |        | r 2     | r 2      | |      |      |       |
+| **Box10**  |        | r 4    | r 4    |        | r 4     | r 4      | |      |      |       |
+| **Box11**  |        | r 7    | r 7    |        | r 7     | r 7      | |      |      |       |
 </div>
 
 In the previous post we used a recursive ascent code generation pattern where each row in this table becomes a function, and we return sorts along with a number of returns to do (sized to the body of the rule). The _stack_ of the LR parser is the function stack. But if we're going to do optimisations, I think it will be easier to understand if we use an explicit stack. Let's start with some definitions we'll use throughout:
@@ -192,6 +193,9 @@ pub fn parse(input: &mut Iter) -> Result<(), Error> {
                 Some('(') => {
                     stack.push(7);
                     label = S5;
+<hr/>
+
+# Addendum
                 }
                 Some(c) => return Err(Error::Unexpected(c)),
                 None => return Err(Error::EOF),
@@ -424,8 +428,58 @@ Found 10 outliers among 100 measurements (10.00%)
   3 (3.00%) high severe
 ```
 
-You can find the [code for all of this](https://github.com/Apanatshka/blog/tree/zola/content/optimising-recursive-ascent/optimizing_directly_executable_lr_parsers) in the repo of my blog.
+You can find the [code for all of this](https://github.com/Apanatshka/blog/tree/zola/code/optimising-recursive-ascent) in the repo of my blog.
 
 Now my original plan for this post was to continue to with some ideas of my own. If we mix and match the ideas from the paper with recursive ascent-descent and a [code sharing idea from the paper Pfahler cites](https://doi.org/10.1002/spe.4380200602), resulting in the removal of 13 out of 15 states! But last time I wrote a really long blog post about parsing, people complained about the length. So this time I'll just leave you with this cliffhanger ¯\\\_(ツ)\_/¯
 
 [^min-push]: Although the optimisation is introduced by a paper Pfahler cites, he puts his own spin on it that builds on top of the reverse goto, so we'll be looking Pfahler's version of the optimisation here.
+
+<hr/>
+
+# Errata
+
+I made a small mistake in writing `parse_max_inline`, with large consequences. I forgot to push state number 7 in state `S7`... This completely borked the benchmark results, inlining didn't do much for performance:
+
+```
+parse/a+a*(a+a)*a       time:   [129.85 ns 130.08 ns 130.35 ns]
+                        change: [+0.4813% +0.7739% +1.0607%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 17 outliers among 100 measurements (17.00%)
+  1 (1.00%) low severe
+  5 (5.00%) low mild
+  7 (7.00%) high mild
+  4 (4.00%) high severe
+
+parse_reverse_goto/a+a*(a+a)*a
+                        time:   [132.41 ns 132.60 ns 132.78 ns]
+                        change: [-1.2289% -0.9920% -0.7525%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+parse_chain_elim/a+a*(a+a)*a
+                        time:   [100.62 ns 100.74 ns 100.86 ns]
+                        change: [-1.5909% -1.2311% -0.9017%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 12 outliers among 100 measurements (12.00%)
+  1 (1.00%) low mild
+  5 (5.00%) high mild
+  6 (6.00%) high severe
+
+parse_minpush/a+a*(a+a)*a
+                        time:   [96.682 ns 96.861 ns 97.060 ns]
+                        change: [+0.6625% +0.9165% +1.1943%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 10 outliers among 100 measurements (10.00%)
+  7 (7.00%) high mild
+  3 (3.00%) high severe
+
+parse_max_inline/a+a*(a+a)*a
+                        time:   [97.611 ns 97.769 ns 97.924 ns]
+                        change: [+72.289% +72.740% +73.150%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+```
