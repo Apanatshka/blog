@@ -261,7 +261,7 @@
 </span></code></pre>
 <p>Note how we push <code>4</code> before setting the <code>label</code> to <code>S4</code> to continue there, and we push <code>5</code> as before, but now we’re going to state <code>S0</code>. This is because we’ve gotten rid of <code>S5</code> entirely and use <code>S0</code> instead now. Because we push the state number first, we can still distinguish our code-shared states.</p>
 <h3 id="more-code-sharing-among-similar-enough-states">More Code Sharing Among Similar Enough States?</h3>
-<p>If you have two states with the same left side of the parse table for most but not all cells, you can share the code for that same part by testing for only the different part in each state, and have a new label for the shared part. According to the paper, in practice there are commonly many states that share a core set of inputs/actions that can be shared. They suggest using a bitvector per state like this to test for an input where that state should use the shared core. If the input matches the bit in that vector, you jump to the label for the shared core. With and without the bitvector, this is apparently very effective at reducing the generated code size with very little cost to the run time performance.</p>
+<p>If you have two states with the same left side of the parse table for most but not all columns, you can share the code for that same part by testing for only the different part in each state, and have a new label for the shared part. According to the paper, in practice there are commonly many states that share a core set of inputs/actions that can be shared. They suggest using a bitvector per state to test for an input where that state should use the shared core. If the input matches the bit in that vector, you jump to the label for the shared core. With and without the bitvector, this is apparently very effective at reducing the generated code size with very little cost to the run time performance.</p>
 <p>Speaking of, let’s check that for our simple push-first trick:</p>
 <pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_reverse_goto/a+a*(a+a)*a
 </span><span>                        time:   [138.27 ns 138.47 ns 138.65 ns]
@@ -379,13 +379,12 @@ Let’s see if we can’t improve the original <code>reverse_goto</code> time by
 </span><span>  1 (1.00%) high severe
 </span><span>
 </span></code></pre>
-<p>Cool, we got there. We reduced the states to <em>only two</em>! We got faster than where we started. Everything is great. Just for fun, let’s compare to where we ended up last week in terms of performance with a whole 9 states left:</p>
+<p>Cool, we got there. We reduced the states to <em>only two</em>! We got faster than where we started. Everything is great. Just for fun, let’s compare to where we ended up last time in terms of performance with a whole 9 states left:</p>
 <pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_max_inline/a+a*(a+a)*a
 </span><span>                        time:   [56.606 ns 56.721 ns 56.840 ns]
 </span></code></pre>
-<p>Well, boo.</p>
-<h3 id="the-performance-was-a-lie">The Performance Was a Lie?!</h3>
-<p>At first I tried to improve on my code, tested a few more tricks, including duplicating a bunch of code. Things got faster, but I also duplicated a bunch of <code>outprod</code> calls… I took another look at the old <code>parse_max_inline</code>, and then I found it: a bug in the code! I forgot to push state number 7. Adding that back in gives us:</p>
+<p>Well, boo. At first I tried to improve on my code, tested a few more tricks, including duplicating a bunch of code. Things got faster, but I also duplicated a bunch of <code>outprod</code> calls. I took another look at the old <code>parse_max_inline</code>, and then I found it: a bug in the code! I forgot to push state number 7 onto the stack in <code>S7</code> :(</p>
+<h3 id="the-performance-was-a-lie">The Performance Was a Lie</h3>
 <pre style="background-color:#0f1419;color:#bfbab0;"><code><span>parse_max_inline/a+a*(a+a)*a
 </span><span>                        time:   [97.611 ns 97.769 ns 97.924 ns]
 </span><span>                        change: [+72.289% +72.740% +73.150%] (p = 0.00 &lt; 0.05)
@@ -394,12 +393,17 @@ Let’s see if we can’t improve the original <code>reverse_goto</code> time by
 </span><span>  3 (3.00%) high mild
 </span><span>  2 (2.00%) high severe
 </span></code></pre>
-<p>Suddenly our <code>parse_inline2/a+a*(a+a)*a</code> result looks a lot less silly.</p>
+<p>Suddenly our <code>parse_inline2/a+a*(a+a)*a</code> result looks a lot less silly. Still not <em>impressive</em>, I was expecting to do better here. But hey, at least they’re pretty close.</p>
 <p>Find <a href="https://github.com/Apanatshka/blog/tree/zola/code/optimising-recursive-ascent-part-2">all the code in my blog’s repo</a>.</p>
 <h2 id="conclusion">Conclusion</h2>
-<p>I’ve playing it fast and loose by doing all these optimisations by hand. Consider how few test and benchmark inputs I’ve actually used, and the results start to smell pretty fishy :\ Learning nothing from what I just mentioned, I feel pretty confident that my latest implementation is correct and the numbers are good. Well, “good” anyway, it’s still just a single benchmark input…</p>
+<p>I’ve been playing it fast and loose by doing all these optimisations by hand. Consider how few test and benchmark inputs I’ve actually used, and the results start to smell pretty fishy :\ Learning nothing from this, I feel pretty confident that my latest implementation is correct and the numbers are good :D <sup class="footnote-reference" id="fr-sarcasm-1"><a href="#fn-sarcasm">[1]</a></sup></p>
 <p>Now I need to put an end to this blog post and this topic of optimising recursive ascent parsers if I want to reach the next parsing topic. You see, I’m tempted to dive into a deeper investigation of what makes <code>push_first</code> so slow. And I want to know the performance of the techniques from the previous post if we skip chain elimination, which duplicates <code>outprod</code> calls. But I also want to tell you about <em>generalised</em> parsers, and I’ve been reading a bit about <em>error recovery</em> as well. Plenty more cool new things to discover, if I can just let go of this for a little while.</p>
-<p>A final note: pushing state numbers onto the stack as numbers is apparently dumb. If you make it an enum, Rust can significantly optimise the code, I saw a 25% improvement on my benchmark. Though again, that’s on a single input. But then I’m not writing a research paper here, now am I? ¯\_(ツ)_/¯</p>
+<p>A final note: pushing state numbers onto the stack as numbers is apparently dumb. If you make it an enum, <code>rustc</code> can significantly optimise the code, I saw a 25% improvement on my benchmark. Though again, that’s on a single input. But then I’m not writing a research paper here, now am I? ¯\_(ツ)_/¯</p>
+<hr><ol class="footnotes-list">
+<li id="fn-sarcasm">
+<p>That was a joke. I thought I should clarify, in case you didn’t pick up on the sarcasm ^^ <a href="#fr-sarcasm-1">↩</a></p>
+</li>
+</ol>
 
   </main>
   <p>
