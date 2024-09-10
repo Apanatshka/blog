@@ -193,9 +193,6 @@ pub fn parse(input: &mut Iter) -> Result<(), Error> {
                 Some('(') => {
                     stack.push(7);
                     label = S5;
-<hr/>
-
-# Addendum
                 }
                 Some(c) => return Err(Error::Unexpected(c)),
                 None => return Err(Error::EOF),
