@@ -9,7 +9,7 @@ Hello again! I'm picking up my [series on Automata](@/theory-of-computation.md),
 
 # Refresher from Pushy Automata
 
-We'll start with a brief refresher from the previous post of the series, [pushy automata](@/pushy-automata.md), since that was a little while back.
+We'll start with a brief refresher from the previous post of the series, [pushy automata](@/pushy-automata/index.md), since that was a little while back.
 
 ## Push-Down Automata
 
@@ -423,7 +423,7 @@ We've seen how we can construct simple DFAs for each rule in our grammar, and th
 
 The recursive descent way of writing a parser directly as code is nice and simple, it really just follows the grammar. Since you're writing plain old code with function calls, you can imagine people have found nice ways to extend and adapt the pattern of recursive descent parsers. For one, it's quite easy to reason about where you are in the parse when hitting an error state, which makes it fairly easy to give friendly error messages when the parser doesn't accept an input. You can also use a trick to fix up direct left-recursion called [node reparenting](https://en.wikipedia.org/wiki/Tail_recursive_parser), where you use a loop or tail-recursion locally construct the tree bottom-up. You could argue that such a parser is a hybrid between recursive descent and ascent, a "recursive descent-ascent parser".
 
-Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/finite-automata.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
+Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/finite-automata/index.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
 
 # Continue?
 

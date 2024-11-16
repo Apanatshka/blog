@@ -4,7 +4,7 @@ date = "2024-08-10"
 taxonomies.tags = ["theory of computation", "automata", "nfa", "dfa", "rust"]
 +++
 
-Welcome back! Previously, on [Optimising Recursive Ascent Parsing](@/optimising-recursive-ascent.md), we explored the ideas from [a 1990 paper called _Optimizing Directly Executable LR Parsers_ by Peter Pfahler](https://doi.org/10.1007/3-540-53669-8_82). With the paper's example grammar, and the described optimisations, we managed to optimise away 6 out of 15 states in the parser. But that's peanuts compared to what we'll do in this post! We'll be taking inspiration from another 1990 paper, this one is called [_Even Faster LR Parsing_ by Nigel Horspool and Michael Whitney](https://doi.org/10.1002/spe.4380200602). The optimisations make the recursive ascent parser significantly smaller, keeping only 4 out of the original 15 states. However, the optimisation steps are not always a performance win on our little test input...
+Welcome back! Previously, on [Optimising Recursive Ascent Parsing](@/optimising-recursive-ascent/index.md), we explored the ideas from [a 1990 paper called _Optimizing Directly Executable LR Parsers_ by Peter Pfahler](https://doi.org/10.1007/3-540-53669-8_82). With the paper's example grammar, and the described optimisations, we managed to optimise away 6 out of 15 states in the parser. But that's peanuts compared to what we'll do in this post! We'll be taking inspiration from another 1990 paper, this one is called [_Even Faster LR Parsing_ by Nigel Horspool and Michael Whitney](https://doi.org/10.1002/spe.4380200602). The optimisations make the recursive ascent parser significantly smaller, keeping only 4 out of the original 15 states. However, the optimisation steps are not always a performance win on our little test input...
 
 ## Quick recap
 
@@ -281,7 +281,7 @@ Let's see if we can't improve the original `reverse_goto` time by applying more 
 
 ## Minimal Push Optimisation
 
-[Sound familiar?](@/optimising-recursive-ascent.md#stack-access-minimisation) In the last post we had a detailed discussion of this optimisation that comes down to: don't push states onto the stack that you don't read the value of. The relevant states that we actually match on are 0, 5, 6, and 7, as before. This removes a lot of pushes and pops from states:
+[Sound familiar?](@/optimising-recursive-ascent/index.md#stack-access-minimisation) In the last post we had a detailed discussion of this optimisation that comes down to: don't push states onto the stack that you don't read the value of. The relevant states that we actually match on are 0, 5, 6, and 7, as before. This removes a lot of pushes and pops from states:
 
 ```rust
             S0 => match input.next() {

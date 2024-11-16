@@ -25,7 +25,7 @@ $F = ( E )$ | (7)
 
 I'm going to cut the construction steps and go straight to the LALR automaton from this:
 
-{{ digraph(gz_file="optimising-recursive-ascent/single-automaton-dfa.gv", alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion") }}
+{{ digraph(gz_file="single-automaton-dfa.gv", alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion") }}
 
 The parse table representation of this DFA is the following:
 

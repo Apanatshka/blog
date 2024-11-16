@@ -29,7 +29,7 @@ The way you formally describe a DFA is by defining:
 
 Let's construct a DFA that can recognise inputs that start with a one, has at least two zeroes after that, and then at least one more one, after which the 'word' ends. 
 
-{{ digraph(gz_file="finite-automata/binary-string-dfa.gv", alt="Binary string DFA") }}
+{{ digraph(gz_file="binary-string-dfa.gv", alt="Binary string DFA") }}
 
 Note that I've already started cheating with the construction of this DFA. Not every state handles all symbols in the alphabet (0 and 1). This partially defined DFA is usually easier to write and read. The usual way to make it fully defined is to add an explicit *stuck state*. All the unhandled symbols go to that state, and with any next input the DFA will stay in that state. 
 
@@ -37,7 +37,7 @@ Note that I've already started cheating with the construction of this DFA. Not e
 
 In Rust we can do the partial definition of the DFA with an `Option` type:
 
-{{ rust(rust_file="finite-automata/binary_string/src/main.rs") }}
+{{ rust(rust_file="binary_string/src/main.rs") }}
 
 (The crate is in this [blog's repository](https://github.com/Apanatshka/blog/tree/zola/contents/finite-automata/binary_string/))  
 So `None` is the stuck state and the 'real' states are wrapped in a `Some`. In this code the transitions are given as a function, not a mapping. When you generalise this into an automaton library (there [are](https://crates.io/search?q=automaton) [several](https://crates.io/search?q=automata) on [crates.io](https://crates.io/)), you're more likely to end up with a map. 
@@ -46,7 +46,7 @@ So `None` is the stuck state and the 'real' states are wrapped in a `Some`. In t
 
 Note that DFAs are so restricted that they don't really have mutable memory. Any kind of memory of what you've already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:
 
-{{ digraph(gz_file="finite-automata/binary-string-dfa-memory.gv", alt="Binary string DFA encoding memory") }}
+{{ digraph(gz_file="binary-string-dfa-memory.gv", alt="Binary string DFA encoding memory") }}
 
 We remember the last three input symbols in our states. That gives us $2^3$ states, an exponential relation. So with these kinds of problems, you really don't want to design these DFAs by hand. 
 
@@ -54,7 +54,7 @@ We remember the last three input symbols in our states. That gives us $2^3$ stat
 
 Non-determinism allows states to have multiple transitions per symbol. That means that when you simulate an NFA, you can be in multiple states at once. This allows us to avoid the exponential blowup of the last example:
 
-{{ digraph(gz_file="finite-automata/binary-string-nfa.gv", alt="Binary string NFA") }}
+{{ digraph(gz_file="binary-string-nfa.gv", alt="Binary string NFA") }}
 
 Although this NFA is easier to describe, it's still always translatable to a DFA. This translation algorithm is called powerset construction or subset construction. The powerset of a set is the set of all combinations: $\mathbb{P}(\{0,1\}) = \{\emptyset, \{0\}, \{1\}, \{0,1\}\}$
 

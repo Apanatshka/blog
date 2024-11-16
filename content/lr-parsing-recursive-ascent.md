@@ -118,7 +118,7 @@ Notice how rule 2 is now right-recursive instead of left-recursive. It's a nice 
 | **E₂**    | r 2          | r 2  | r 2      |      |
 </div>
 
-Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting a reduce in the entire row of a state that could reduce. If we check the _Follow_ set of the sort we're reducing to (we defined that when we built LL parse tables, remember?), we can put the reduce action in only the column of the terminals that are in that follow set. If we look at the grammar, we can see that only `2` can follow `E`. So the SLR table for this grammar is:
+Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting a reduce in the entire row of a state that could reduce. If we check the _Follow_ set of the sort we're reducing to (we defined that when we built LL parse tables, remember?), we can put the reduce action in only the columns of the terminals that are in that follow set. If we look at the grammar, we can see that only `2` can follow `E`. So the SLR table for this grammar is:
 
 <div class="parsetable">
 

@@ -7,7 +7,7 @@ taxonomies.tags = ["theory of computation", "automata", "pda", "context-free lan
 
 Welcome back! This is my second post in a [series](@/theory-of-computation.md) on Automata. I decided to do another theory post first on context-free languages, and only afterwards start on a more implementation-heavy post about implementing this kind of theory in Rust for practically useful stuff. There is of course still code in this post as well :)
 
-I'll start with a quick refresher, but for more details read the [first post](@/finite-automata.md). 
+I'll start with a quick refresher, but for more details read the [first post](@/finite-automata/index.md). 
 
 # Finite Automata refresher
 
@@ -27,7 +27,7 @@ The non-regular language example from the previous post was: "Words in this lang
 
 The finite automaton that has a stack is called a pushdown automaton (PDA). You can think of the stack as a tray dispenser that you can *push* new trays *down* on. Let's kick things off with an example PDA that recognises our non-regular language example:
 
-{{ digraph(gz_file="pushy-automata/non-regular-language.gv", alt="Non-regular language example") }}
+{{ digraph(gz_file="non-regular-language.gv", alt="Non-regular language example") }}
 
 So what's happening here? The transitions now have a lot more than than just the input symbol being consumed. After the comma is the top stack symbol that's popped, and after the arrow is the new stack symbol to be pushed. If you look at $q_1$, it is taking 0's off the input and pushed them onto the stack. Then it takes in as many 1's as 0's, by popping a 0 off the stack for every $1$ in the input.  
 The outer states are only there to make sure we have a fully empty stack before we go into a final state. The \$ is usually used as an *End Of Stack* character. You can also change the definition of the PDA to already hold 1 character on the stack at the start. This is part of the definition as you find it on [Wikipedia](https://en.wikipedia.org/wiki/Pushdown_automaton#Formal_definition). 
@@ -36,11 +36,11 @@ The outer states are only there to make sure we have a fully empty stack before 
 
 The previous PDA was non-deterministic, but we can make it deterministic. I've left off the stuck state, but there should be no overlapping transitions and all transitions consume either input, stack or both. 
 
-{{ digraph(gz_file="pushy-automata/non-regular-deterministic.gv", alt="Non-regular language example, deterministic") }}
+{{ digraph(gz_file="non-regular-deterministic.gv", alt="Non-regular language example, deterministic") }}
 
 Now in general, we *cannot* change our PDAs to a deterministic version (deterministic PDAs are strictly less powerful). For example, take the language of even-length binary palindromes. This language can be recognised by the following non-deterministic PDA, but not by a deterministic one:
 
-{{ digraph(gz_file="pushy-automata/even-binary-palindromes.gv", alt="Even-length binary palindromes") }}
+{{ digraph(gz_file="even-binary-palindromes.gv", alt="Even-length binary palindromes") }}
 
 If you think about it, it makes sense that a non-deterministic PDA is more powerful than a deterministic PDA. With the NFAs in the previous post we had just a finite amount of states we could be in while executing, and you can model that with (an exponential amount of) states in a DFA. But for a PDA, it isn't just the state that matters, but the stack as well. Since the stack isn't finite, we can't just model it in more states. 
 
@@ -65,11 +65,11 @@ So instead we're going to adapt our definition of PDAs, so that we can write cod
 
 With the above fixes, we can get a PDA that will always either advance one step in the input, or at the end of the input advance on the stack. These fixes can be expressed in the original definition, so it still has the same power. Here's the new version of the PDA:
 
-{{ digraph(gz_file="pushy-automata/even-binary-palindromes-v2.gv", alt="Even-length binary palindromes, v2") }}
+{{ digraph(gz_file="even-binary-palindromes-v2.gv", alt="Even-length binary palindromes, v2") }}
 
 So with that, we can go to the code. I apologise for the messier transition functions. Those don't correspond to the diagram as clearly. In retrospect this approach to the transition functions would have also worked for the other PDA, although it would be slightly less efficient (I think). 
 
-{{ rust(rust_file="pushy-automata/binary_palindrome/src/main.rs") }}
+{{ rust(rust_file="binary_palindrome/src/main.rs") }}
 
 I left in extra prints to observe the behaviour of the PDA:
 
@@ -134,13 +134,13 @@ Now CFGs are equally powerful as the PDA. That means that similar to regular exp
 
 Let's look at the PDA for the binary palindrome grammar:
 
-{{ digraph(gz_file="pushy-automata/even-binary-palindromes-grammar.gv", alt="Even-length binary palindromes, translated from the grammar") }}
+{{ digraph(gz_file="even-binary-palindromes-grammar.gv", alt="Even-length binary palindromes, translated from the grammar") }}
 
 I went for the PDA which starts with an initialised stack and can manipulate multiple things on (the top of) the stack at once. That gives a more compact PDA, and is also closer to an implementable state. Sadly this example doesn't visibly show that the bodies of the rules are reversed, because all rules in this grammar are symmetrical. 
 
 It's interesting to see that this PDA is actually smaller in states than our hand-written one. But this one does have some more overhead because it's pushing a lot of stuff on the stack including sorts. Let's see if we can reduce that overhead a little by at least making the transitions that don't consume any input into transitions that do. For that we need to merge a rule like $\varepsilon, S \rightarrow 0 S 0$ with other rules that will come afterwards which do consume input. That's $0, 0 \rightarrow \varepsilon$ in this case. So combining the two rules gets us $0, S \rightarrow 0 S$, by adding the input symbol consumption and resolving the stack pop. We can do the same with the other transition that takes no input. The last rule to resolve is $\epsilon, S \rightarrow \varepsilon$. This one can be merged with $\epsilon, S \rightarrow 0 S 0$ and $0, 0 \rightarrow \varepsilon$ to form $0, S \rightarrow 0$ and with the other two transitions to form $1, S \rightarrow 1$. 
 
-{{ digraph(gz_file="pushy-automata/even-binary-palindromes-merged.gv", alt="Even-length binary palindromes, merged grammar rules") }}
+{{ digraph(gz_file="even-binary-palindromes-merged.gv", alt="Even-length binary palindromes, merged grammar rules") }}
 
 Now the sort $S$ has been changed from a fairly useless overhead to a marker of "we're not halfway yet". In our hand-written PDA this was not a symbol on the stack but a different state. 
 
@@ -192,7 +192,7 @@ This is a basic arithmetic expressions grammar. And yet when you write multiple 
 
 | | |
 :- | :-
-{{ digraph(gz_file="pushy-automata/arith-derivation-tree1.gv", alt="arithmetic expressions derivation tree 1") }} | {{ digraph(gz_file="pushy-automata/arith-derivation-tree2.gv", alt="arithmetic expressions derivation tree 2") }}
+{{ digraph(gz_file="arith-derivation-tree1.gv", alt="arithmetic expressions derivation tree 1") }} | {{ digraph(gz_file="arith-derivation-tree2.gv", alt="arithmetic expressions derivation tree 2") }}
 
 These trees show how the derivations went from sorts to terminals. In a way, they also show an ordering, where the left one does the multiplication first and the right one does the addition first. Although this is an ambiguous grammar, it doesn't have to be. The language that it captures, arithmetic expressions, has a notion of ordering between addition and multiplication, namely that multiplication goes first. This is called precedence: multiplication takes precedence over (binds tighter than) addition. For this unambiguous language you can explicitly encode the precedence rules in the grammar to get an unambiguous grammar. 
 
@@ -212,7 +212,7 @@ This describes a language that has either (1) a number of $a$'s followed by an e
 
 ## Pumping lemma
 
-In the [previous blog post](@/finite-automata.md) I originally skipped the description of the pumping lemma for regular languages. But after some feedback on the post, I [added the description of the basic idea](@/finite-automata.md#addendum). The idea is that any regular language (although also other languages) will have the property of a pumping length, where any word in the language larger than this length can be pumped up to a larger word that's still in the language. For a language with a finite number of words the pumping length is larger than the largest word in the language. For infinite languages you cannot do this, which means that there are words in the language where you can find a part of the word that you're allowed to repeat an arbitrary amount of times. This arbitrary repetition corresponds with a loop in the DFA or NFA that describes the language. 
+In the [previous blog post](@/finite-automata/index.md) I originally skipped the description of the pumping lemma for regular languages. But after some feedback on the post, I [added the description of the basic idea](@/finite-automata/index.md#addendum). The idea is that any regular language (although also other languages) will have the property of a pumping length, where any word in the language larger than this length can be pumped up to a larger word that's still in the language. For a language with a finite number of words the pumping length is larger than the largest word in the language. For infinite languages you cannot do this, which means that there are words in the language where you can find a part of the word that you're allowed to repeat an arbitrary amount of times. This arbitrary repetition corresponds with a loop in the DFA or NFA that describes the language. 
 
 The pumping lemma for context-free languages is similar to that of regular languages. We have a pumping length and can split words larger than the pumping length into parts. Instead three parts of which the middle can be repeated, in CFLs we split words into five parts. The second and fourth part can be repeated an arbitrary amount of times as long as they are both repeated the same number of times. This makes sense because as we've seen, we can remember a bunch of things with the stack in a PDA so we can keep two parts of a word in sync with respect to repetition. From a CFG perspective it also makes sense, because the repeated parts are basically the two terminal parts that surround a recursively defined variable (for example). 
 

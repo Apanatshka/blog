@@ -19,25 +19,25 @@ So we already know how to test if a word is in the language, by applying our aut
 
 Say you have two automata that can recognise words in their respective languages. The union of the two would recognise words from either language. So creating one NFA for the combined language out of the two only requires that you run the two "in parallel" and if either ends up in a final state you accept. Let's try the naive way and merge the start states of the two automata:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/binary-string-dfa-1.gv", alt="Binary string DFA 1") }}
+{{ digraph(gz_file="binary-string-dfa-1.gv", alt="Binary string DFA 1") }}
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/binary-string-dfa-2.gv", alt="Binary string DFA 2") }}
+{{ digraph(gz_file="binary-string-dfa-2.gv", alt="Binary string DFA 2") }}
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/nfa-union-1-2.gv", alt="NFA union of DFAs 1 and 2") }}
+{{ digraph(gz_file="nfa-union-1-2.gv", alt="NFA union of DFAs 1 and 2") }}
 
 Cool. It works. But not in the general case! When there are edges going back to one of the start states, you get a mess. Say you have:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/binary-string-dfa-3.gv", alt="Binary string DFA 3") }}
+{{ digraph(gz_file="binary-string-dfa-3.gv", alt="Binary string DFA 3") }}
 
 Odd number of zeroes, then a one, that's the language. And the other is:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/binary-string-dfa-4.gv", alt="Binary string DFA 4") }}
+{{ digraph(gz_file="binary-string-dfa-4.gv", alt="Binary string DFA 4") }}
 
 Single word language: $\{10\}$
 
 Now we merge the start states naively as before:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/wrong-nfa-union-3-4.gv", alt="(wrong) NFA union of DFAs 3 and 4") }}
+{{ digraph(gz_file="wrong-nfa-union-3-4.gv", alt="(wrong) NFA union of DFAs 3 and 4") }}
 
 Now suddenly $0010$ is in the combined language, but it wasn't in either of the originals. So that's not a proper union operation. To fix this, we'll use an extension of NFAs. 
 
@@ -45,11 +45,11 @@ Now suddenly $0010$ is in the combined language, but it wasn't in either of the 
 
 A simple way to specify the correct union operation is through epsilon transitions. You add a new start state and epsilon transitions to the start states of the automata you want to union:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/nfa-e-union-3-4.gv", alt="(correct) NFA-e union of DFAs 3 and 4") }}
+{{ digraph(gz_file="nfa-e-union-3-4.gv", alt="(correct) NFA-e union of DFAs 3 and 4") }}
 
-If you remember my [first finite automata post](@/finite-automata.md#epsilon-moves) you may be reminded of the regex "or" (`|`) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition "for free" without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:
+If you remember my [first finite automata post](@/finite-automata/index.md#epsilon-moves) you may be reminded of the regex "or" (`|`) operator, which is exactly the same as this union of the underlying sets. The epsilon means you can take the transition "for free" without consuming any input. So it comes down to having a new start states that has the out-transitions of the all the old start states:
 
-{{ digraph(gz_file="implementing-finite-automata-part-2/nfa-union-3-4.gv", alt="(correct) NFA union of DFAs 3 and 4") }}
+{{ digraph(gz_file="nfa-union-3-4.gv", alt="(correct) NFA union of DFAs 3 and 4") }}
 
 This is a perfectly valid thing to do directly instead of going via epsilon transitions and doing using the epsilon-closure operation to turn the NFA-$\varepsilon$ into a normal NFA. But at work a friend (Daniël) mentioned that I didn't go into epsilon closure in my last post, and that it's surprisingly hard to implement (efficiently anyway), so this time we'll look at this epsilon-closure. 
 
