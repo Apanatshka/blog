@@ -7,7 +7,20 @@
       <generator>Zola</generator>
       <language>en</language>
       <atom:link href="https://blog.jeffsmits.net/rss.xml" rel="self" type="application/rss+xml"/>
-      <lastBuildDate>Sun, 17 Nov 2024 00:00:00 +0000</lastBuildDate>
+      <lastBuildDate>Mon, 30 Dec 2024 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Generalised LR Parsing</title>
+          <pubDate>Mon, 30 Dec 2024 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://blog.jeffsmits.net/generalised-lr-parsing/</link>
+          <guid>https://blog.jeffsmits.net/generalised-lr-parsing/</guid>
+          <description xml:base="https://blog.jeffsmits.net/generalised-lr-parsing/">&lt;p&gt;Intro referring to LR parsing. Note a limitation of LR parsing is that it can only parse deterministic context-free languages. Example of a non-deterministic context-free language that is also unambiguous is the language of palindromes. And &lt;a href=&quot;https:&#x2F;&#x2F;stackoverflow.com&#x2F;q&#x2F;13143186&quot;&gt;there are more examples&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Now the language of palindromes isn’t really what inspires me to look at non-deterministic parsing. It’s more a matter of how nice and readable can you make a context-free grammar that describes your language. LR has the option to add more lookahead, but some patterns still need to be encoded. Examples are priorities in expressions, dangling else, (something else that ideally isn’t solved by annotations in typical LR parser generators?). I much prefer the ability to write the grammar the natural way and add extra information on the side to disambiguate. This is a common approach in LR parser generators but most do not let you try to parse before you’ve fully disambiguated things in the LR way. If an annotation can’t help you disabiguate the way LR wants, you’ll have to &lt;em&gt;encode&lt;&#x2F;em&gt;, and that’s what I want to avoid.&lt;&#x2F;p&gt;
+&lt;p&gt;So to give us some flexibility, we’re going to have a look at GLR, generalised LR parsing.&lt;&#x2F;p&gt;
+&lt;p&gt;build up from LR, splitting the stack on multiple choice with sharing of prefixes. show a grammar where splitting causes double work. show merging the stack again, possible because parsing is context-free. show self-loop trouble and epsilon rules: GLR. show right-nulled shortcut to avoid searching: RNGLR.&lt;&#x2F;p&gt;
+&lt;p&gt;discuss algorithmic complexity influenced by size of RHS of rules n^(k+1) where k is RHS size. note we can rewrite grammar into binary rules, but meh in terms of grammar size and predicable extra rules&#x2F; non-terminals. but nice for perf, so don’t materialise but still use this idea in algorithm: BRNGLR&lt;&#x2F;p&gt;
+</description>
+      </item>
       <item>
           <title>Optimising LR Automata</title>
           <pubDate>Sun, 17 Nov 2024 00:00:00 +0000</pubDate>

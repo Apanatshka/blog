@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generalised LR Parsing | Whatever</title>
+  <meta name="title" content="Generalised LR Parsing">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Generalised LR Parsing</h1>
+      <p>
+        <i>
+          <time datetime='2024-12-30T00:00:00+00:00' pubdate>30 Dec, 2024</time>
+        </i>
+      </p>
+  <main>
+    <p>Intro referring to LR parsing. Note a limitation of LR parsing is that it can only parse deterministic context-free languages. Example of a non-deterministic context-free language that is also unambiguous is the language of palindromes. And <a href="https://stackoverflow.com/q/13143186">there are more examples</a>.</p>
+<p>Now the language of palindromes isn’t really what inspires me to look at non-deterministic parsing. It’s more a matter of how nice and readable can you make a context-free grammar that describes your language. LR has the option to add more lookahead, but some patterns still need to be encoded. Examples are priorities in expressions, dangling else, (something else that ideally isn’t solved by annotations in typical LR parser generators?). I much prefer the ability to write the grammar the natural way and add extra information on the side to disambiguate. This is a common approach in LR parser generators but most do not let you try to parse before you’ve fully disambiguated things in the LR way. If an annotation can’t help you disabiguate the way LR wants, you’ll have to <em>encode</em>, and that’s what I want to avoid.</p>
+<p>So to give us some flexibility, we’re going to have a look at GLR, generalised LR parsing.</p>
+<p>build up from LR, splitting the stack on multiple choice with sharing of prefixes. show a grammar where splitting causes double work. show merging the stack again, possible because parsing is context-free. show self-loop trouble and epsilon rules: GLR. show right-nulled shortcut to avoid searching: RNGLR.</p>
+<p>discuss algorithmic complexity influenced by size of RHS of rules n^(k+1) where k is RHS size. note we can rewrite grammar into binary rules, but meh in terms of grammar size and predicable extra rules/ non-terminals. but nice for perf, so don’t materialise but still use this idea in algorithm: BRNGLR</p>
+
+  </main>
+  <p>
+        Tags:
+          <a href="https://blog.jeffsmits.net/tags/theory-of-computation/">#theory of computation</a>
+          <a href="https://blog.jeffsmits.net/tags/automata/">#automata</a>
+          <a href="https://blog.jeffsmits.net/tags/context-free-grammar/">#context-free grammar</a>
+          <a href="https://blog.jeffsmits.net/tags/pda/">#pda</a>
+          <a href="https://blog.jeffsmits.net/tags/parsing/">#parsing</a>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>
