@@ -1,6 +1,6 @@
 +++
 title = "Optimising LR Automata"
-date = "2024-11-17"
+date = "2024-11-16"
 taxonomies.tags = ["theory of computation", "automata", "context-free grammar", "pda", "parsing"]
 +++
 
