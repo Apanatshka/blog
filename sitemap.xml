@@ -16,10 +16,6 @@
         <lastmod>2017-05-07</lastmod>
     </url>
     <url>
-        <loc>https://blog.jeffsmits.net/generalised-lr-parsing/</loc>
-        <lastmod>2024-12-30</lastmod>
-    </url>
-    <url>
         <loc>https://blog.jeffsmits.net/implementing-finite-automata-part-1/</loc>
         <lastmod>2016-10-03</lastmod>
     </url>
@@ -45,7 +41,7 @@
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/optimising-lr-automata/</loc>
-        <lastmod>2024-11-17</lastmod>
+        <lastmod>2024-11-16</lastmod>
     </url>
     <url>
         <loc>https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/</loc>
