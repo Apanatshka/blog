@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optimising LR Automata | Whatever</title>
+  <meta name="title" content="Optimising LR Automata">
+<meta name="description" content="A web log. Mostly about computer science-y stuff." />
+
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <link rel="alternate" type="application/rss+xml" title="Whatever" href="https://blog.jeffsmits.net/rss.xml">
+  <link rel="stylesheet" href="https://blog.jeffsmits.net/style.css">
+  </head>
+<body>
+  <header>
+  
+
+  <a href="https://blog.jeffsmits.net/" class="title">
+    <h1>Whatever</h1>
+  </a>
+  <nav>
+    
+
+  
+
+  </nav>
+</header>
+
+    <h1>Optimising LR Automata</h1>
+      <p>
+        <i>
+          <time datetime='2024-11-17T00:00:00+00:00' pubdate>17 Nov, 2024</time>
+        </i>
+      </p>
+  <main>
+    <p>I thought I was done with this topic for while, happily planning a new blog post on generalised parsing, but here we are again. This post will be a kind of remix of the <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/">two posts</a> <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/">on optimising recursive ascent parsing</a>. Why? Well, I wrote those posts directly based on the papers I refer to in there, and they present their optimisations based on code. At the time that felt quite natural, and I manually applied their ideas and some of my own to code examples. But <a href="https://blog.jeffsmits.net/lr-parsing-recursive-ascent/">when I introduced the topic of LR and recursive ascent in an earlier blog post</a>, I focussed on <em>automata</em> and making sense of everything <em>through automata</em>. And recently I had the idea to try to apply the optimisations from my previous two posts on the automaton itself.</p>
+<p>So, we’ll be looking underneath the LR automaton at the Push-Down Automaton (PDA)—since that’s much closer to the code—and see if we can make sense of the optimisations we did in the previous post through ✨<em>diagrams</em>✨<sup class="footnote-reference" id="fr-diagrams-1"><a href="#fn-diagrams">[1]</a></sup>.</p>
+<h1 id="our-running-example-returns">Our Running Example Returns</h1>
+<p>We’ll work with the same example grammar again. The grammar is a simple arithmetic grammar that has been made unambiguous by encoding the precedence relation between multiplication and addition (multiplication binds tighter):</p>
+<table><thead><tr><th style="text-align: left"></th><th style="text-align: left"></th></tr></thead><tbody>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>S</mi><mo>=</mo><mi>E</mi></math></td><td style="text-align: left">(1)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>E</mi><mo>+</mo><mi>T</mi></math></td><td style="text-align: left">(2)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>E</mi><mo>=</mo><mi>T</mi></math></td><td style="text-align: left">(3)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>T</mi><mo>=</mo><mi>T</mi><mo>*</mo><mi>F</mi></math></td><td style="text-align: left">(4)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>T</mi><mo>=</mo><mi>F</mi></math></td><td style="text-align: left">(5)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mi>a</mi></math></td><td style="text-align: left">(6)</td></tr>
+<tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>F</mi><mo>=</mo><mo>(</mo><mi>E</mi><mo>)</mo></math></td><td style="text-align: left">(7)</td></tr>
+</tbody></table>
+<p>The LALR automaton for this grammar is:</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/lalr-automaton.svg" alt="LALR automaton using the automata from the grammar rules" /></p>
+</div>
+<p>This time I’m trying out the normal itemset style to see if that makes things better. Upon re-reading my previous posts I wasn’t very happy with the shortened versions.</p>
+<h1 id="the-state-machine-underneath">The State Machine Underneath</h1>
+<p>In order to see what we’re doing to the automaton, we’ll need the full PDA with all its stack actions to really see what’s going on during our different optimisations, so let’s show the hidden actions of an LR automaton in PDA form. I’m going to use the following notation for lookahead for <code>a</code> on the input, move past <code>b</code> on the input, peek at <code>C</code> on the top of the stack, push <code>D</code> on the stack, pop <code>E</code> off the stack: <code>(a) b [C] ↓D ↑E</code>.</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/pda-automaton.svg" alt="PDA version of the previous, showing explicit LR automata actions" /></p>
+</div>
+<p>Apologies for the rat’s nest, I tried my best… At least you can tell from this that an LR automaton is much more efficient at showing the same information. But hey, you can see stack activity now! Take a look at the edge between <code>S8</code> and <code>S11</code> at the bottom. We’re pushing the state number when we shift. Then when we reduce the rule in <code>S11</code>, we need the three numbers on the stack that correspond with the three symbol on the right-hand side of the rule. We pop off two, and peek at the last one to decide which <code>_Goto</code> state we go to. We also push the non-terminal we reduce onto the stack, and then pop that in the goto to continue to a normal state again.</p>
+<h2 id="reverse-goto">Reverse Goto</h2>
+<p>Now the notable thing here is that the goto states are currently based on a state number (first decision point), and receive the reduced non-terminal on the stack (second decision point). But we have both bits of information at the same time so we could just as well have goto states based on a non-terminal, and receive the state number to make a decision on second. One of the upsides of this strategy is that the state number is already on the stack. Let’s see how the PDA looks with that first optimisation:</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/reverse-goto.svg" alt="Reverse goto PDA" /></p>
+</div>
+<p>Holy 💩! I expected some improvement before I made this diagram, but this really cleans up the transitions. Notice how we went from 4 to three goto states, and there is no duplication of LR items in those states. This easier overview also allows us to look at the edges that have multiple lines in their edge label. The edge from <code>S10</code> to <code>TGoto</code> has 2 different options<sup class="footnote-reference" id="fr-pop-options-1"><a href="#fn-pop-options">[2]</a></sup>. The edge from <code>TGoto</code> to <code>S2</code> also has two options, but this time we’re using them to choosing between that edge and the one going to <code>S9</code>. Here the implementation can just pick one of the edges with multiple options and use that as the <em>default case</em>. This is safe since we shouldn’t end up with another state number on the stack, the options listed are exhaustive.</p>
+<h2 id="push-first-and-merging-states">Push-First and Merging States</h2>
+<p>Now we know from last post that if you push the state number first, there are some states you can merge. Perhaps you can already see which ones?</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/push-first.svg" alt="Push-First PDA" /></p>
+</div>
+<p>It was <code>S0</code>, <code>S5</code>, <code>S6</code>, and <code>S7</code>, which all go to <code>S5</code> on a <code>(</code> input, and <code>S4</code> on an <code>a</code> input. By pushing the state that you go to, the actions on their edges are all the same and you can merge the states. A downside of pushing the stack number on before going there, is that we do need to pop an extra stack number off during reduces. Your hands might be itching to cancel out some guaranteed push/pop sequences against each other and remove them (e.g. pushing and popping <code>4</code> around state <code>S4</code>), but hold your horses. We have a systematic way to dealing with all that…</p>
+<h2 id="minimal-push-optimisation">Minimal Push Optimisation</h2>
+<p>The only state numbers in square brackets are <code>0</code>, <code>5</code>, <code>6</code>, and <code>7</code>. Those are the only values on the stack we actually use to choose between different outgoing edges. Let’s only push those numbers on the stack:</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/minimal-push.svg" alt="Minimal Push PDA" /></p>
+</div>
+<p>In our simple example this works perfectly. In the general case you may end up with an edge that has two options like <code>↑6↑7</code> and <code>↑7</code>, because you can end up in the same reducing state through different paths of the automaton. Then the implementation needs to do a conditional pop, or you can duplicate states in the automaton. Refer back to <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#stack-access-minimisation">my first post on optimising recursive ascent</a> if you want to have a longer explanation on this optimisation, and if you want to look at the tricks that allow you to remove even more state numbers from the stack.</p>
+<h2 id="inlining">Inlining</h2>
+<p>At this point we can inline almost all states. Here’s one attempt that inlines any state that has only one input edge:</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/max-inline-1.svg" alt="Maximum Inline PDA 1" /></p>
+</div>
+<p>Notably, it’s the goto states and <code>S0</code> that have multiple incoming edges still. But the goto states receive incoming edges from the same single merged state, so you <em>can</em> implement that with a jump in a single place and inline further, merging into two states:</p>
+<div class="gz_dot">
+<p><img src="https://blog.jeffsmits.net/optimising-lr-automata/max-inline-2.svg" alt="Maximum Inline PDA 2" /></p>
+</div>
+<p>It is unclear to me whether this last step is helpful to performance, but I wanted to show the diagrammatic view of the 2 state automaton we derived in the previous post.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>I’m glad I came back to this topic one more time to inspect the optimisations from a graphical point of view. I think this blog post was much faster to write and hopefully also much easier to read and understand. Not an entirely fair comparison after all the work that went into the previous posts that I refer to throughout, but, well, whatever ¯\_(ツ)_/¯</p>
+<hr><ol class="footnotes-list">
+<li id="fn-diagrams">
+<p>I used to complain at the end of one of these diagram-heavy posts about the time spent making diagrams with GraphViz. I don’t understand why I spent so much time with that tool when I could have just grabbed a GUI tool I already knew to build these images as seen above. I suppose I just like the paradigm of text to image, but still, GraphViz is not the right tool for the job here. <a href="#fr-diagrams-1">↩</a></p>
+</li>
+<li id="fn-pop-options">
+<p>Now an LR automaton gives us the guarantee that we do not have to inspect the things we pop off the stack, we can simply pop twice. Nevertheless, I’m keeping the information in the diagram because I think it make the diagram clearer. Just remember that the only numbers we’re really reading off the stack are the ones we use to choose between different output edges. In these diagrams, that’s the ones we peek at, not the ones we pop off. <a href="#fr-pop-options-1">↩</a></p>
+</li>
+</ol>
+
+  </main>
+  <p>
+        Tags:
+          <a href="https://blog.jeffsmits.net/tags/theory-of-computation/">#theory of computation</a>
+          <a href="https://blog.jeffsmits.net/tags/automata/">#automata</a>
+          <a href="https://blog.jeffsmits.net/tags/context-free-grammar/">#context-free grammar</a>
+          <a href="https://blog.jeffsmits.net/tags/pda/">#pda</a>
+          <a href="https://blog.jeffsmits.net/tags/parsing/">#parsing</a>
+  </p>
+<footer>
+    Made with <a href="https://codeberg.org/alanpearce/zola-bearblog">Zola ʕ•ᴥ•ʔ Bear</a>
+</footer>
+</body>
+</html>

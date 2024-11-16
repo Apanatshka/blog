@@ -1,0 +1,10 @@
+digraph {
+    bgcolor="transparent";
+    rankdir=LR;
+    node [shape=circle, fixedsize=shape, width=0.5, color="#dddddd", fontcolor="#dddddd"];
+    edge [color="#dddddd", fontcolor="#dddddd"];
+    q₁ [shape=doublecircle, width=0.4];
+    start -> q₀ [label="$ S"];
+    q₀ -> q₁ [label="ε, $ → ε\nε, $ S → ε"];
+    q₀ -> q₀ [label="ε, S → 0 S 0\nε, S → 1 S 1\nε, S → ε\n0, 0 →ε\n1, 1 → ε"];
+}

@@ -94,14 +94,14 @@ img {
   max-width: 100%;
 }
 
-div.gz_dot {
+.gz_dot {
   background-color: #444;
   padding: 20px;
   margin-top: 1em;
   margin-bottom: 1em;
 }
 
-div.gz_dot > img {
+.gz_dot img {
   display: block;
   margin-left: auto;
   margin-right: auto;

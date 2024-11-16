@@ -1,0 +1,174 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    start1 [shape=none, label="", width=0];
+    S0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S0</td></tr>
+        <tr><td align="left" bgcolor="#ddd"><font color="#333">F =</font> <font color="#333">&bull; a</font></td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">&bull; ( E )</font></td></tr>
+    </table>>];
+    S0Goto [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S0Goto</td></tr>
+        <tr><td align="left" bgcolor="#333">S = &bull; E</td></tr>
+        <tr><td align="left" bgcolor="#555">E = &bull; E + T</td></tr>
+        <tr><td align="left" bgcolor="#777">E = &bull; T</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">&bull; T * F</font></td></tr>
+        <tr><td align="left" bgcolor="#bbb"><font color="#333">T =</font> <font color="#333">&bull; F</font></td></tr>
+    </table>>];
+    S1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S1</td></tr>
+        <tr><td align="left" bgcolor="#333">S = E &bull;</td></tr>
+        <tr><td align="left" bgcolor="#555">E = E &bull; + T</td></tr>
+    </table>>];
+    S2 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S2</td></tr>
+        <tr><td align="left" bgcolor="#777">E = E + T &bull;</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">T &bull; * F</font></td></tr>
+    </table>>];
+    S3 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S3</td></tr>
+        <tr><td align="left" bgcolor="#bbb"><font color="#333">T =</font> <font color="#333">F &bull;</font></td></tr>
+    </table>>];
+    S4 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S4</td></tr>
+        <tr><td align="left" bgcolor="#ddd"><font color="#333">F =</font> <font color="#333">a &bull;</font></td></tr>
+    </table>>];
+    S5 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S5</td></tr>
+        <tr><td align="left" bgcolor="#ddd"><font color="#333">F =</font> <font color="#333">&bull; a</font></td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">&bull; ( E )</font></td></tr>
+    </table>>];
+    S5Goto [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S5Goto</td></tr>
+        <tr><td align="left" bgcolor="#555">E = &bull; E + T</td></tr>
+        <tr><td align="left" bgcolor="#777">E = &bull; T</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">&bull; T * F</font></td></tr>
+        <tr><td align="left" bgcolor="#bbb"><font color="#333">T =</font> <font color="#333">&bull; F</font></td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">( &bull; E )</font></td></tr>
+    </table>>];
+    S6 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S6</td></tr>
+        <tr><td align="left" bgcolor="#ddd"><font color="#333">F =</font> <font color="#333">&bull; a</font></td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">&bull; ( E )</font></td></tr>
+    </table>>];
+    S6Goto [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S6Goto</td></tr>
+        <tr><td align="left" bgcolor="#555">E = E + &bull; T</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">&bull; T * F</font></td></tr>
+        <tr><td align="left" bgcolor="#bbb"><font color="#333">T =</font> <font color="#333">&bull; F</font></td></tr>
+    </table>>];
+    S7 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S7</td></tr>
+        <tr><td align="left" bgcolor="#ddd"><font color="#333">F =</font> <font color="#333">&bull; a</font></td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">&bull; ( E )</font></td></tr>
+    </table>>];
+    S7Goto [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S7Goto</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">T * &bull; F</font></td></tr>
+    </table>>];
+    S8 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S8</td></tr>
+        <tr><td align="left" bgcolor="#555">E = E &bull; + T</td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">( E &bull; )</font></td></tr>
+    </table>>];
+    S9 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S9</td></tr>
+        <tr><td align="left" bgcolor="#555">E = E + T &bull;</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">T &bull; * F</font></td></tr>
+    </table>>];
+    S10 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S10</td></tr>
+        <tr><td align="left" bgcolor="#999"><font color="#333">T =</font> <font color="#333">T * F &bull;</font></td></tr>
+    </table>>];
+    S11 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>S11</td></tr>
+        <tr><td align="left" bgcolor="#fff"><font color="#333">F =</font> <font color="#333">( E ) &bull;</font></td></tr>
+    </table>>];
+    #A [shape="S", width=0, height=0, label=""];
+    #B [shape="S", width=0, height=0, label=""];
+    #C [shape="S", width=0, height=0, label=""];
+    #D [shape="S", width=0, height=0, label=""];
+    Fin [shape="doublecircle"];
+    start1 -> S0:t [weight=10];
+    S0:t -> S4:t [headlabel="a ↓0", labelangle="30", labeldistance="2.8"];
+    S0:t -> S5:t [xlabel="    ( ↓0"];
+    S0Goto:t -> S1:t [headlabel=" ↑E"];
+    S0Goto:t -> S2:t [taillabel="↑T", labelangle="55", labeldistance="1.5"];
+    S0Goto:t -> S3:t [headlabel="↑F  "];
+    S1:t -> S6:t [xlabel="   + ↓1"];
+    S1:t -> Fin [headlabel="accept  "];
+    S2:t -> S7:t [label="* ↓2"];
+    S2:t -> S0Goto:t [taillabel="↑0↓E", labelangle="45", labeldistance="3"];
+    S2:t -> S5Goto:t;# [headlabel="↑5↓E"];
+    S3:t -> S0Goto:t [headlabel="↑0↓T", labelangle="25", labeldistance="3"];
+    S3:t -> S5Goto:t [headlabel="↑5↓T", labelangle="25", labeldistance="3"];
+    S3:t -> S6Goto:t [headlabel="  ↑6↓T"];
+    S4:t -> S0Goto:t [headlabel="↑0↓F", labelangle="35", labeldistance="3"];
+    S4:t -> S5Goto:t [headlabel="↑5↓F", labelangle="30", labeldistance="3"];
+    S4:t -> S6Goto:t [headlabel="↑6↓F  "];
+    S4:t -> S7Goto:t [headlabel="↑7↓F", labelangle="80", labeldistance="2"];
+    S5:t -> S4:t [headlabel="a ↓5", labelangle="40", labeldistance="2"];
+    S5:t:w -> S5:t:w [headlabel="( ↓5", labelangle="-50", labeldistance="4"];
+    S5Goto:t -> S2:t [headlabel="↑T", labelangle="60", labeldistance="1.8"];
+    S5Goto:t -> S3:t [headlabel="↑F    "];
+    S6:t -> S4:t [headlabel="a ↓6", labelangle="30", labeldistance="3"];
+    S6:t -> S5:t [xlabel="    ( ↓6"];
+    S6Goto:t -> S9:t [headlabel="↑T", labelangle="30", labeldistance="2"];
+    S6Goto:t -> S3:t [headlabel="↑F", labelangle="-30", labeldistance="2"];
+    S7:t -> S4:t [taillabel="a ↓7", labelangle="-45", labeldistance="2.5"];
+    S7:t -> S5:t [headlabel="  ( ↓7"];
+    S7Goto:t -> S10:t [headlabel="↑F", labelangle="-40", labeldistance="1.5"];
+    S8:t -> S6:t [headlabel="  + ↓8"];
+    S8:t -> S11:t [headlabel=") ↓8     "];
+    S9:t -> S7:t [taillabel="* ↓9  "];
+    S9:t -> S0Goto:t [headlabel="↑0↓E", labelangle="55", labeldistance="3"];
+    S9:t -> S5Goto:t [headlabel="↑5↓E", labelangle="50", labeldistance="3"];
+    S10:t -> S0Goto:t [headlabel="↑0↓T", labelangle="0", labeldistance="3"];
+    S10:t -> S5Goto:t [headlabel="↑5↓T", labelangle="-30", labeldistance="2.2"];
+    S10:t -> S6Goto:t [headlabel="↑6↓T", labelangle="23", labeldistance="4"];
+    S11:t -> S0Goto:t [label="↑0↓F  "];
+    S11:t -> S5Goto:t [taillabel="↑5↓F", labelangle="-60", labeldistance="2.5"];
+    S11:t -> S6Goto:t [taillabel="↑6↓F", labelangle="-70", labeldistance="2.8"];
+    S11:t -> S7Goto:t [headlabel="↑7↓F   "];
+    
+    #S10:t -> A [style=invis];
+    #B:s [arrowhead="none"];
+    #B:n -> C:s [arrowhead="none"];
+    #C:n -> D:w [arrowhead="none"];
+    #D:e -> S3:t [label="F"];
+    #B -> S5:t [style=invis, weight=5];
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S0:t -> S5:t [weight=2];
+        S5:t -> S6:t;
+        S6:t -> S1:t;
+        S1:t -> Fin;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S7:t -> S9:t;
+        S9:t -> S4:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S2:t -> S0Goto:t;
+        S0Goto:t -> S8:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S5Goto:t -> S6Goto:t;
+        S6Goto:t -> S11:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S3:t -> S10:t;
+        #S10:t -> S7Goto:t; # why no work?
+    }
+}

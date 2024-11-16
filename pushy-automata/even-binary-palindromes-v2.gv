@@ -1,0 +1,16 @@
+digraph {
+    bgcolor="transparent";
+    rankdir=LR;
+    node [shape=circle, fixedsize=shape, width=0.5, color="#dddddd", fontcolor="#dddddd"];
+    edge [color="#dddddd", fontcolor="#dddddd"];
+    q₀ [shape=doublecircle, width=0.4, label="q₀′"];
+    q₃ [shape=doublecircle, width=0.4, label="q₃′"];
+    q₁ [label="q₁′"];
+    q₂ [label="q₂′"];
+    start -> q₀ [label="$"];
+    q₀ -> q₁ [label="0, ε → 0\n1, ε → 1"];
+    q₁ -> q₂ [label="0, 0 → ε\n1, 1 → ε"];
+    q₂ -> q₃ [label="ε, $ → ε"];
+    q₁ -> q₁ [label="0, ε → 0\n1, ε → 1"];
+    q₂ -> q₂ [label="0, 0 → ε\n1, 1 → ε"];
+}

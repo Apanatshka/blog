@@ -1,0 +1,145 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    start1 [shape=none, label="", width=0];
+    Box0 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box0</td></tr>
+        <tr><td bgcolor="#333">S₁₀</td></tr>
+        <tr><td bgcolor="#555">E₂₀</td></tr>
+        <tr><td bgcolor="#777">E₃₀</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₀</font></td></tr>
+        <tr><td bgcolor="#bbb"><font color="#333">T₅₀</font></td></tr>
+        <tr><td bgcolor="#ddd"><font color="#333">F₆₀</font></td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₀</font></td></tr>
+    </table>>];
+    Box1 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box1</td></tr>
+        <tr><td bgcolor="#333">S₁</td></tr>
+        <tr><td bgcolor="#555">E₂₁</td></tr>
+    </table>>];
+    Box2 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box2</td></tr>
+        <tr><td bgcolor="#777">E₃</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₁</font></td></tr>
+    </table>>];
+    Box3 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box3</td></tr>
+        <tr><td bgcolor="#bbb"><font color="#333">T₅</font></td></tr>
+    </table>>];
+    Box4 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box4</td></tr>
+        <tr><td bgcolor="#ddd"><font color="#333">T₆</font></td></tr>
+    </table>>];
+    Box5 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box5</td></tr>
+        <tr><td bgcolor="#555">E₂₀</td></tr>
+        <tr><td bgcolor="#777">E₃₀</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₀</font></td></tr>
+        <tr><td bgcolor="#bbb"><font color="#333">T₅₀</font></td></tr>
+        <tr><td bgcolor="#ddd"><font color="#333">F₆₀</font></td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₀</font></td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₁</font></td></tr>
+    </table>>];
+    Box6 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box6</td></tr>
+        <tr><td bgcolor="#555">E₂₂</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₀</font></td></tr>
+        <tr><td bgcolor="#bbb"><font color="#333">T₅₀</font></td></tr>
+        <tr><td bgcolor="#ddd"><font color="#333">F₆₀</font></td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₀</font></td></tr>
+    </table>>];
+    Box7 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box7</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₂</font></td></tr>
+        <tr><td bgcolor="#ddd"><font color="#333">F₆₀</font></td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₀</font></td></tr>
+    </table>>];
+    Box8 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box8</td></tr>
+        <tr><td bgcolor="#555">E₂₁</td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇₂</font></td></tr>
+    </table>>];
+    Box9 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box9</td></tr>
+        <tr><td bgcolor="#555">E₂</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄₁</font></td></tr>
+    </table>>];
+    Box10 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box10</td></tr>
+        <tr><td bgcolor="#999"><font color="#333">T₄</font></td></tr>
+    </table>>];
+    Box11 [shape=none, label=<<table cellborder="0" port="t" bgcolor="#333">
+        <tr><td>Box11</td></tr>
+        <tr><td bgcolor="#fff"><font color="#333">F₇</font></td></tr>
+    </table>>];
+    A [shape="box", width=0, height=0, label=""];
+    B [shape="box", width=0, height=0, label=""];
+    C [shape="box", width=0, height=0, label=""];
+    D [shape="box", width=0, height=0, label=""];
+    start1 -> Box0:t [weight=5];
+    Box0:t -> Box1:t [label="E", weight=2];
+    Box0:t -> Box2:t [label="T"];
+    Box0:t -> Box3:t [xlabel=" F"];
+    Box0:t -> Box4:t [label="a"];
+    Box0:t -> Box5:t [label="("];
+    Box1:t -> Box6:t [label="+", weight=2];
+    Box2:t -> Box7:t [label="*"];
+    Box5:t -> Box2:t [label="T"];
+    Box5:t -> B:s [arrowhead="none"];
+    B:n -> C:s [arrowhead="none"];
+    C:n -> D:w [arrowhead="none"];
+    D:e -> Box3:t [label="F"];
+    B -> Box5:t [style=invis, weight=5];
+    Box5:t -> Box4:t [label="a"];
+    Box5:t -> Box8:t [label="E", weight=2];
+    Box5:t:s -> Box5:t:s [label="("];
+    Box6:t -> Box3:t [label="F"];
+    Box6:t -> Box4:t [label="a"];
+    Box6:t -> Box5:t [xlabel="("];
+    Box6:t -> Box9:t [label="T", weight=2];
+    Box7:t:w -> Box4:t [xlabel="a"];
+    Box7:t -> Box5:t [label="("];
+    Box7:t -> Box10:t [label="F", weight=2];
+    Box8:t -> A:s [arrowhead="none"];
+    A:n -> Box6:t [label="+"];
+    Box8:t -> Box11:t [label=")", weight=2];
+    Box9:t -> Box7:t [label="*"];
+    Box10:t -> A [style=invis];
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        start1 -> C [weight=5];
+        start1 -> C [weight=5];
+        C -> B;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        D -> Box0:t;
+        Box0:t -> Box5:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box1:t -> Box4:t;
+        Box4:t -> Box2:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box3:t -> Box6:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box9:t -> Box7:t;
+        Box7:t -> Box8:t;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        Box10:t -> Box11:t;
+    }
+}

@@ -1,0 +1,106 @@
+digraph {
+    bgcolor="transparent";
+    node [shape=circle, fixedsize=shape, width=0.5, fontcolor="#ddd", color="#ddd"];
+    edge [fontcolor="#ddd", color="#ddd"];
+    rankdir=LR;
+    start1 [shape=none, label="", width=0];
+    subgraph {
+    node [style=filled, fillcolor="#fff", fontcolor="#333"];
+    F7 [label="F₇"];
+    F70 [label="F₇₀"];
+    F71 [label="F₇₁"];
+    F72 [label="F₇₂"];
+    F70 -> F71 [label="("];
+    F71 -> F72 [label="E"];
+    F72 -> F7 [label=")"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#ddd", fontcolor="#333"];
+    F6 [label="F₆"];
+    F60 [label="F₆₀"];
+    F60 -> F6 [label="a", weight=2];
+    F6plus [shape=box, label="", width=0, height=0, color="#00000000"];
+    F6 -> F6plus [style=invis];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#bbb", fontcolor="#333"];
+    T5 [label="T₅"];
+    T50 [label="T₅₀"];
+    T50 -> T5 [label="F", weight=2];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#999", fontcolor="#333"];
+    T4 [label="T₄"];
+    T40 [label="T₄₀"];
+    T41 [label="T₄₁"];
+    T42 [label="T₄₂"];
+    T40 -> T41 [label="T", weight=2];
+    T41 -> T42 [label="*"];
+    T42 -> T4 [label="F", weight=2];
+    T4plus [shape=box, label="", width=0, height=0, color="#00000000"];
+    T4 -> T4plus [style=invis];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#777"];
+    E3 [label="E₃"];
+    E30 [label="E₃₀"];
+    E30 -> E3 [label="T", weight=2];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#555"];
+    E2 [label="E₂"];
+    E20 [label="E₂₀"];
+    E21 [label="E₂₁"];
+    E22 [label="E₂₂"];
+    E20 -> E21 [label="E", weight=2];
+    E21 -> E22 [label="+"];
+    E22 -> E2 [label="T"];
+    }
+    subgraph {
+    node [style=filled, fillcolor="#333"];
+    S1 [label="S₁"];
+    S10 [label="S₁₀"];
+    start1 -> S10;
+    S10 -> S1 [label="E"];
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        S1 -> E20;
+        E20 -> E30;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        E22 -> T40;
+        T40 -> T50;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        T42 -> F60;
+        F60 -> F70;
+    }
+    subgraph {
+        rank=same;
+        edge [style=invis];
+        T4plus -> F6plus;
+    }
+    S10 -> E20 [label="ε", weight=0];
+    S10 -> E30 [label="ε", weight=0];
+    E20 -> E20 [label="ε", weight=0];
+    E22 -> T40 [label="ε", weight=0];
+    E22 -> T50 [label="ε", weight=0];
+    E30 -> T40 [label="ε", weight=0];
+    E30 -> T50 [label="ε", weight=0];
+    T40 -> T40 [label="ε", weight=0];
+    T40 -> T50 [label="ε", weight=0];
+    T42 -> F60 [label="ε", weight=0];
+    T42 -> F70 [label="ε", weight=0];
+    T50 -> F60 [label="ε", weight=0];
+    T50 -> F70 [label="ε", weight=0];
+    F71 -> F6plus:s [arrowhead="none", weight=0];
+    F6plus:n -> T4plus:s [arrowhead="none", weight=0];
+    F71 -> E30:s [label="ε", weight=0];
+    T4plus:n -> E20 [label="ε", weight=0];
+}
