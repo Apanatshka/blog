@@ -30,7 +30,7 @@ A context-free grammar that describes the above language is:
 $S = 0 S 1$        | (step)
 $S = \varepsilon$  | ($\varepsilon$)
 
-Sort $S$ is the start symbol, the starting point in the grammar. If we're using the grammar _productively_ we start from the start symbol and use the rules left-to-right to replace sorts until we get the sentence in the corresponding context-free language that we want. Something like: $ S \to 0 S 1 \to 0 0 S 1 1 \to 0 0 1 1 $. This is called a _derivation_.
+Sort $S$ is the start symbol, the starting point in the grammar. If we're using the grammar _productively_ we start from the start symbol and use the rules left-to-right to replace sorts until we get the sentence in the corresponding context-free language that we want. Something like: $S \to 0 S 1 \to 0 0 S 1 1 \to 0 0 1 1$. This is called a _derivation_.
 
 The most general, naive way to derive a push-down automaton for any context-free grammar is by pushing the end-of-stack and start symbol at the start, having a "main" state that uses the grammar rules with the body reversed (to deal with the stack order), and an accept state that pops the end-of-stack:
 
@@ -71,7 +71,9 @@ When you can get multiple trees like this, the grammar is called ambiguous. More
 
 # Topdown, (Strong) LL parsing
 
-To take a good look at LL parsing, we will first work with a grammar that is not ambiguous or left-recursive:
+To take a good look at LL parsing, we will first work with a grammar that is not ambiguous or left-recursive[^wiki-ll-parser]:
+
+[^wiki-ll-parser]: I found this example LL grammar on the [Wikipedia article on LL parsers](https://en.wikipedia.org/wiki/LL_parser).
 
 | | |
 :- | :-
@@ -89,7 +91,9 @@ So sort $S$  is the start symbol, we also have sort $F$ , and we have round brac
 | $F$ |     |   3 |
 </div>
 
-A table like the above is an LL(1) parse table, because it uses only 1 symbol of "look-ahead" in the columns. LL(1) grammars are always strong LL grammars, which means that they only need the combination of the sort to be parsed and the next symbol(s) to decide on a unique grammar rule to apply. In general, LL(k) grammars do not have to be strong, and if they are not, you also need to know what was already parsed from the input (the "left context") in order to choose a unique grammar rule[^LLdef]. For example, the following grammar is LL(2), and not strong:
+A table like the above is an LL(1) parse table, because it uses only 1 symbol of "look-ahead" in the columns. LL(1) grammars are always strong LL grammars, which means that they only need the combination of the sort to be parsed and the next symbol(s) to decide on a unique grammar rule to apply. In general, LL(k) grammars do not have to be strong, and if they are not, you also need to know what was already parsed from the input (the "left context") in order to choose a unique grammar rule[^LLdef]. For example, the following grammar is LL(2)[^cs-stackexchange-strong-ll], and not strong:
+
+[^cs-stackexchange-strong-ll]: I found this [example and information on Strong LL grammars](https://cs.stackexchange.com/q/99537) on the Computer Science StackExchange, what a wonderful resource.
 
 | | |
 :- | :-
@@ -109,7 +113,7 @@ You can see this if you try to write an LL(2) parse table for it:
 
 If you look ahead to `a b` on the input, and the next sort is $A$, then it really depends on whether you are at the start of the input or in the middle of rule 1. If you're at the start, you must choose rule 3 so you can parse `a b` as part of the rule 1, but if you're already in the middle of rule 1, you must choose rule 2 for $A$ so you can continue to parse `b a` of rule 1.
 
-If you mark $A$ in rule 1 with where you are in rule 1 ($ S = A₁\ a\ b\ A₂\ b\ a $), you get an LL(2) grammar that is strong, although the table for it is larger[^table]:
+If you mark $A$ in rule 1 with where you are in rule 1 ($S = A₁\ a\ b\ A₂\ b\ a$), you get an LL(2) grammar that is strong, although the table for it is larger[^table]:
 
 <div class="parsetable">
 
@@ -150,7 +154,7 @@ Step 2: Now instead of consuming a sort with an automaton, we'll use $\varepsilo
 
 The $\downarrow{}X$ is an abbreviation for an $\varepsilon, \varepsilon \rightarrow X$ edge that pushes a symbol on the stack unconditionally, it was hard to get graphviz to cooperate on node placement of this graph otherwise... Now at every node that had a sort transition you have multiple transition options, these are where you need to look ahead. Soooo...
 
-Step 3: at a sort transition node, for each $\downarrow$ transition, follow transitions until you've consumed _k_ terminals (2 in this example) from the input. These are the terminals of the column in the parse table, and the rule of the $\downarrow$ transition gets put into that cell. You can also put the look-ahead into the automaton:
+Step 3: At a sort transition node, for each $\downarrow$ transition, follow transitions until you've consumed _k_ terminals (2 in this example) from the input. These are the terminals of the column in the parse table, and the rule of the $\downarrow$ transition gets put into that cell. You can also put the look-ahead into the automaton:
 
 {{ digraph(gz_file="parsing-and-all-that/ll-single-automaton-lookahead.gv", alt="Single PDA using the automata from the grammar rules with lookahead noted") }}
 
@@ -185,7 +189,7 @@ $A = \varepsilon$  | (4)
 
 The problem for LL here is that we would have to look ahead in the input until we read the entire input before we could decide whether we can start consuming the input with Rule 1 or Rule 2 (and then Rule 3). 
 
-There is a class of grammars called LL-regular (LLR) grammars captures all LL(k) grammars for any k and slightly more. These LLR grammars are cool in that they are still parseable in linear time, as long as you have something called a "regular partition" of your grammar. Getting that is an undecidable problem though. And since there is an LR(1) grammar that is not in LLR, this stuff is the trifecta of confusing, impractical, and less powerful[^LLR] than a much more useful technique that we will cover later in this post: LR. But first, going from tables to parsers!
+There is a class of grammars called LL-regular (LLR) grammars captures all LL(k) grammars for any k and slightly more. These LLR grammars are cool in that they are still parseable in linear time, as long as you have something called a "regular partition" of your grammar. Getting that is an undecidable problem though. And since there is an LR(1) grammar that is not in LLR, this stuff is the trifecta of confusing, impractical, and less powerful[^LLR] than a much more useful technique that we will cover ~later in this post~ in the next post: LR. But first, going from tables to parsers!
 
 ## Predictive Parsing
 
@@ -423,7 +427,7 @@ We've seen how we can construct simple DFAs for each rule in our grammar, and th
 
 The recursive descent way of writing a parser directly as code is nice and simple, it really just follows the grammar. Since you're writing plain old code with function calls, you can imagine people have found nice ways to extend and adapt the pattern of recursive descent parsers. For one, it's quite easy to reason about where you are in the parse when hitting an error state, which makes it fairly easy to give friendly error messages when the parser doesn't accept an input. You can also use a trick to fix up direct left-recursion called [node reparenting](https://en.wikipedia.org/wiki/Tail_recursive_parser), where you use a loop or tail-recursion locally construct the tree bottom-up. You could argue that such a parser is a hybrid between recursive descent and ascent, a "recursive descent-ascent parser".
 
-Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/finite-automata/index.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the next parsing technique.
+Finally, if we look back at the automaton, we can see that the PDAs we build have a very strict shape. We either have a non-deterministic choice due to multiple push transitions for a sort, or we have predicted input, a single path of terminals to consume from the input. If we think back to the [NFAs and DFAs](@/finite-automata/index.md) from early on in this blog post series, those used the input to chose what state to go to next. Now we have single-path DFAs that just consume input, and a separate table on a look-ahead to resolve non-determinism from the pushes and pops. The strict shape here indicated that we're not really making full use of the power of automata. This will change with the parsing technique discussed in the next post.
 
 # Continue?
 
