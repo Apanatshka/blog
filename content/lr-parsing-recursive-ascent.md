@@ -4,11 +4,11 @@ date = "2024-04-08"
 taxonomies.tags = ["theory of computation", "automata", "context-free grammar", "pda", "parsing"]
 +++
 
-This is part 2 of old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. In [part 1](@/ll-parsing-recursive-descent.md) we learned about LL parsing, how to construct the parse tables for it, and how those relate to direct execution of the parser with recursive descent. Since part 1 and part 2 were originally one blog post that I simply cut in half after feedback that it was too long, this post assumes you've read part 1. It's probably still pretty readable without reading all of part 1 though. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations! It's still interesting because I like to explain things from an automata point of view instead of a procedural algorithm. We'll check out LR parsing, its (different) parse tables, and recursive _ascent_. I'm hoping that last one is something you don't know about yet, it's pretty cool! I'll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser. Let's dive in!
+This is part 2 of old-school linear time parsing algorithms, which only need to go over the input once, without backtracking or caching. In [part 1](@/ll-parsing-recursive-descent.md) we learnt about LL parsing, how to construct the parse tables for it, and how those relate to direct execution of the parser with recursive descent. Since part 1 and part 2 were originally one blog post that I simply cut in half after feedback that it was too long, this post assumes you've read part 1. It's probably still pretty readable without reading all of part 1 though. This post is meant to be readable for people unfamiliar with parsing, and yet be interesting for those who are familiar with the more traditional explanations! It's still interesting because I like to explain things from an automata point of view instead of a procedural algorithm. We'll check out LR parsing, its (different) parse tables, and recursive _ascent_. I'm hoping that last one is something you don't know about yet, it's pretty cool! I'll use examples of grammars, and tables, and automata, and even some Rust code to show you how to implement a parser. Let's dive in!
 
 # Bottomup, LR parsing
 
-LR stands for left-to-right, rightmost derivation _in reverse_. If you think about it, left-to-right and rightmost derivation are incompatible: The rightmost derivation chooses the rule for the rightmost sort first every time, but that means skipping over some unknown amount of input if you read left-to-right to even get to that point. However, the _reverse_ of the rightmost derivation is a left-to-right form of parsing. This reverse derivation describes going bottomup, left-to-right through the parse tree.
+LR stands for left-to-right, rightmost [derivation](@/ll-parsing-recursive-descent.md#context-free-grammars-derivations-and-a-naive-pda-translation) _in reverse_. If you think about it, left-to-right and rightmost derivation are incompatible: The rightmost derivation chooses the rule for the rightmost sort first every time, but that means skipping over some unknown amount of input if you read left-to-right to even get to that point. However, the _reverse_ of the rightmost derivation is a left-to-right form of parsing. This reverse derivation describes going bottomup, left-to-right through the parse tree.
 
 ## Expressive power and relation to LL
 
@@ -20,7 +20,7 @@ A good overview of how LL and LR relate to each other on the grammar and languag
 
 ## How LR works
 
-In order to give a reverse rightmost derivation, we need to figure what sorts can be at the leftmost leaf of the parse tree for our LR grammar. Then we try to apply the rules for those sorts all simultaneously. And to do so we can't just use the automaton build we've used for LL.
+In order to give a reverse rightmost derivation, we need to figure out what sorts can be at the leftmost leaf of the parse tree for our LR grammar. Then we try to apply the rules for those sorts all simultaneously. And to do so we can't just use the [automaton method we've used for LL](@/ll-parsing-recursive-descent.md#an-intuition-for-table-construction-by-automaton).
 
 Remember that the automata we've used previously mapped well on recursive descent, and showed us where to use an LL parse table with look-ahead to resolve ambiguity. Crucially, those automata observe every rule we go into. But for LR we need to explore down all the rules simultaneously. Let's see if we can't get somewhere with that idea and the example grammar of the language that wasn't LL:
 
@@ -43,11 +43,11 @@ Obviously this is not a full automaton model of a parser yet, but it allows us t
 
 {{ digraph(gz_file="parsing-and-all-that/lr-single-automaton-dfa.gv", alt="Partially constructed automaton using the automata from the grammar rules, after merging states through NFA-to-DFA conversion") }}
 
-This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the "LR item"s `S = . a S` and `S = a . S`. But otherwise it would be pretty much this. This is considered a PDA, though what's happening on the stack is left implicit. That's because what's actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I'll demonstrate it once:
+This is almost exactly how an LR(0) automaton would be drawn. Instead of S₁₀ and S₁₁, you write out the "LR item"&zwnj;s `S = . a S` and `S = a . S`. But otherwise it would be pretty much this. This is considered a PDA, though what's happening on the stack is left implicit. That's because what's actually happening on the stack of LR automata is very structured, but a little involved. That makes the PDA harder to read and draw, but I'll demonstrate it once:
 
 {{ digraph(gz_file="parsing-and-all-that/lr-single-automaton-explicit.gv", alt="A fully explicit PDA that does LR parsing") }}
 
-This should look quite familiar. We're pushing inputs on the stack as we consume them, paired with the state we're in at that point. And then we're popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a _shift_ action, the second is called a _reduce_ action. We've seen this trick before in the naive PDA built from a CFG, all the way at the start of this post in the refresher. But this time we get an automaton with more states.
+This should look quite familiar. We're pushing inputs on the stack as we consume them, paired with the state we're in at that point. And then we're popping whole bodies of rules off the stack and replacing them with the sort of that rule. The first thing is called a _shift_ action, the second is called a _reduce_ action. We've seen this trick before in the [naive PDA built from a CFG, in the previous post's refresher](@/ll-parsing-recursive-descent.md#context-free-grammars-derivations-and-a-naive-pda-translation). But this time we get an automaton with more states.
 
 Notice that _where_ a reduce action goes depends on originating state of the last thing that's popped. That's why we keep track of those on the stack. When we reduce by rule 3 (state A₃), depending on whether the `a` came from box 1 or box 0, we go to different places. This is easier to see in our proper LR(0) automaton, where box 1 points to state S₁ with a transition labeled `A`. This is a _goto_ action. In an LR parse table interpreter, the _goto_ is a separate action that immediately follows a _reduce_ action, which merely returns to the last popped state. When a reduce just returns that's also more like a function call and return, so that's nice. Anyway, that's also why a reduce transition in the above automaton always labels the originating state of the pushed sort the same as the last thing popped from the stack.
 
@@ -66,7 +66,9 @@ Let's look at some example grammars, how to construct their tables, and when you
 ### LR(0)
 
 LR(0) does not look ahead but just reduces whenever possible. If there are multiple options, you have a shift-reduce or a reduce-reduce conflict. Shift-shift conflicts don't exist in LR since the NFA-to-DFA process would have merged the two states such conflicting transitions would point to.
-Let's look at an LR(0) grammar:
+Let's look at an LR(0) grammar[^wiki-simple-lr1]:
+
+[^wiki-simple-lr1]: This example grammar was adapted from the one in [the Wikipedia article on Simple LR parsers](https://en.wikipedia.org/wiki/Simple_LR_parser).
 
 | | |
 :- | :-
@@ -105,6 +107,8 @@ $E = 1$            | (3)
 
 Notice how rule 2 is now right-recursive instead of left-recursive. It's a nice symmetry how left-recursive rules give you trouble in LL, and right-recursive rules _could_ give you trouble in LR[^indirect-recursion]. 
 
+[^indirect-recursion]: _Indirect_ left recursion is even worse in LL. At least the direct version can still be dealt with by an automatic grammar rewrite algorithm. That's more or less what the node-reparenting trick mentioned at the end of the LL section does. Similarly, there are automatic grammar rewrites for direct right-recursion for LR, and indirect right recursion can be more problematic...
+
 {{ digraph(gz_file="parsing-and-all-that/simple-lr.gv", alt="An LR(0) automaton for the above grammar") }}
 
 <div class="parsetable">
@@ -135,7 +139,9 @@ Yay, we have a shift-reduce conflict. How do we solve it? By not blindly putting
 
 From now on we'll be looking at reduce-reduce conflicts only. While you can get shift-reduce conflicts with the following algorithms through grammars that don't fit (due to ambiguity or requiring more look-ahead than you're taking into account), when you give an LALR(k) grammar to an SLR(k) algorithm you can only get reduce-reduce conflicts. Same with an LR(k) grammar put through the LALR(k) algorithm.
 
-Here our example grammar that just barely doesn't work with SLR:
+Here our example grammar[^wiki-lalr-parser] that just barely doesn't work with SLR:
+
+[^wiki-lalr-parser]: This example grammar was adapted from the one in [the Wikipedia article on LALR parsers](https://en.wikipedia.org/wiki/LALR_parser).
 
 | | |
 :- | :-
@@ -196,7 +202,7 @@ This results in an automaton that's almost the same as before:
 
 {{ digraph(gz_file="parsing-and-all-that/lr-one-zero.gv", alt="An LR(0) automaton for the above grammar") }}
 
-We now have a reduce-reduce conflict in box 3 again. With look-ahead `a` you can reduce to both `E` and `F`. Same for look-ahead `b` by the way. It _is_ deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.
+We now have a reduce-reduce conflict in box 3 again. With look-ahead `c` you can reduce to both `E` and `F`. Same for look-ahead `d` by the way. It _is_ deterministically decidable which one we should reduce to, but it basically now depends on which state we came from.
 
 With LALR we build an automaton for each rule, and try to reuse that rule independent of the context in which it is used. That's keeps our process simple, our automaton small, but it also causes us to lose exactly the information we need to resolve the reduce-reduce conflict in box 3 above: the left context. I know the information is technically on the stack, but our parsing process decides on the rule to reduce by based on the state and look-ahead only. 
 
@@ -216,7 +222,7 @@ While researching the material, I found some claims for _minimal_ LR(1) algorith
 
 ## Recursive Ascent
 
-We finally get to the original impetus for this blog post: recursive ascent parsing. As you might be able to guess, this is the LR analogue to recursive _descent_ for LL. So we're going to write code that directly executes the LR automaton instead of simulating it by parse table interpretation.
+We finally get to the original impetus for this pair of blog posts: recursive ascent parsing. As you might be able to guess, this is the LR analogue to recursive _descent_ for LL. So we're going to write code that directly executes the LR automaton instead of simulating it by parse table interpretation.
 
 Before, in recursive descent parsing, we saw that rules and sorts become functions. Rules call sort functions to parse a sort, and sorts check the look-ahead to choose a rule by which to parse the alternative of the sort. Basically grammar rules became functions, and the parse table was split into functions for each sort.
 
@@ -515,6 +521,8 @@ With both recursive descent and recursive ascent parsing, we're representing the
 
 Have you noticed that in the recursive ascent code there are some pretty boring and tiny looking functions? I'm talking about `s12`, `s1`, `s22`, `s2`, `s32`, `s3`, `s62`, `s6`. These will likely be targeted by the inliner of the Rust compiler[^inlining], but aren't they a bit much to even generate?
 
+[^inlining]: Actually, I checked in [Compiler Explorer](https://godbolt.org/) how this turns out, and while `s7` is inlined and compiled away entirely, adapting `box1` to consume directly will make the assembly at `opt-level=3` smaller. Adding an `#[inline]` hint on `consume` helps as well. Though I may just be seeing the effect of uniform error messages through `consume`. Actually following and understanding the optimised assembly code is a pain, so I just clicked around a bit to verify that the example code is reduced to a state machine with jumps and labels instead of using function `call` instructions. So that's neat, basically what I was hoping for :)
+
 The common denominator of these functions, and the states of the LR automaton they correspond to, is that they have already honed in on a single rule from the grammar and are only parsing that. Kind of like in an LL parser, except we used the LR automaton mechanism to select the rule instead of an LL look-ahead. If we follow that idea to its logical conclusion, we can do LL parsing from any point where we know there's only one rule left (or equivalently, inline those simple functions). This means we only have box functions left:
 
 ```rust
@@ -575,13 +583,8 @@ There is/was such a thing as left-corner parsing, seemingly mostly used in natur
 
 I really need to stop working on this blog post and publish it already. It's been over a year since I started working on it (on and off, during holidays when I had enough focus time)[^graphviz]. I already had an idea of where to go to next (generalised parsers), but now I also want to study minimal LR(1) automaton/parse table algorithms, and look at continuation passing style again because I think you can pass the left-context as a function argument. This would give you an LALR automaton structure with LR parsing power. Is that a good idea? Don't know, needs testing (or reading papers/blog posts, probably someone else already tried this before). In the mean time I've also been learning about some optimisation techniques to apply on recursive ascent code if you generate it, which makes them look really great in terms of code size and hopefully also performance.
 
+[^graphviz]: I hope you appreciate how much time it took to find example grammars to steal (or occasionally develop myself) and especially how much time it took to get GraphViz to output somewhat decent automata of those examples!
+
 I usually have a pithy remark or sneak the Kaomoji into the footnotes, but I must be out of practice, because I can't think of a good way to do that...
 
 Ehh, whatever ¯\\\_(ツ)\_/¯
-
-
-[^indirect-recursion]: _Indirect_ left recursion is even worse in LL. At least the direct version can still be dealt with by an automatic grammar rewrite algorithm. That's more or less what the node-reparenting trick mentioned at the end of the LL section does. Similarly, there are automatic grammar rewrites for direct right-recursion for LR, and indirect right recursion can be more problematic...
-
-[^inlining]: Actually, I checked in [Compiler Explorer](https://godbolt.org/) how this turns out, and while `s7` is inlined and compiled away entirely, adapting `box1` to consume directly will make the assembly at `opt-level=3` smaller. Adding an `#[inline]` hint on `consume` helps as well. Though I may just be seeing the effect of uniform error messages through `consume`. Actually following and understanding the optimised assembly code is a pain, so I just clicked around a bit to verify that the example code is reduced to a state machine with jumps and labels instead of using function `call` instructions. So that's neat, basically what I was hoping for :)
-
-[^graphviz]: I hope you appreciate how much time it took to find example grammars to steal (or occasionally develop myself) and especially how much time it took to get GraphViz to output somewhat decent automata of those examples!
