@@ -4,3 +4,5 @@
 /code/
 /content/
 /sass/
+*.drawio
+*.drawio.bkp
