@@ -59,3 +59,7 @@ paths_keep_dates = false
 [extra]
 # Put all your custom variables here
 language_switcher = false
+
+[extra.table_of_contents]
+show = true
+max_level = 3
