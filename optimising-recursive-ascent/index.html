@@ -38,6 +38,55 @@
             10 Aug, 2024</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#la-lr-and-recursive-ascent">(LA)LR and Recursive Ascent</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#reverse-goto">Reverse Goto</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#chain-elimination">Chain Elimination</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#stack-access-minimisation">Stack Access Minimisation</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#improved-minpush">Improved minpush</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#conclusion">Conclusion?</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/#errata">Errata</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>This is post picks up where we <a href="https://blog.jeffsmits.net/lr-parsing-recursive-ascent/">left off with parsing</a>: Recursive Ascent. In the previous post I highlighted how parsing is all about grammars and (push-down) automata (PDA). And that if you follow the logic of how LL parsing has recursive descent, then LR parsing should have recursive <em>ascent</em>. Which it does!</p>
 <p>In this post we’ll explore a couple more techniques for making the recursive ascent parser a bit smaller and faster. We’ll explore the ideas from <a href="https://doi.org/10.1007/3-540-53669-8_82">a 1990 paper called <em>Optimizing Directly Executable LR Parsers</em> by Peter Pfahler</a>. For the example grammar, the paper can optimise away 6 out of 15 states in the parser!</p>

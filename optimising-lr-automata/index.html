@@ -32,6 +32,55 @@
           <time datetime='2024-11-16T00:00:00+00:00' pubdate>16 Nov, 2024</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#our-running-example-returns">Our Running Example Returns</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#the-state-machine-underneath">The State Machine Underneath</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#reverse-goto">Reverse Goto</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#push-first-and-merging-states">Push-First and Merging States</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#minimal-push-optimisation">Minimal Push Optimisation</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#inlining">Inlining</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-lr-automata/#conclusion">Conclusion</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>I thought I was done with this topic for while, happily planning a new blog post on generalised parsing, but here we are again. This post will be a kind of remix of the <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/">two posts</a> <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/">on optimising recursive ascent parsing</a>. Why? Well, I wrote those posts directly based on the papers I refer to in there, and they present their optimisations based on code. At the time that felt quite natural, and I manually applied their ideas and some of my own to code examples. But <a href="https://blog.jeffsmits.net/lr-parsing-recursive-ascent/">when I introduced the topic of LR and recursive ascent in an earlier blog post</a>, I focussed on <em>automata</em> and making sense of everything <em>through automata</em>. And recently I had the idea to try to apply the optimisations from my previous two posts on the automaton itself.</p>
 <p>So, we’ll be looking underneath the LR automaton at the Push-Down Automaton (PDA)—since that’s much closer to the code—and see if we can make sense of the optimisations we did in the previous post through ✨<em>diagrams</em>✨<sup class="footnote-reference" id="fr-diagrams-1"><a href="#fn-diagrams">[1]</a></sup>.</p>

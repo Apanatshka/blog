@@ -32,6 +32,65 @@
           <time datetime='2016-09-04T00:00:00+00:00' pubdate>04 Sep, 2016</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#porting-the-tool">Porting the tool</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#comparing-modules">Comparing modules</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#the-current-interface">The current interface</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#things-to-come">Things to come</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#coloured-output">Coloured output</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#n-way-comparison-plotting">N-way comparison: Plotting</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#tests">Tests</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#better-statistics">Better statistics</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/porting-cargo-benchcmp/#real-world-comparisons-with-the-tool">Real world comparisons with the tool</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p><strong>TL;DR:</strong> I’ve ported the tool <a href="https://crates.io/crates/cargo-benchcmp"><code>cargo-benchcmp</code></a> from <a href="https://github.com/BurntSushi/cargo-benchcmp/blob/1d23dec5dd3abe3939cfea030162a7dc6461e544/cargo-benchcmp">Python</a> to <a href="https://github.com/BurntSushi/cargo-benchcmp">Rust</a> and added some functionality. There is more to come which is mostly waiting for review in <a href="https://github.com/BurntSushi/cargo-benchcmp/pulls">pull requests</a>.</p>
 <p>I’ve been messing around with Rust for a while now, and I found a little utility called <a href="https://github.com/BurntSushi/cargo-benchcmp"><code>cargo-benchcmp</code></a> by the famous <a href="http://blog.burntsushi.net/about/">BurntSushi (Andrew Gallant)</a>. You may have seen the benchmark comparisons in one of his <a href="http://blog.burntsushi.net/transducers/">blogposts</a> already. I found out that the utility was a nice <a href="https://github.com/BurntSushi/cargo-benchcmp/blob/1d23dec5dd3abe3939cfea030162a7dc6461e544/cargo-benchcmp">single file Python script</a>. Not a quick and dirty hack, but classes and a few docstrings. I was already messing around with some of my own rust code where I wanted to do a comparison between benchmarks, so that’s great. But the tool only worked with comparison of the same tests over time, and I wanted a comparison of the same tests on multiple implementations. So what do you do? Well, it’s a small open source tool so I decided to contribute. That’s what this post is about.</p>

@@ -32,6 +32,78 @@
           <time datetime='2016-11-12T00:00:00+00:00' pubdate>12 Nov, 2016</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#infinite-sets">Infinite Sets</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#union">Union</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#nfa">NFA-</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#the-elusive-epsilon-closure">The elusive epsilon closure</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#not-as-simple-as-that">Not as simple as that</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#the-real-implementation">The real implementation</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#using-the-sccs">Using the SCCs</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-2/#removing-the-recursion-are-we-there-yet">Removing the recursion Are we there yet?</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>This is post number four in a <a href="https://blog.jeffsmits.net/theory-of-computation/">series</a> on Automata (in the formal languages / regex / parsing sense). It’s also part two of the “implementation-heavy” stuff, where we go into implementing automata for real and useful things. This one is more of a mix of theory and code, which I hope is more appealing than the previous post which were either one or the other. In <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/">part one</a> I naively claimed that this would be two posts of implementation, but I’ve since found more to write about. Plus it allows me to postpone the hardest part of this implementation stuff (benchmarking).</p>
 <p>This post will go into Infinite Sets, NFA-<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>ε</mi></math> and the transitive reachability closures over cyclic graphs.</p>

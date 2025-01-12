@@ -32,6 +32,75 @@
           <time datetime='2018-04-30T00:00:00+00:00' pubdate>30 Apr, 2018</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#the-project-consistent-overhead-byte-stuffing">The project: consistent overhead byte stuffing</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#cobs-in-short">COBS in short</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#cobs-in-rust">COBS in Rust</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#tests">Tests</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#constants">Constants</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#decode">Decode</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#encode-buffer-input">Encode (buffer input)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#encode-buffer-output">Encode (buffer output)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#faster-decode">Faster decode</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#faster-encode">Faster encode</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/learn-rust-by-project/#conclusion">Conclusion</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>More than a year ago a friend of mine wanted to learn a bit more about Rust by trying out a project. He had a nice project in mind which suits Rust quite well I think. For fun I joined his effort and created <a href="https://gitlab.com/Apanatshka/cobs">an implementation</a> at the same time as he did, discussing and comparing along the way. In this post I’ll tell you about the project specifics, but the point of the post is more an encouragement. If you’ve read about Rust before but haven’t tried it yet, find a small project like the one below, and learn Rust in a fun and hands-on way yourself. It’s a great programming language, I highly recommend it.</p>
 <h1 id="the-project-consistent-overhead-byte-stuffing">The project: consistent overhead byte stuffing</h1>

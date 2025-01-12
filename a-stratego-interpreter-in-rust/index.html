@@ -32,6 +32,133 @@
           <time datetime='2017-08-06T00:00:00+00:00' pubdate>06 Aug, 2017</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#an-introduction-to-stratego">An introduction to Stratego</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#where-to-start">Where to start?</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#stratego-core">Stratego Core</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#the-interpreter">The interpreter</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#mutable-contexts-backtracking-and-closures">Mutable contexts, backtracking and closures</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#mutable-contexts-and-pattern-matching">Mutable contexts and pattern matching</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#lists-explosions-and-dynamic-type-checks">Lists, explosions and dynamic type checks</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#optimising-the-interpreter">Optimising the interpreter</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#removing-overzealous-cloning-commit">Removing overzealous cloning (commit)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#fnv-hashing-commit">FNV hashing (commit)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#make-structure-follow-common-patterns-commit">Make structure follow common patterns (commit)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#specialise-pattern-matching-commit">Specialise pattern matching (commit)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#less-string-allocation-a-k-a-all-the-lifetimes-commit">Less String allocation a.k.a. all the lifetimes! (commit)</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#lazily-cache-constants">Lazily cache constants</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#planned-copy-propagation-on-ctree">Planned: Copy Propagation on CTree</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#primitives-and-perfect-hashing">Primitives and Perfect Hashing</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#process">Process</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#tests">Tests</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/#tools">Tools</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>At the end of my last post, three months ago by now, I promised a blog post about <a href="https://gitlab.com/Apanatshka/strs">the Stratego interpreter that I am writing</a>. In fact I promised it soon, which sadly became “soon”. Life happened, deadlines on top of deadlines with major stress. I made it through in one piece though, so here’s the long promised blog post.</p>
 <p>I assume you’re already a bit familiar with Rust, most of my blog posts use it. I’m using it for side-projects, one of which is writing a performant Stratego interpreter. By Stratego, in this case, I mean the <a href="http://strategoxt.org">programming language</a>. In this blog post I’ll give you a look into the process of building this interpreter and all that I learnt about Rust while doing so. But I’ll also go deep into the quirky semantics of Stratego, because it was (usually) fun to figure out! If you like the <a href="https://www.destroyallsoftware.com/talks/wat">Wat</a> talk, I’m sure you’ll enjoy some of this stuff too.</p>

@@ -38,6 +38,108 @@
             17 Apr, 2016</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#an-exercise-in-minimalism">An exercise in minimalism</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#deterministic-finite-automaton-dfa">Deterministic Finite Automaton (DFA)</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#example-binary-string">Example: Binary string</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#code-code-code">Code code code</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#memory">Memory</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#non-deterministic-finite-automaton-nfa">Non-deterministic Finite Automaton (NFA)</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#powerset-construction">Powerset construction</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#epsilon-moves">Epsilon moves</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#regular-expressions">Regular expressions</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#limitations-and-non-regular-languages">Limitations and Non-regular languages</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#p-s">P.S.</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#addendum">Addendum</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#non-regularity-and-the-pumping-lemma">Non-regularity and the pumping lemma</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/finite-automata/#next-post">Next post</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>What do Turing machines and regular expressions have in common? One is a theoretical model of a computer, and can be used to prove that some things cannot be computed. The other is a practical tool for matching strings. And yet they are both based on a simple <em>computational model</em>: a (very constrained) finite state machine (FSM).</p>
 <p>In this blog post we’ll go over the basics of this type of FSM and instead of going over proofs, we’ll go over examples and little implementations in Rust. For more information about this blog post series, see <a href="https://blog.jeffsmits.net/theory-of-computation/">this announcement post</a>.</p>

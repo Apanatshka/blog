@@ -32,6 +32,61 @@
           <time datetime='2024-08-10T00:00:00+00:00' pubdate>10 Aug, 2024</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#quick-recap">Quick recap</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#code-sharing-through-push-first">Code Sharing Through Push-First</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#more-code-sharing-among-similar-enough-states">More Code Sharing Among Similar Enough States?</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#minimal-push-optimisation">Minimal Push Optimisation</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#inline-states-with-single-reference">Inline States with Single Reference</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#the-performance-was-a-lie">The Performance Was a Lie</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-recursive-ascent-part-2/#conclusion">Conclusion</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>Welcome back! Previously, on <a href="https://blog.jeffsmits.net/optimising-recursive-ascent/">Optimising Recursive Ascent Parsing</a>, we explored the ideas from <a href="https://doi.org/10.1007/3-540-53669-8_82">a 1990 paper called <em>Optimizing Directly Executable LR Parsers</em> by Peter Pfahler</a>. With the paper’s example grammar, and the described optimisations, we managed to optimise away 6 out of 15 states in the parser. But that’s peanuts compared to what we’ll do in this post! We’ll be taking inspiration from another 1990 paper, this one is called <a href="https://doi.org/10.1002/spe.4380200602"><em>Even Faster LR Parsing</em> by Nigel Horspool and Michael Whitney</a>. The optimisations make the recursive ascent parser significantly smaller, keeping only 4 out of the original 15 states. However, the optimisation steps are not always a performance win on our little test input…</p>
 <h2 id="quick-recap">Quick recap</h2>

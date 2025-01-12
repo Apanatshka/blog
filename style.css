@@ -208,6 +208,10 @@ div.footnote-definition p:first-of-type {
     color: #ddd;
   }
 
+  .parsetable thead {
+    color: #444;
+  }
+
   blockquote {
     color: #ccc;
   }

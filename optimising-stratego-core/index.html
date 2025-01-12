@@ -32,6 +32,66 @@
           <time datetime='2018-05-08T00:00:00+00:00' pubdate>08 May, 2018</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#copy-propagation">Copy Propagation</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#copy-propagation-for-stratego">Copy Propagation for Stratego</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#copy-prop-on-ctree-using-abstract-interpretation">Copy prop on CTree using abstract interpretation</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#values">Values</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#match-and-build">Match and Build</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#scopes-and-sequences">Scopes and Sequences</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#results-of-applying-ctree-opt">Results of applying ctree_opt</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/optimising-stratego-core/#making-name-lookup-cheap">Making name lookup cheap</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>Once upon a time, I wrote an <a href="https://blog.jeffsmits.net/a-stratego-interpreter-in-rust/">interpreter for Stratego Core</a> in Rust, which I named <code>strs</code>. Stratego Core is the core language that Stratego is compiled to before the compiler goes further (to Java, or previously to C). A core language is an intermediate representation that is a subset of the surface language.</p>
 <p>While I optimised that interpreter quite a bit, I noticed that the CTree (Stratego Core Abstract Syntax Tree) that the compiler spit out for me to interpret was very unoptimised. Therefore one the plans I described at the end of the blog post was a little tool for Copy Propagation on CTree files. This post is about that tool, and the optimisations in the interpreter that made it obsolete again.</p>

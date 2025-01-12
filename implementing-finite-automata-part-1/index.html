@@ -32,6 +32,67 @@
           <time datetime='2016-10-03T00:00:00+00:00' pubdate>03 Oct, 2016</time>
         </i>
       </p>
+    <details open>
+      <summary>Table of Contents</summary>
+      
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#non-deterministic-finite-automata">Non-deterministic Finite Automata</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#nfa-execution">NFA execution</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#powerset-construction-nfa-dfa">Powerset Construction (NFA → DFA)</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#improving-the-code">Improving the code</a>
+        
+          
+<ul>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#a-bit-of-code-reuse">A bit of code-reuse</a>
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#recursion-to-worklist">Recursion to worklist</a>
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+</ul>
+
+        
+    </li>
+  
+    <li>
+      <a href="https://blog.jeffsmits.net/implementing-finite-automata-part-1/#a-general-interface">A general interface</a>
+        
+    </li>
+  
+</ul>
+
+    </details>
   <main>
     <p>This is post number three in a <a href="https://blog.jeffsmits.net/theory-of-computation/">series</a> on Automata (in the formal languages / regex / parsing sense). This is the promised “implementation-heavy” post, where we go into implementing automata for real and useful things.</p>
 <p>As always the programming language is Rust. By now I’ve actually had a bit of practice with the language, so hopefully the code will be less naive. Where in the <a href="https://blog.jeffsmits.net/finite-automata/">previous post on Finite Automata</a> we went through examples of direct encodings of specific automata, in this post we’ll look at more reusable code. I hope to publish the code discussed here in a crate eventually.</p>
