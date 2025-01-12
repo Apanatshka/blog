@@ -14,6 +14,9 @@ default_language = "en"
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
 
+# Files to ignore among co-located asset files
+ignored_content = ["**.drawio"]
+
 # Whether to build a search index to be used later on by a JavaScript library
 build_search_index = false
 
