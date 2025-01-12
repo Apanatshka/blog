@@ -1,5 +1,6 @@
 #!/bin/sh
 
+rm -r public && \
 zola build && \
 git checkout master && \
 cp -r public/* . && \

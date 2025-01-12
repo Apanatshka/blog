@@ -15,7 +15,7 @@ default_language = "en"
 compile_sass = true
 
 # Files to ignore among co-located asset files
-ignored_content = ["**.drawio"]
+ignored_content = ["*.drawio", "*.drawio.bkp"]
 
 # Whether to build a search index to be used later on by a JavaScript library
 build_search_index = false
