@@ -187,7 +187,7 @@
 <tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>B</mi><mo>=</mo></math></td><td style="text-align: left">(4)</td></tr>
 <tr><td style="text-align: left"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>B</mi><mo>=</mo><mi>c</mi></math></td><td style="text-align: left">(5)</td></tr>
 </tbody></table>
-<p>The language is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msup><mi>a</mi><mo>*</mo></msup><mi>b</mi><msup><mrow><mo>(</mo><mi>c</mi><mi>c</mi><mo>)</mo></mrow><mo>*</mo></msup></math>. Here’s the automaton:</p>
+<p>The language is a subset of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msup><mi>a</mi><mo>*</mo></msup><mi>b</mi><msup><mi>c</mi><mo>*</mo></msup></math>, namely the strings where the number of <code>c</code>s is less than or equal to twice the number of <code>a</code>s. Here’s the automaton:</p>
 <div class="gz_dot">
 <p><img src="https://blog.jeffsmits.net/generalised-lr-parsing/gre-42-edit.svg" alt="The LALR(1) DFA for grammar 4.2" /></p>
 </div>
