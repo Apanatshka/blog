@@ -188,7 +188,7 @@ $E = b$    | (3)
 $B =$      | (4)
 $B = c$    | (5)
 
-The language is $a^* b c^? c^?$. Here's the automaton:
+The language is $a^* b {(cc)}^*$. Here's the automaton:
 
 <div class="gz_dot">
 
@@ -328,7 +328,7 @@ Similar reasoning can be applied in `S2` and `S0` to prefer the short-circuit ru
 
 Settling the conflict by reducing with `E = a • A` on a `$` lookahead and by `B = • C C` with a `d` lookahead has knock-on effects in other places. We now know that `S5` can only be reached with a `d` lookahead, meaning we never reduce by `D = •`.
 
-In the above example, all conflicts can be resolved with the method sketched here. If I understand the paper correctly, you can build up your itemsets for each state cleverly to order the items so later epsilon rules are always overridden by earlier ones with the same follow set symbol. Thereby resolving any reduce-reduce conflict with epsilon rules caused by the short-circuiting rules. Since the paper doesn't make this claim explicitly though, I can't be entirely sure of that last bit.
+In the above example, all conflicts can be resolved with the method sketched here. If I understand the paper correctly, you can build up your itemsets for each state cleverly to order the items so later epsilon rules are always overridden by earlier ones with the same follow set symbol, thereby resolving any reduce-reduce conflict with epsilon rules caused by the short-circuiting rules. Since the paper doesn't make this claim explicitly though, I can't be entirely sure of that last bit.
 
 ### Parse Forests
 
