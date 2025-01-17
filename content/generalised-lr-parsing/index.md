@@ -188,7 +188,7 @@ $E = b$    | (3)
 $B =$      | (4)
 $B = c$    | (5)
 
-The language is $a^* b {(cc)}^*$. Here's the automaton:
+The language is a subset of $a^* b c^*$, namely the strings where the number of `c`s is less than or equal to twice the number of `a`s. Here's the automaton:
 
 <div class="gz_dot">
 
