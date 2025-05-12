@@ -71,7 +71,7 @@ pub enum Error {
 }
 ```
 
-So we have our input type `Iter` of characters we can peek into without consuming for that single lookahead. We've got `Sort`s, a `State_` enum with a suspicious underscore tacked on. Note how the states are just `S#`, but the ones that have goto actions also have a `S#Goto` version. This was slightly nicer with the function-encoded recursive ascent parser, which had a natural "return" part. On the other hand, this one should be nicer in the popping multiple things from the stack department. To do a "semantic action" when reducing we mark these places with an uninlinable `outprod`. This will just be a placeholder for _<expensive operation here>_.There's an `Error` type, no surprises here. 
+So we have our input type `Iter` of characters we can peek into without consuming for that single lookahead. We've got `Sort`s, a `State_` enum with a suspicious underscore tacked on. Note how the states are just `S#`, but the ones that have goto actions also have a `S#Goto` version. This was slightly nicer with the function-encoded recursive ascent parser, which had a natural "return" part. On the other hand, this one should be nicer in the popping multiple things from the stack department. To do a "semantic action" when reducing we mark these places with an uninlinable `outprod`. This will just be a placeholder for some expensive operation.There's an `Error` type, no surprises here. 
 
 Let's continue to our first go at some recursive ascent code for the parse table. You don't have to read through and study all of it, have a quick look, then I'll highlight some insights after:
 
