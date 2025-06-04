@@ -44,7 +44,7 @@ So `None` is the stuck state and the 'real' states are wrapped in a `Some`. In t
 
 ### Memory
 
-Note that DFAs are so restricted that they don't really have mutable memory. Any kind of memory of what you've already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the second to last symbol:
+Note that DFAs are so restricted that they don't really have mutable memory. Any kind of memory of what you've already seen of the input needs to be statically encoded in the states of the state machine. This can get a little awkward when you want to recognise binary strings that have a 1 as the third to last symbol:
 
 {{ digraph(gz_file="binary-string-dfa-memory.gv", alt="Binary string DFA encoding memory") }}
 
